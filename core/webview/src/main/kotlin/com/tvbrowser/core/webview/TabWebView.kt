@@ -18,6 +18,9 @@ class TabConfig(
 
 object TabWebViewFactory {
 
+    const val DEFAULT_PAGE_SCALE_PERCENT = 80
+    const val DEFAULT_TEXT_ZOOM_PERCENT = 120
+
     @SuppressLint("SetJavaScriptEnabled")
     fun create(
         context: Context,
@@ -34,6 +37,12 @@ object TabWebViewFactory {
             mediaPlaybackRequiresUserGesture = false
             loadWithOverviewMode = true
             useWideViewPort = true
+            textZoom = DEFAULT_TEXT_ZOOM_PERCENT
+            minimumFontSize = 10
+            minimumLogicalFontSize = 10
+            setSupportZoom(true)
+            builtInZoomControls = true
+            displayZoomControls = false
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             setSupportMultipleWindows(false)
             javaScriptCanOpenWindowsAutomatically = false
@@ -43,6 +52,9 @@ object TabWebViewFactory {
                 saveFormData = false
             }
         }
+        // Fit desktop-sized pages into a 1080p TV viewport. Text zoom above keeps
+        // body copy readable while forms and dialogs remain fully reachable.
+        wv.setInitialScale(DEFAULT_PAGE_SCALE_PERCENT)
         wv.isFocusable = true
         wv.isFocusableInTouchMode = true
 
@@ -54,7 +66,9 @@ object TabWebViewFactory {
                 view: WebView,
                 request: WebResourceRequest,
             ): WebResourceResponse? {
-                if (!config.adblockEnabled) return null
+                // A host rule must never blank a top-level navigation. Ad blocking
+                // only applies to subresources loaded by the current document.
+                if (!config.adblockEnabled || request.isForMainFrame) return null
                 val url = request.url?.toString() ?: return null
                 return if (adBlock.shouldBlock(url)) {
                     WebResourceResponse("text/plain", "utf-8", java.io.ByteArrayInputStream(ByteArray(0)))

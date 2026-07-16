@@ -22,7 +22,7 @@ object PebbleDimens {
     // Layout
     val Gutter   = 56.dp   // page side gutter / safe-area inset
     val RailW    = 116.dp  // navigation rail width
-    val ChromeH  = 92.dp   // browser top bar
+    val ChromeH  = 76.dp   // compact browser top bar; controls remain 60dp
     val HintH    = 56.dp   // key-hint bar
 
     // Focus — two-part ring: 3dp bg gap + 3dp primary ring; rail/menu use 2+2

@@ -24,7 +24,7 @@ import javax.inject.Singleton
     entities = [Bookmark::class, HistoryEntry::class, TabEntity::class, DownloadRecord::class],
     views = [MostVisitedView::class],
     version = 1,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun bookmarkDao(): BookmarkDao
@@ -40,7 +40,6 @@ object DbModule {
     @Provides @Singleton
     fun database(@ApplicationContext ctx: Context): AppDatabase =
         Room.databaseBuilder(ctx, AppDatabase::class.java, "tv_browser.db")
-            .fallbackToDestructiveMigration()
             .build()
 
     @Provides fun bookmarkDao(db: AppDatabase): BookmarkDao = db.bookmarkDao()

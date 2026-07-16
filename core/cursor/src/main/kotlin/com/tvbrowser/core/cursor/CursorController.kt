@@ -4,9 +4,14 @@ import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import com.tvbrowser.core.common.SettingsRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,7 +31,9 @@ data class CursorState(
  * - Outside cursor mode: returns false so spatial focus traversal works normally
  */
 @Singleton
-class CursorController @Inject constructor() {
+class CursorController @Inject constructor(
+    settings: SettingsRepository,
+) {
 
     private val _state = MutableStateFlow(CursorState())
     val state: StateFlow<CursorState> = _state.asStateFlow()
@@ -34,12 +41,22 @@ class CursorController @Inject constructor() {
     private var targetView: View? = null
     private var centerDownTime: Long = 0L
     private var centerLongPressed: Boolean = false
+    private var touchDownTime: Long = 0L
+    @Volatile private var longPressEnabled: Boolean = true
     private val longPressMs = 500L
     private val baseStepPx = 24f
     private val acceleratedStepPx = 96f
 
+    init {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            settings.cursorToggleLongPress.collect { longPressEnabled = it }
+        }
+    }
+
     fun attachTarget(view: View?) {
+        if (view == null && touchDownTime != 0L) dispatchTouch(MotionEvent.ACTION_CANCEL)
         targetView = view
+        if (view == null) setActive(false)
         view?.let { v ->
             v.post {
                 _state.value = _state.value.copy(
@@ -56,12 +73,15 @@ class CursorController @Inject constructor() {
         _state.value = _state.value.copy(active = active)
     }
 
-    fun handleKeyEvent(event: KeyEvent): Boolean {
+    fun handleKeyEvent(
+        event: KeyEvent,
+        dispatchShortPress: (keyCode: Int) -> Unit = {},
+    ): Boolean {
         val code = event.keyCode
         val action = event.action
 
         if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
-            return handleCenterKey(event)
+            return handleCenterKey(event, dispatchShortPress)
         }
 
         if (!_state.value.active) return false
@@ -88,9 +108,10 @@ class CursorController @Inject constructor() {
         }
     }
 
-    private fun handleCenterKey(event: KeyEvent): Boolean {
+    private fun handleCenterKey(event: KeyEvent, dispatchShortPress: (Int) -> Unit): Boolean {
         val now = SystemClock.uptimeMillis()
         val cursorAvailable = targetView != null
+        if (!_state.value.active && (!cursorAvailable || !longPressEnabled)) return false
         when (event.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (event.repeatCount == 0) {
@@ -100,29 +121,32 @@ class CursorController @Inject constructor() {
                     (event.isLongPress || now - centerDownTime >= longPressMs)
                 ) {
                     centerLongPressed = true
+                    if (_state.value.active) dispatchTouch(MotionEvent.ACTION_CANCEL)
                     setActive(!_state.value.active)
                     return true
                 }
                 if (_state.value.active && !centerLongPressed && event.repeatCount == 0) {
                     dispatchTouch(MotionEvent.ACTION_DOWN)
                 }
-                return _state.value.active || (cursorAvailable && event.repeatCount > 0)
+                return true
             }
             KeyEvent.ACTION_UP -> {
                 val held = now - centerDownTime
-                if (_state.value.active) {
-                    if (!centerLongPressed) {
-                        dispatchTouch(MotionEvent.ACTION_UP)
-                    }
+                if (centerLongPressed) {
                     centerLongPressed = false
                     return true
                 }
-                if (cursorAvailable && held >= longPressMs && !centerLongPressed) {
-                    centerLongPressed = true
-                    setActive(true)
+                if (cursorAvailable && held >= longPressMs) {
+                    if (_state.value.active) dispatchTouch(MotionEvent.ACTION_CANCEL)
+                    setActive(!_state.value.active)
                     return true
                 }
-                return false
+                if (_state.value.active) {
+                    dispatchTouch(MotionEvent.ACTION_UP)
+                    return true
+                }
+                dispatchShortPress(event.keyCode)
+                return true
             }
             else -> return false
         }
@@ -147,8 +171,11 @@ class CursorController @Inject constructor() {
         val v = targetView ?: return
         val s = _state.value
         val now = SystemClock.uptimeMillis()
-        val ev = MotionEvent.obtain(now, now, action, s.x, s.y, 0)
+        if (action == MotionEvent.ACTION_DOWN) touchDownTime = now
+        val downTime = touchDownTime.takeIf { it != 0L } ?: now
+        val ev = MotionEvent.obtain(downTime, now, action, s.x, s.y, 0)
         v.dispatchTouchEvent(ev)
         ev.recycle()
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) touchDownTime = 0L
     }
 }

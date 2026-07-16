@@ -34,6 +34,7 @@ import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -86,10 +87,9 @@ import com.tvbrowser.core.design.PebbleType
 import com.tvbrowser.core.design.pebbleFocus
 import com.tvbrowser.core.design.pebbleClickable
 import kotlinx.coroutines.delay
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle as JtTextStyle
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -108,6 +108,7 @@ fun HomeScreen(
     val menuItem by vm.selectedForMenu.collectAsState()
     val omniboxFocus = remember { androidx.compose.ui.focus.FocusRequester() }
     var query by remember { mutableStateOf("") }
+    var privateMode by remember { mutableStateOf(false) }
 
     val voiceLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -118,7 +119,7 @@ fun HomeScreen(
             ?.takeIf { it.isNotBlank() }
         if (spoken != null) {
             query = spoken
-            vm.openInNewTab(spoken) { tabId -> onOpenUrl(tabId) }
+            vm.openInNewTab(spoken, isIncognito = privateMode) { tabId -> onOpenUrl(tabId) }
         }
     }
     val voiceIntent = remember {
@@ -131,14 +132,13 @@ fun HomeScreen(
         }
     }
 
-    var now by remember { mutableStateOf(LocalTime.now()) }
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
-            now = LocalTime.now()
+            now = System.currentTimeMillis()
             delay(1000)
         }
     }
-    val today = remember(now) { LocalDate.now() }
 
     Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
         Column(
@@ -149,17 +149,19 @@ fun HomeScreen(
         ) {
             Wordmark()
             Spacer(Modifier.height(PebbleDimens.Sp10))
-            Hero(time = now, date = today)
+            Hero(now = now)
             Spacer(Modifier.height(PebbleDimens.Sp10))
             SearchField(
                 value = query,
                 onValueChange = { query = it },
                 onSubmit = {
                     if (query.isNotBlank()) {
-                        vm.openInNewTab(query) { tabId -> onOpenUrl(tabId) }
+                        vm.openInNewTab(query, isIncognito = privateMode) { tabId -> onOpenUrl(tabId) }
                     }
                 },
                 onVoice = { voiceLauncher.launch(voiceIntent) },
+                privateMode = privateMode,
+                onTogglePrivate = { privateMode = !privateMode },
                 focusRequester = omniboxFocus,
             )
             Spacer(Modifier.height(PebbleDimens.Sp10))
@@ -202,18 +204,21 @@ private fun Wordmark() {
 }
 
 @Composable
-private fun Hero(time: LocalTime, date: LocalDate) {
-    val clockText = time.format(DateTimeFormatter.ofPattern("HH:mm"))
-    val hour = time.hour
+private fun Hero(now: Long) {
+    val locale = Locale.getDefault()
+    val clockText = remember(now, locale) { SimpleDateFormat("HH:mm", locale).format(Date(now)) }
+    val hour = remember(now) {
+        Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.HOUR_OF_DAY)
+    }
     val greet = when {
         hour < 12 -> "Good morning"
         hour < 17 -> "Good afternoon"
         hour < 21 -> "Good evening"
         else -> "Good night"
     }
-    val dayName = date.dayOfWeek.getDisplayName(JtTextStyle.FULL, Locale.getDefault()).uppercase(Locale.getDefault())
-    val monthName = date.month.getDisplayName(JtTextStyle.SHORT, Locale.getDefault()).uppercase(Locale.getDefault())
-    val dateLine = "$dayName, ${date.dayOfMonth} $monthName"
+    val dateLine = remember(now, locale) {
+        SimpleDateFormat("EEEE, d MMM", locale).format(Date(now)).uppercase(locale)
+    }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
@@ -243,6 +248,8 @@ private fun SearchField(
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onVoice: () -> Unit,
+    privateMode: Boolean,
+    onTogglePrivate: () -> Unit,
     focusRequester: androidx.compose.ui.focus.FocusRequester,
 ) {
     val focusManager = LocalFocusManager.current
@@ -316,6 +323,30 @@ private fun SearchField(
             onUpDown = { dir ->
                 focusManager.moveFocus(dir)
             },
+        )
+        Spacer(Modifier.width(12.dp))
+        PrivateButton(active = privateMode, onClick = onTogglePrivate)
+    }
+}
+
+@Composable
+private fun PrivateButton(active: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(64.dp)
+            .pebbleFocus(shape = CircleShape, lift = false)
+            .background(
+                if (active) PebbleColors.PrimaryContainer else PebbleColors.Surface2,
+                CircleShape,
+            )
+            .pebbleClickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Outlined.VisibilityOff,
+            contentDescription = if (active) "Private search enabled" else "Private search disabled",
+            tint = if (active) PebbleColors.PrimaryStrong else PebbleColors.OnSurfaceMuted,
+            modifier = Modifier.size(28.dp),
         )
     }
 }
@@ -550,7 +581,7 @@ private fun WebViewPreview(url: String, modifier: Modifier = Modifier) {
         modifier = modifier,
         factory = { ctx ->
             WebView(ctx).apply {
-                settings.javaScriptEnabled = true
+                settings.javaScriptEnabled = false
                 settings.domStorageEnabled = true
                 settings.useWideViewPort = true
                 settings.loadWithOverviewMode = true

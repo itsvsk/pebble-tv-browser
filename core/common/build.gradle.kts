@@ -21,4 +21,5 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.kotlinx.coroutines.android)
     api(libs.datastore.preferences)
+    testImplementation(libs.junit)
 }

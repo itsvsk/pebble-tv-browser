@@ -35,9 +35,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @Suppress("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (cursorController.handleKeyEvent(event)) return true
+        if (cursorController.handleKeyEvent(event, ::dispatchShortPress)) return true
         return super.dispatchKeyEvent(event)
+    }
+
+    @Suppress("RestrictedApi")
+    private fun dispatchShortPress(keyCode: Int) {
+        val now = android.os.SystemClock.uptimeMillis()
+        super.dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0))
+        super.dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0))
     }
 }
 

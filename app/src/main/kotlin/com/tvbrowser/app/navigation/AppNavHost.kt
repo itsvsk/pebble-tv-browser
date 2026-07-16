@@ -38,6 +38,11 @@ fun AppNavHost(cursorState: CursorState) {
 
     RootShell(
         active = active,
+        // Browsing is immersive: the toolbar already provides Home/Back and Tabs.
+        // Removing the rail and hint overlay gives webpages the full TV viewport
+        // and prevents bottom-page controls (for example reCAPTCHA Verify) being covered.
+        showRail = currentRoute != Routes.BROWSER,
+        showHints = currentRoute != Routes.BROWSER,
         onSelect = { dest ->
             val route = when (dest) {
                 NavDestination.Home -> Routes.HOME

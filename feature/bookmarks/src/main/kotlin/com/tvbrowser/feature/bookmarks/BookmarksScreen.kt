@@ -285,7 +285,7 @@ private fun BookmarkWebViewPreview(url: String, modifier: Modifier = Modifier) {
         modifier = modifier,
         factory = { ctx ->
             WebView(ctx).apply {
-                settings.javaScriptEnabled = true
+                settings.javaScriptEnabled = false
                 settings.domStorageEnabled = true
                 settings.useWideViewPort = true
                 settings.loadWithOverviewMode = true

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -115,7 +116,6 @@ fun TabsOverviewScreen(
                         TabCard(
                             tab = tab,
                             onClick = { onOpenTab(tab.id) },
-                            onClose = { vm.close(tab) },
                             onLongClick = { vm.showMenu(tab) },
                         )
                     }
@@ -350,7 +350,6 @@ private fun Pill(label: String, icon: androidx.compose.ui.graphics.vector.ImageV
 private fun TabCard(
     tab: TabEntity,
     onClick: () -> Unit,
-    onClose: () -> Unit,
     onLongClick: () -> Unit,
 ) {
     val host = UrlUtils.hostOf(tab.url) ?: tab.url
@@ -370,21 +369,12 @@ private fun TabCard(
             TabFavicon(host = host, isHome = isHome, size = 20.dp)
             Spacer(Modifier.width(8.dp))
             Text(
-                host,
+                if (tab.isIncognito) "PRIVATE · $host" else host,
                 style = PebbleType.LabelSm,
                 color = PebbleColors.OnSurfaceMuted,
                 maxLines = 1,
                 modifier = Modifier.weight(1f),
             )
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .pebbleFocus(shape = CircleShape, lift = false, tight = true)
-                    .pebbleClickable(onClick = onClose),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Outlined.Close, contentDescription = "Close", tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(18.dp))
-            }
         }
         Spacer(Modifier.height(PebbleDimens.Sp3))
         Box(
@@ -502,9 +492,9 @@ private fun TabContextMenu(
                         .clip(RcShape(10.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (isHome) {
+                    if (isHome || tab.isIncognito) {
                         Icon(
-                            Icons.Outlined.Home,
+                            if (tab.isIncognito) Icons.Outlined.VisibilityOff else Icons.Outlined.Home,
                             contentDescription = null,
                             tint = PebbleColors.OnSurfaceFaint,
                             modifier = Modifier.size(64.dp),
@@ -529,12 +519,14 @@ private fun TabContextMenu(
                     onClick = onOpen,
                     modifier = Modifier.focusRequester(openFocus),
                 )
-                Spacer(Modifier.height(8.dp))
-                MenuRow(
-                    label = if (isBookmarked) "Remove bookmark" else "Save to bookmarks",
-                    icon = if (isBookmarked) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd,
-                    onClick = onToggleBookmark,
-                )
+                if (!tab.isIncognito) {
+                    Spacer(Modifier.height(8.dp))
+                    MenuRow(
+                        label = if (isBookmarked) "Remove bookmark" else "Save to bookmarks",
+                        icon = if (isBookmarked) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd,
+                        onClick = onToggleBookmark,
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
                 MenuRow(
                     label = "Close tab",
@@ -581,7 +573,7 @@ private fun TabWebViewPreview(url: String, modifier: Modifier = Modifier) {
         modifier = modifier,
         factory = { ctx ->
             WebView(ctx).apply {
-                settings.javaScriptEnabled = true
+                settings.javaScriptEnabled = false
                 settings.domStorageEnabled = true
                 settings.useWideViewPort = true
                 settings.loadWithOverviewMode = true

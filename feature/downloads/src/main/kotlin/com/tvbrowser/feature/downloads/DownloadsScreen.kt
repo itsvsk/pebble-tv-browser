@@ -22,7 +22,6 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -62,8 +61,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Locale
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -79,7 +81,25 @@ class DownloadsViewModel @Inject constructor(
     val progress: StateFlow<Map<Long, DownloadProgress>> = records
         .flatMapLatest { list ->
             val active = list.filter { it.status == DownloadRecord.STATUS_RUNNING }.map { it.dmId }
-            dmRepo.observeProgress(active)
+            if (active.isEmpty()) flowOf(emptyMap()) else dmRepo.observeProgress(active)
+        }
+        .onEach { updates ->
+            val activeIds = records.value
+                .asSequence()
+                .filter { it.status == DownloadRecord.STATUS_RUNNING }
+                .map { it.dmId }
+                .toSet()
+            (activeIds - updates.keys).forEach { missingId ->
+                repo.updateStatus(missingId, DownloadRecord.STATUS_FAILED)
+            }
+            updates.values.forEach { item ->
+                val status = when (item.statusCode) {
+                    DownloadManager.STATUS_SUCCESSFUL -> DownloadRecord.STATUS_SUCCESS
+                    DownloadManager.STATUS_FAILED -> DownloadRecord.STATUS_FAILED
+                    else -> null
+                }
+                if (status != null) repo.updateStatus(item.dmId, status)
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
@@ -89,7 +109,12 @@ class DownloadsViewModel @Inject constructor(
     fun showMenu(r: DownloadRecord) { _selectedForMenu.value = r }
     fun dismissMenu() { _selectedForMenu.value = null }
 
-    fun cancel(record: DownloadRecord) { dmRepo.cancel(record.dmId) }
+    fun cancel(record: DownloadRecord) {
+        viewModelScope.launch {
+            dmRepo.cancel(record.dmId)
+            repo.updateStatus(record.dmId, DownloadRecord.STATUS_FAILED)
+        }
+    }
     fun open(record: DownloadRecord) { dmRepo.openFile(record) }
 
     fun deleteRecord(record: DownloadRecord) {
@@ -115,7 +140,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8)) {
             Header(active = active.size, done = done.size)
             Spacer(Modifier.height(PebbleDimens.Sp6))
-            DefaultLocationCard(path = "/storage/emulated/0/Download")
+            DefaultLocationCard(path = "App storage / Downloads")
             Spacer(Modifier.height(PebbleDimens.Sp6))
             if (records.isEmpty()) {
                 Text("No downloads yet.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
@@ -182,7 +207,6 @@ private fun Header(active: Int, done: Int) {
             Text("$active active · $done completed", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
         }
         Spacer(Modifier.weight(1f))
-        Pill(label = "Open folder", icon = Icons.Outlined.FolderOpen, onClick = {})
     }
 }
 
@@ -222,7 +246,6 @@ private fun DefaultLocationCard(path: String) {
             Spacer(Modifier.height(2.dp))
             Text(path, style = PebbleType.Mono, color = PebbleColors.OnSurface)
         }
-        Pill(label = "Change", icon = Icons.Outlined.FolderOpen, onClick = {})
     }
 }
 
@@ -407,17 +430,11 @@ private fun DownloadContextMenu(
                     )
                 } else {
                     MenuRow(
-                        label = "Retry",
-                        icon = Icons.Outlined.Refresh,
-                        onClick = { /* TODO retry — v2 */ },
-                        modifier = Modifier.focusRequester(firstFocus),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    MenuRow(
                         label = "Remove from list",
                         icon = Icons.Outlined.DeleteOutline,
                         onClick = onDelete,
                         danger = true,
+                        modifier = Modifier.focusRequester(firstFocus),
                     )
                 }
             }
@@ -457,5 +474,5 @@ private fun formatBytes(bytes: Long): String {
     val units = arrayOf("B", "KB", "MB", "GB")
     var v = bytes.toDouble(); var i = 0
     while (v >= 1024 && i < units.lastIndex) { v /= 1024; i++ }
-    return String.format("%.1f %s", v, units[i])
+    return String.format(Locale.getDefault(), "%.1f %s", v, units[i])
 }

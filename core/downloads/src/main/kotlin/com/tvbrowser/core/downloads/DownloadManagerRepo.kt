@@ -38,7 +38,9 @@ class DownloadManagerRepo @Inject constructor(
         targetDir: File? = null,
     ): Long {
         val filename = URLUtil.guessFileName(url, contentDisposition, mime)
-        val dir = targetDir ?: context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val dir = targetDir
+            ?: context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            ?: error("External downloads directory unavailable")
         val dest = File(dir, filename)
 
         val req = DownloadManager.Request(Uri.parse(url))

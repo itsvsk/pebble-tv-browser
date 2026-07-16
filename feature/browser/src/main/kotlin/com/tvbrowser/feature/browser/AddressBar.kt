@@ -28,7 +28,6 @@ import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SwipeRightAlt
 import androidx.compose.material.icons.outlined.Tab
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -72,18 +72,18 @@ import com.tvbrowser.core.design.pebbleFocus
 fun AddressBar(
     url: String,
     isBookmarked: Boolean,
+    bookmarkEnabled: Boolean,
     desktopUa: Boolean,
+    canGoForward: Boolean,
     onSubmit: (String) -> Unit,
     onBack: () -> Unit,
     onForward: () -> Unit,
     onReload: () -> Unit,
-    onHome: () -> Unit, // kept for API compat; rail handles Home now
     onTabs: () -> Unit,
     onBookmark: () -> Unit,
     onToggleUa: () -> Unit,
     cursorActive: Boolean,
     onToggleCursor: () -> Unit,
-    onMenu: () -> Unit,
 ) {
     var text by remember(url) { mutableStateOf(url) }
     var editing by remember { mutableStateOf(false) }
@@ -103,7 +103,7 @@ fun AddressBar(
             horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
         ) {
             RoundIcon(Icons.Outlined.ArrowBack, "Back", onClick = onBack)
-            RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward, enabled = false)
+            RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward, enabled = canGoForward)
             RoundIcon(Icons.Outlined.Refresh, "Reload", onClick = onReload)
 
             Spacer(Modifier.width(PebbleDimens.Sp2))
@@ -139,10 +139,10 @@ fun AddressBar(
                 imageVector = if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder,
                 contentDescription = "Bookmark",
                 onClick = onBookmark,
+                enabled = bookmarkEnabled,
                 tint = if (isBookmarked) PebbleColors.PrimaryStrong else PebbleColors.OnSurfaceMuted,
             )
             RoundIcon(Icons.Outlined.Tab, "Tabs", onClick = onTabs)
-            RoundIcon(Icons.Outlined.MoreVert, "Menu", onClick = onMenu)
         }
     }
 
@@ -161,6 +161,7 @@ private fun RoundIcon(
     Box(
         modifier = Modifier
             .size(60.dp)
+            .focusProperties { canFocus = enabled }
             .pebbleFocus(shape = CircleShape, lift = false, tight = true)
             .background(androidx.compose.ui.graphics.Color.Transparent, CircleShape)
             .let { if (enabled) it.pebbleClickable(onClick) else it },

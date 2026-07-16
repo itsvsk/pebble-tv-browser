@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -27,6 +28,8 @@ data class BrowserUi(
     val isIncognito: Boolean = false,
     val desktopUa: Boolean = false,
     val adblockEnabled: Boolean = true,
+    val canGoBack: Boolean = false,
+    val canGoForward: Boolean = false,
 )
 
 @HiltViewModel
@@ -45,7 +48,7 @@ class BrowserViewModel @Inject constructor(
 
     fun bind(tabId: String) {
         viewModelScope.launch {
-            val tab = tabRepo.get(tabId)
+            val tab = tabManager.getTab(tabId)
             currentTab = tab
             val desktop = settings.desktopUa.first()
             val adblock = settings.adblockEnabled.first()
@@ -80,6 +83,10 @@ class BrowserViewModel @Inject constructor(
 
     fun onProgress(p: Int) { _ui.value = _ui.value.copy(progress = p) }
 
+    fun onNavigationState(canGoBack: Boolean, canGoForward: Boolean) {
+        _ui.value = _ui.value.copy(canGoBack = canGoBack, canGoForward = canGoForward)
+    }
+
     fun submitOmnibox(input: String): String {
         val target = UrlUtils.toQueryOrUrl(input)
         _ui.value = _ui.value.copy(url = target, progress = 0)
@@ -88,14 +95,19 @@ class BrowserViewModel @Inject constructor(
 
     fun toggleBookmark() {
         val u = _ui.value
-        if (u.url.isBlank()) return
+        if (u.url.isBlank() || u.isIncognito) return
+        val targetUrl = u.url
         viewModelScope.launch {
-            if (bookmarkRepo.isBookmarked(u.url)) {
-                bookmarkRepo.removeByUrl(u.url)
-                _ui.value = u.copy(isBookmarked = false)
+            if (bookmarkRepo.isBookmarked(targetUrl)) {
+                bookmarkRepo.removeByUrl(targetUrl)
+                _ui.update { current ->
+                    if (current.url == targetUrl) current.copy(isBookmarked = false) else current
+                }
             } else {
-                bookmarkRepo.add(u.url, u.title ?: u.url)
-                _ui.value = u.copy(isBookmarked = true)
+                bookmarkRepo.add(targetUrl, u.title ?: targetUrl)
+                _ui.update { current ->
+                    if (current.url == targetUrl) current.copy(isBookmarked = true) else current
+                }
             }
         }
     }

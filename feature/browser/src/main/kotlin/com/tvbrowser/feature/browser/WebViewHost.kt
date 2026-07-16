@@ -31,18 +31,20 @@ fun WebViewHost(
     AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { ctx ->
-            val wv = tabManager.getOrCreate(tabId, config).also { existing ->
-                if (existing.url.isNullOrEmpty()) existing.loadUrl(initialUrl)
-            }
-            attachCallbacks(wv, adBlock, config, onPageStarted, onPageFinished, onProgress, onDownload)
+            val wv = tabManager.getOrCreate(tabId, config)
+            attachCallbacks(wv, tabId, tabManager, adBlock, config, onPageStarted, onPageFinished, onProgress, onDownload)
             cursorController.attachTarget(wv)
-            wv.also {
-                (it.parent as? ViewGroup)?.removeView(it)
+            wv.apply {
+                (parent as? ViewGroup)?.removeView(this)
+                if (url.isNullOrEmpty() && initialUrl.isNotEmpty()) loadUrl(initialUrl)
+                // Browser entry should put remote navigation inside the page, not
+                // on a removed shell item or the first toolbar button.
+                post { requestFocus() }
             }
         },
         update = { wv ->
             cursorController.attachTarget(wv)
-            attachCallbacks(wv, adBlock, config, onPageStarted, onPageFinished, onProgress, onDownload)
+            attachCallbacks(wv, tabId, tabManager, adBlock, config, onPageStarted, onPageFinished, onProgress, onDownload)
         },
     )
 
@@ -62,6 +64,8 @@ fun WebViewHost(
 
 private fun attachCallbacks(
     wv: WebView,
+    tabId: String,
+    tabManager: TabManager,
     adBlock: AdBlockInterceptor,
     config: TabConfig,
     onPageStarted: (String) -> Unit,
@@ -69,10 +73,9 @@ private fun attachCallbacks(
     onProgress: (Int) -> Unit,
     onDownload: (String, String?, String?, String?) -> Unit,
 ) {
-    val client = wv.webViewClient
-    if (client is android.webkit.WebViewClient && client !is HostedWebViewClient) {
-        wv.webViewClient = HostedWebViewClient(adBlock, config, onPageStarted, onPageFinished)
-    }
+    wv.webViewClient = HostedWebViewClient(
+        tabId, tabManager, adBlock, config, onPageStarted, onPageFinished,
+    )
     wv.webChromeClient = object : android.webkit.WebChromeClient() {
         override fun onProgressChanged(view: WebView, newProgress: Int) { onProgress(newProgress) }
     }
@@ -82,6 +85,8 @@ private fun attachCallbacks(
 }
 
 private class HostedWebViewClient(
+    private val tabId: String,
+    private val tabManager: TabManager,
     private val adBlock: AdBlockInterceptor,
     private val config: TabConfig,
     private val onPageStarted: (String) -> Unit,
@@ -91,7 +96,9 @@ private class HostedWebViewClient(
         view: WebView,
         request: android.webkit.WebResourceRequest,
     ): android.webkit.WebResourceResponse? {
-        if (!config.adblockEnabled) return null
+        // Never replace the page itself with an empty ad-block response. Host-only
+        // EasyList rules are intentionally coarse and may include a navigated host.
+        if (!config.adblockEnabled || request.isForMainFrame) return null
         val url = request.url?.toString() ?: return null
         return if (adBlock.shouldBlock(url)) {
             android.webkit.WebResourceResponse(
@@ -106,6 +113,7 @@ private class HostedWebViewClient(
     }
 
     override fun onPageFinished(view: WebView, url: String) {
+        tabManager.persistPage(tabId, url, view.title, config.isIncognito)
         onPageFinished(url, view.title)
     }
 }

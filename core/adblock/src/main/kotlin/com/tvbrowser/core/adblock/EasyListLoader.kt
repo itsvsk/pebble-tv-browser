@@ -2,6 +2,10 @@ package com.tvbrowser.core.adblock
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.BufferedReader
@@ -13,7 +17,7 @@ import javax.inject.Singleton
 @Singleton
 class EasyListLoader @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val client: OkHttpClient = OkHttpClient(),
+    private val client: OkHttpClient,
 ) {
     companion object {
         private val URLS = listOf(
@@ -44,4 +48,12 @@ class EasyListLoader @Inject constructor(
         }
         accumulated.size
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+object AdblockNetworkModule {
+    @Provides
+    @Singleton
+    fun okHttpClient(): OkHttpClient = OkHttpClient()
 }

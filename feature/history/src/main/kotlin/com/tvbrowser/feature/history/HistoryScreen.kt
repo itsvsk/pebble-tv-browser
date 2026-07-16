@@ -68,12 +68,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle as JtTextStyle
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
@@ -111,7 +108,7 @@ class HistoryViewModel @Inject constructor(
     }
 
     fun deleteEntry(entry: HistoryEntry) {
-        viewModelScope.launch { repo.deleteByUrl(entry.url) }
+        viewModelScope.launch { repo.deleteById(entry.id) }
     }
 
     fun clearAll() {
@@ -204,14 +201,12 @@ private fun DayHeader(label: String) {
     Text(label.uppercase(Locale.getDefault()), style = PebbleType.Overline, color = PebbleColors.OnSurfaceFaint)
 }
 
-private val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
-
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun HistoryRow(entry: HistoryEntry, onOpen: () -> Unit, onLongClick: () -> Unit) {
     val host = UrlUtils.hostOf(entry.url) ?: entry.url
     val time = remember(entry.visitedAt) {
-        LocalDateTime.ofInstant(Instant.ofEpochMilli(entry.visitedAt), ZoneId.systemDefault()).format(timeFmt)
+        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(entry.visitedAt))
     }
     Row(
         modifier = Modifier
@@ -345,7 +340,7 @@ private fun HistoryWebViewPreview(url: String, modifier: Modifier = Modifier) {
         modifier = modifier,
         factory = { ctx ->
             WebView(ctx).apply {
-                settings.javaScriptEnabled = true
+                settings.javaScriptEnabled = false
                 settings.domStorageEnabled = true
                 settings.useWideViewPort = true
                 settings.loadWithOverviewMode = true
@@ -376,17 +371,29 @@ private fun HistoryWebViewPreview(url: String, modifier: Modifier = Modifier) {
 }
 
 private fun groupByDay(entries: List<HistoryEntry>): List<Pair<String, List<HistoryEntry>>> {
-    val today = LocalDate.now()
-    val yesterday = today.minusDays(1)
-    val zone = ZoneId.systemDefault()
-    return entries.groupBy {
-        LocalDateTime.ofInstant(Instant.ofEpochMilli(it.visitedAt), zone).toLocalDate()
-    }.toSortedMap(compareByDescending { it }).map { (date, rows) ->
-        val label = when (date) {
+    val today = dayStart(System.currentTimeMillis())
+    val yesterday = Calendar.getInstance().apply {
+        timeInMillis = today
+        add(Calendar.DAY_OF_YEAR, -1)
+    }.timeInMillis
+    val locale = Locale.getDefault()
+    return entries.groupBy { dayStart(it.visitedAt) }
+        .toSortedMap(compareByDescending { it })
+        .map { (day, rows) ->
+        val label = when (day) {
             today -> "Today"
             yesterday -> "Yesterday"
-            else -> "${date.dayOfWeek.getDisplayName(JtTextStyle.SHORT, Locale.getDefault())}, ${date.dayOfMonth} ${date.month.getDisplayName(JtTextStyle.SHORT, Locale.getDefault())}"
+            else -> SimpleDateFormat("EEE, d MMM", locale).format(Date(day))
         }
         label to rows
     }
+}
+
+private fun dayStart(timestamp: Long): Long = Calendar.getInstance().run {
+    timeInMillis = timestamp
+    set(Calendar.HOUR_OF_DAY, 0)
+    set(Calendar.MINUTE, 0)
+    set(Calendar.SECOND, 0)
+    set(Calendar.MILLISECOND, 0)
+    timeInMillis
 }

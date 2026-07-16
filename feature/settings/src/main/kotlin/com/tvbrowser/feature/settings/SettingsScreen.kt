@@ -22,8 +22,6 @@ import androidx.compose.material.icons.outlined.AdsClick
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DesktopWindows
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.NoEncryption
 import androidx.compose.runtime.Composable
@@ -60,6 +58,7 @@ import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
 import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
+import com.tvbrowser.core.webview.TabManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -71,6 +70,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val history: HistoryRepository,
+    private val tabManager: TabManager,
 ) : ViewModel() {
     val desktopUa: StateFlow<Boolean> = settings.desktopUa
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -85,8 +85,7 @@ class SettingsViewModel @Inject constructor(
 
     fun clearHistory() = viewModelScope.launch { history.clear() }
     fun clearIncognito() = viewModelScope.launch {
-        android.webkit.CookieManager.getInstance().removeSessionCookies(null)
-        android.webkit.WebStorage.getInstance().deleteAllData()
+        tabManager.clearIncognitoData()
     }
 }
 
@@ -142,15 +141,6 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                         subtitle = "Hold OK to switch between D-pad and cursor",
                         value = longPress,
                         onChange = vm::setCursorLongPress,
-                    )
-                }
-                item { SectionHeader("Downloads") }
-                item {
-                    ActionRow(
-                        icon = Icons.Outlined.Folder,
-                        title = "Download location",
-                        subtitle = "/storage/emulated/0/Download",
-                        onClick = {},
                     )
                 }
                 item { SectionHeader("Privacy") }

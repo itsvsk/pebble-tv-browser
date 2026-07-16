@@ -31,6 +31,7 @@ class HistoryRepository @Inject constructor(private val dao: HistoryDao) {
         dao.insert(HistoryEntry(url = url, title = title))
     }
     suspend fun clear() = dao.clearAll()
+    suspend fun deleteById(id: Long) = dao.deleteById(id)
     suspend fun deleteByUrl(url: String) = dao.deleteByUrl(url)
 }
 
@@ -38,6 +39,7 @@ class HistoryRepository @Inject constructor(private val dao: HistoryDao) {
 class TabRepository @Inject constructor(private val dao: TabDao) {
     fun persisted() = dao.observePersisted()
     suspend fun get(id: String) = dao.get(id)
+    suspend fun nextPosition() = dao.nextPosition()
     suspend fun upsert(tab: TabEntity) = dao.upsert(tab)
     suspend fun delete(id: String) = dao.delete(id)
 }

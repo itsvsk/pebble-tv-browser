@@ -1,6 +1,7 @@
 package com.tvbrowser.feature.browser
 
 import androidx.compose.foundation.background
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -55,6 +56,11 @@ fun BrowserScreen(
 
     LaunchedEffect(tabId) { vm.bind(tabId) }
 
+    BackHandler {
+        val webView = vm.tabManager.getOrCreate(tabId, vm.makeConfig())
+        if (webView.canGoBack()) webView.goBack() else onBackHome()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -63,7 +69,9 @@ fun BrowserScreen(
         AddressBar(
             url = ui.url,
             isBookmarked = ui.isBookmarked,
+            bookmarkEnabled = !ui.isIncognito,
             desktopUa = ui.desktopUa,
+            canGoForward = ui.canGoForward,
             onSubmit = { input ->
                 val target = vm.submitOmnibox(input)
                 vm.tabManager.getOrCreate(tabId, vm.makeConfig()).loadUrl(target)
@@ -77,7 +85,6 @@ fun BrowserScreen(
                 if (wv.canGoForward()) wv.goForward()
             },
             onReload = { vm.tabManager.getOrCreate(tabId, vm.makeConfig()).reload() },
-            onHome = onBackHome,
             onTabs = onOpenTabs,
             onBookmark = { vm.toggleBookmark() },
             onToggleUa = {
@@ -90,7 +97,6 @@ fun BrowserScreen(
             },
             cursorActive = cursorState.active,
             onToggleCursor = { entry.cursorController().setActive(!cursorState.active) },
-            onMenu = { /* future: overflow */ },
         )
 
         if (ui.progress in 1..99) {
@@ -112,7 +118,11 @@ fun BrowserScreen(
                     adBlock = entry.adBlock(),
                     cursorController = entry.cursorController(),
                     onPageStarted = { vm.onPageStarted(it) },
-                    onPageFinished = { url, title -> vm.onPageFinished(url, title) },
+                    onPageFinished = { url, title ->
+                        vm.onPageFinished(url, title)
+                        val webView = vm.tabManager.getOrCreate(tabId, vm.makeConfig())
+                        vm.onNavigationState(webView.canGoBack(), webView.canGoForward())
+                    },
                     onProgress = { vm.onProgress(it) },
                     onDownload = { url, ua, cd, mime ->
                         scope.launch {
@@ -125,4 +135,3 @@ fun BrowserScreen(
         }
     }
 }
-
