@@ -1,0 +1,615 @@
+package com.tvbrowser.feature.tabs
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.BookmarkAdd
+import androidx.compose.material.icons.outlined.BookmarkRemove
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.PathEffect
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.tv.foundation.lazy.grid.TvGridCells
+import androidx.tv.foundation.lazy.grid.TvLazyVerticalGrid
+import androidx.tv.foundation.lazy.grid.items
+import androidx.tv.foundation.lazy.grid.rememberTvLazyGridState
+import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.Icon
+import androidx.tv.material3.Text
+import coil.compose.AsyncImage
+import com.tvbrowser.core.common.UrlUtils
+import com.tvbrowser.core.db.entity.TabEntity
+import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.PebbleDimens
+import com.tvbrowser.core.design.PebbleShape
+import com.tvbrowser.core.design.PebbleType
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.foundation.shape.RoundedCornerShape as RcShape
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import com.tvbrowser.core.design.pebbleClickable
+import com.tvbrowser.core.design.pebbleFocus
+import kotlinx.coroutines.delay
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+fun TabsOverviewScreen(
+    onOpenTab: (tabId: String) -> Unit,
+    onNewTab: () -> Unit,
+    vm: TabsViewModel = hiltViewModel(),
+) {
+    val tabs by vm.tabs.collectAsState()
+    val bookmarkedUrls by vm.bookmarkedUrls.collectAsState()
+    val menuTab by vm.selectedForMenu.collectAsState()
+    var showCloseAll by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8),
+        ) {
+            Header(
+                count = tabs.size,
+                onNewTab = onNewTab,
+                onCloseAll = { if (tabs.isNotEmpty()) showCloseAll = true },
+            )
+            Spacer(Modifier.height(PebbleDimens.Sp6))
+            val gridState = rememberTvLazyGridState()
+            Box(modifier = Modifier.fillMaxSize()) {
+                TvLazyVerticalGrid(
+                    state = gridState,
+                    columns = TvGridCells.Fixed(4),
+                    horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp4),
+                    verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp4),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    items(tabs, key = { it.id }) { tab ->
+                        TabCard(
+                            tab = tab,
+                            onClick = { onOpenTab(tab.id) },
+                            onClose = { vm.close(tab) },
+                            onLongClick = { vm.showMenu(tab) },
+                        )
+                    }
+                    item { NewTabCard(onClick = onNewTab) }
+                }
+                ScrollIndicator(
+                    state = gridState,
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                )
+            }
+        }
+    }
+    menuTab?.let { tab ->
+        TabContextMenu(
+            tab = tab,
+            isBookmarked = bookmarkedUrls.contains(tab.url),
+            onOpen = {
+                vm.dismissMenu()
+                onOpenTab(tab.id)
+            },
+            onToggleBookmark = {
+                vm.toggleBookmark(tab)
+                vm.dismissMenu()
+            },
+            onClose = {
+                vm.dismissMenu()
+                vm.close(tab)
+            },
+            onDismiss = { vm.dismissMenu() },
+        )
+    }
+    if (showCloseAll) {
+        ConfirmDialog(
+            title = "Close all tabs?",
+            message = "This will close all ${tabs.size} open tabs. This cannot be undone.",
+            confirmLabel = "Close all",
+            onConfirm = {
+                val snapshot = tabs.toList()
+                showCloseAll = false
+                snapshot.forEach(vm::close)
+            },
+            onCancel = { showCloseAll = false },
+        )
+    }
+}
+
+@Composable
+private fun ScrollIndicator(
+    state: androidx.tv.foundation.lazy.grid.TvLazyGridState,
+    modifier: Modifier = Modifier,
+) {
+    val canScroll by remember {
+        derivedStateOf {
+            val info = state.layoutInfo
+            val total = info.totalItemsCount
+            if (total == 0) false
+            else {
+                val first = info.visibleItemsInfo.firstOrNull()?.index ?: 0
+                val last = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+                first > 0 || last < total - 1
+            }
+        }
+    }
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(state.isScrollInProgress, canScroll) {
+        if (!canScroll) {
+            visible = false
+            return@LaunchedEffect
+        }
+        if (state.isScrollInProgress) {
+            visible = true
+        } else {
+            delay(800)
+            visible = false
+        }
+    }
+    val alpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 220),
+        label = "scrollbar-alpha",
+    )
+    if (alpha <= 0.01f) return
+
+    val progress by remember {
+        derivedStateOf {
+            val info = state.layoutInfo
+            val total = info.totalItemsCount.coerceAtLeast(1)
+            val visibleCount = info.visibleItemsInfo.size.coerceAtLeast(1)
+            val first = info.visibleItemsInfo.firstOrNull()?.index ?: 0
+            val maxFirst = (total - visibleCount).coerceAtLeast(1)
+            val frac = visibleCount.toFloat() / total.toFloat()
+            val pos = first.toFloat() / maxFirst.toFloat()
+            frac.coerceIn(0.08f, 1f) to pos.coerceIn(0f, 1f)
+        }
+    }
+    val (thumbFraction, scrollPos) = progress
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxHeight()
+            .width(6.dp),
+    ) {
+        val trackHeight = maxHeight
+        val thumbHeight = trackHeight * thumbFraction
+        val thumbOffset = (trackHeight - thumbHeight) * scrollPos
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(4.dp)
+                .align(Alignment.CenterEnd)
+                .background(PebbleColors.Surface3.copy(alpha = 0.25f * alpha), PebbleShape.Full),
+        )
+        Box(
+            modifier = Modifier
+                .offset(y = thumbOffset)
+                .width(6.dp)
+                .height(thumbHeight)
+                .background(PebbleColors.OnSurfaceMuted.copy(alpha = 0.85f * alpha), PebbleShape.Full),
+        )
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun ConfirmDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val confirmFocus = remember { FocusRequester() }
+    Dialog(
+        onDismissRequest = onCancel,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = true),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.55f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(480.dp)
+                    .background(PebbleColors.Surface1, PebbleShape.Lg)
+                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .padding(24.dp),
+            ) {
+                Text(title, style = PebbleType.TitleLg, color = PebbleColors.OnSurface)
+                Spacer(Modifier.height(PebbleDimens.Sp3))
+                Text(message, style = PebbleType.Body, color = PebbleColors.OnSurfaceMuted)
+                Spacer(Modifier.height(PebbleDimens.Sp6))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3, Alignment.End),
+                ) {
+                    DialogButton(label = "Cancel", danger = false, onClick = onCancel)
+                    DialogButton(
+                        label = confirmLabel,
+                        danger = true,
+                        onClick = onConfirm,
+                        modifier = Modifier.focusRequester(confirmFocus),
+                    )
+                }
+            }
+        }
+        LaunchedEffect(Unit) { confirmFocus.requestFocus() }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun DialogButton(
+    label: String,
+    danger: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val bg = if (danger) PebbleColors.Danger.copy(alpha = 0.18f) else PebbleColors.Surface2
+    val fg = if (danger) PebbleColors.Danger else PebbleColors.OnSurface
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
+            .background(bg, PebbleShape.Full)
+            .pebbleClickable(onClick = onClick)
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, style = PebbleType.Label, color = fg)
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun Header(count: Int, onNewTab: () -> Unit, onCloseAll: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column {
+            Text("Tabs", style = PebbleType.Display, color = PebbleColors.OnSurface)
+            Text("$count open", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+        }
+        Spacer(Modifier.weight(1f))
+        Pill(label = "New tab", icon = Icons.Outlined.Add, primary = true, onClick = onNewTab)
+        Spacer(Modifier.width(PebbleDimens.Sp3))
+        Pill(label = "Close all", icon = Icons.Outlined.Close, primary = false, onClick = onCloseAll)
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun Pill(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, primary: Boolean, onClick: () -> Unit) {
+    val bg = if (primary) PebbleColors.PrimaryContainer else PebbleColors.Surface2
+    val fg = if (primary) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurface
+    Row(
+        modifier = Modifier
+            .height(48.dp)
+            .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
+            .background(bg, PebbleShape.Full)
+            .pebbleClickable(onClick = onClick)
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = PebbleType.Label, color = fg)
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun TabCard(
+    tab: TabEntity,
+    onClick: () -> Unit,
+    onClose: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    val host = UrlUtils.hostOf(tab.url) ?: tab.url
+    val isHome = tab.url.isBlank() || tab.url == "about:blank"
+    val displayTitle = tab.title?.takeIf { it.isNotBlank() }
+        ?: if (isHome) "New tab" else host
+    Column(
+        modifier = Modifier
+            .pebbleFocus(shape = PebbleShape.Md, lift = true)
+            .background(PebbleColors.Surface1, PebbleShape.Md)
+            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(PebbleDimens.Sp3)
+            .width(280.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TabFavicon(host = host, isHome = isHome, size = 20.dp)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                host,
+                style = PebbleType.LabelSm,
+                color = PebbleColors.OnSurfaceMuted,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .pebbleFocus(shape = CircleShape, lift = false, tight = true)
+                    .pebbleClickable(onClick = onClose),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Outlined.Close, contentDescription = "Close", tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(18.dp))
+            }
+        }
+        Spacer(Modifier.height(PebbleDimens.Sp3))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(168.dp)
+                .background(PebbleColors.Surface2, PebbleShape.Sm)
+                .padding(horizontal = 14.dp, vertical = 16.dp),
+            contentAlignment = Alignment.TopStart,
+        ) {
+            Column {
+                TabFavicon(host = host, isHome = isHome, size = 44.dp)
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    displayTitle,
+                    style = PebbleType.Title,
+                    color = PebbleColors.OnSurface,
+                    maxLines = 3,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TabFavicon(host: String, isHome: Boolean, size: androidx.compose.ui.unit.Dp) {
+    if (isHome) {
+        Box(
+            modifier = Modifier.size(size).background(PebbleColors.Surface3, PebbleShape.Sm),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Home,
+                contentDescription = null,
+                tint = PebbleColors.OnSurfaceMuted,
+                modifier = Modifier.size(size * 0.6f),
+            )
+        }
+    } else {
+        AsyncImage(
+            model = "https://www.google.com/s2/favicons?domain=$host&sz=128",
+            contentDescription = null,
+            modifier = Modifier.size(size).clip(PebbleShape.Sm),
+        )
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun NewTabCard(onClick: () -> Unit) {
+    val dashColor = PebbleColors.Outline
+    Box(
+        modifier = Modifier
+            .pebbleFocus(shape = PebbleShape.Md, lift = true)
+            .pebbleClickable(onClick = onClick)
+            .width(280.dp)
+            .height(220.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawRoundRect(
+                color = dashColor,
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(18.dp.toPx()),
+                style = Stroke(
+                    width = 2.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f)),
+                ),
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Outlined.Add, contentDescription = null, tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(36.dp))
+            Spacer(Modifier.height(4.dp))
+            Text("New tab", style = PebbleType.Label, color = PebbleColors.OnSurfaceMuted)
+        }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun TabContextMenu(
+    tab: TabEntity,
+    isBookmarked: Boolean,
+    onOpen: () -> Unit,
+    onToggleBookmark: () -> Unit,
+    onClose: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val host = UrlUtils.hostOf(tab.url) ?: tab.url
+    val openFocus = remember { FocusRequester() }
+    val isHome = tab.url.isBlank() || tab.url == "about:blank"
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = true),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.55f)),
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(540.dp)
+                    .padding(end = PebbleDimens.Sp4)
+                    .background(PebbleColors.Surface1, PebbleShape.Lg)
+                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .padding(18.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .background(PebbleColors.Surface3, RcShape(10.dp))
+                        .clip(RcShape(10.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isHome) {
+                        Icon(
+                            Icons.Outlined.Home,
+                            contentDescription = null,
+                            tint = PebbleColors.OnSurfaceFaint,
+                            modifier = Modifier.size(64.dp),
+                        )
+                    } else {
+                        TabWebViewPreview(url = tab.url, modifier = Modifier.fillMaxSize())
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    tab.title?.takeIf { it.isNotBlank() } ?: host,
+                    style = PebbleType.Title,
+                    color = PebbleColors.OnSurface,
+                    maxLines = 1,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(host, style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted, maxLines = 1)
+                Spacer(Modifier.height(16.dp))
+                MenuRow(
+                    label = "Open",
+                    icon = Icons.Outlined.OpenInNew,
+                    onClick = onOpen,
+                    modifier = Modifier.focusRequester(openFocus),
+                )
+                Spacer(Modifier.height(8.dp))
+                MenuRow(
+                    label = if (isBookmarked) "Remove bookmark" else "Save to bookmarks",
+                    icon = if (isBookmarked) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd,
+                    onClick = onToggleBookmark,
+                )
+                Spacer(Modifier.height(8.dp))
+                MenuRow(
+                    label = "Close tab",
+                    icon = Icons.Outlined.Delete,
+                    onClick = onClose,
+                    danger = true,
+                )
+            }
+        }
+        LaunchedEffect(Unit) { openFocus.requestFocus() }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun MenuRow(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    danger: Boolean = false,
+) {
+    val tint = if (danger) PebbleColors.Danger else PebbleColors.OnSurface
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .pebbleFocus(shape = PebbleShape.Md, lift = false, tight = true)
+            .background(PebbleColors.Surface2, PebbleShape.Md)
+            .pebbleClickable(onClick = onClick)
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(14.dp))
+        Text(label, style = PebbleType.Body, color = tint)
+    }
+}
+
+@Composable
+private fun TabWebViewPreview(url: String, modifier: Modifier = Modifier) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            WebView(ctx).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.useWideViewPort = true
+                settings.loadWithOverviewMode = true
+                setInitialScale(50)
+                isFocusable = false
+                isFocusableInTouchMode = false
+                webViewClient = WebViewClient()
+                loadUrl(url)
+            }
+        },
+        update = { wv -> if (wv.url != url) wv.loadUrl(url) },
+        onRelease = { wv ->
+            wv.stopLoading()
+            wv.loadUrl("about:blank")
+            wv.onPause()
+            wv.removeAllViews()
+            wv.destroy()
+        },
+    )
+    DisposableEffect(lifecycle) {
+        val observer = object : DefaultLifecycleObserver {
+            override fun onPause(owner: LifecycleOwner) {}
+            override fun onResume(owner: LifecycleOwner) {}
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+}
+
+@Suppress("unused")
+private val unusedRefs = arrayOf(SolidColor(PebbleColors.Primary), 14.sp)

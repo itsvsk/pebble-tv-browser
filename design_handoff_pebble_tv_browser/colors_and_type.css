@@ -1,0 +1,151 @@
+/* ============================================================================
+   PEBBLE — Design System Tokens
+   Android TV Browser · Material 3 (dark) · 10-foot UI
+   ----------------------------------------------------------------------------
+   Single source of truth for color, type, spacing, radius, elevation, motion
+   and focus. Import this file first; everything else references these vars.
+
+   Android mapping note (for the dev handoff):
+   - Colors  -> androidx.tv.material3.darkColorScheme(...)
+   - Type    -> Typography{} with Roboto / Google Sans Text
+   - Radius  -> Shapes{} (RoundedCornerShape)
+   - Focus   -> Modifier.border + scale on focus (see --focus-* below)
+   ============================================================================ */
+
+:root {
+  /* ----------------------------------------------------------------
+     1. COLOR — Surfaces (cool near-black tonal ramp, M3 "surface")
+     Each step ~ +4–6 L*. Higher index = closer to the viewer.
+     ---------------------------------------------------------------- */
+  --bg:          #0e1013;  /* app background / page canvas behind chrome */
+  --surface:     #14161b;  /* nav rail, chrome bar                       */
+  --surface-1:   #181b21;  /* resting cards & rows                       */
+  --surface-2:   #1d2027;  /* inputs, segmented controls, focused rows   */
+  --surface-3:   #23272f;  /* chips, icons wells, thumbnails             */
+  --surface-4:   #2a2f38;  /* switch track (off), top of the ramp        */
+  --scrim:       rgba(6, 7, 9, 0.72); /* modal/menu backdrop             */
+
+  /* ----------------------------------------------------------------
+     2. COLOR — Text & outline (on-surface roles)
+     Contrast on --surface-1: on-surface 13.0:1, muted 7.1:1, faint 3.4:1
+     Use --on-surface-faint for non-essential meta only (it is sub-AA
+     for body text by design — never put primary content in it).
+     ---------------------------------------------------------------- */
+  --on-surface:        #e6e9ef;  /* titles, primary content   */
+  --on-surface-muted:  #aab1bd;  /* secondary text, inactive rail labels */
+  --on-surface-faint:  #6f7782;  /* timestamps, captions, placeholders   */
+  --outline:           #353b45;  /* strong dividers, switch border       */
+  --outline-faint:     #23272f;  /* hairline card / row borders          */
+
+  /* ----------------------------------------------------------------
+     3. COLOR — Accent (ONE accent only: desaturated slate-blue)
+     The product is intentionally near-monochrome. Do not add a second
+     hue. "Color" in the UI comes from favicons, not chrome.
+     ---------------------------------------------------------------- */
+  --primary:              #8aa9cf;  /* focus ring, progress fill, active  */
+  --primary-strong:       #a8c2e2;  /* brand mark, starred, switch knob   */
+  --primary-dim:          #5d7e9f;  /* pressed / de-emphasized accent     */
+  --primary-container:    #233246;  /* tonal fill behind active nav/seg   */
+  --on-primary:           #0c1722;  /* text/icon on a solid --primary     */
+  --on-primary-container: #cfe0f5;  /* text/icon on --primary-container   */
+
+  /* ----------------------------------------------------------------
+     4. COLOR — Functional status (kept in the same low-chroma family)
+     Used ONLY for download states. Never for decoration.
+     ---------------------------------------------------------------- */
+  --good:    #84b59a;  /* completed / success  (muted sage)   */
+  --warn:    #cdab74;  /* paused / caution     (muted ochre)  */
+  --danger:  #c98b8b;  /* failed / destructive (muted rose)   */
+
+  /* ----------------------------------------------------------------
+     5. TYPE — Family
+     Roboto is the Material default. On real Android TV, prefer
+     "Google Sans Text" for body if available; Roboto is the fallback.
+     Roboto Mono is used for file paths only.
+     ---------------------------------------------------------------- */
+  --font-sans: 'Roboto', 'Google Sans Text', system-ui, sans-serif;
+  --font-mono: 'Roboto Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* ----------------------------------------------------------------
+     6. TYPE — Scale (10-foot legibility: nothing below 14px / "label")
+     name            size / weight / tracking      where
+     ---------------------------------------------------------------- */
+  --t-clock:      92px;  /* w200, -2px   home hero clock            */
+  --t-display:    38px;  /* w500, -.5px  view titles (Settings…)    */
+  --t-greet:      30px;  /* w300,  .2px  home greeting              */
+  --t-title-lg:   23px;  /* w400         address bar / search input */
+  --t-title:      19px;  /* w500         address text, list focus   */
+  --t-body:       18px;  /* w500         row titles, settings titles */
+  --t-body-sm:    17px;  /* w400         view subtitles, menu items */
+  --t-label:      15px;  /* w500         pill buttons, meta         */
+  --t-label-sm:   14px;  /* w400/600     captions, group labels     */
+  --t-overline:   13px;  /* w600 +.5 UC  section labels, mode chip  */
+
+  /* ----------------------------------------------------------------
+     7. SPACING — 4px base grid. TV needs generous gutters.
+     ---------------------------------------------------------------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-14: 56px;  /* page side gutter (view-body)                  */
+  --gutter: 56px; /* canonical safe-area inset from screen edge    */
+
+  /* ----------------------------------------------------------------
+     8. RADIUS — generous, M3-flavored
+     ---------------------------------------------------------------- */
+  --r-xs: 8px;     /* chips, key caps                 */
+  --r-sm: 12px;    /* favicons, small wells           */
+  --r-md: 18px;    /* cards, rows, nav-rail pill      */
+  --r-lg: 28px;    /* menus, sheets                   */
+  --r-xl: 36px;    /* large containers                */
+  --r-full: 999px; /* address bar, search, pills, switches */
+
+  /* ----------------------------------------------------------------
+     9. ELEVATION — shadow only (no tonal elevation overlays beyond
+        the surface ramp above). Reserve e3 for the top scrim layer.
+     ---------------------------------------------------------------- */
+  --e1: 0 2px 8px rgba(0,0,0,.35);
+  --e2: 0 8px 24px rgba(0,0,0,.45);
+  --e3: 0 18px 48px rgba(0,0,0,.55);
+
+  /* ----------------------------------------------------------------
+     10. MOTION
+     ---------------------------------------------------------------- */
+  --motion:       180ms cubic-bezier(.2, 0, 0, 1); /* standard M3 ease */
+  --motion-fast:  120ms cubic-bezier(.2, 0, 0, 1);
+
+  /* ----------------------------------------------------------------
+     11. FOCUS — the most important TV token.
+     Every focusable shows a 3px gap + 3px accent ring, and card-like
+     elements additionally lift (translateY + scale).
+     ---------------------------------------------------------------- */
+  --focus-ring:        0 0 0 3px var(--bg), 0 0 0 6px var(--primary);
+  --focus-ring-tight:  0 0 0 2px var(--bg), 0 0 0 4px var(--primary);
+  --focus-lift:        translateY(-3px) scale(1.03);
+
+  /* ----------------------------------------------------------------
+     12. LAYOUT
+     ---------------------------------------------------------------- */
+  --rail-w:    116px;  /* navigation rail width  */
+  --chrome-h:  92px;   /* browser top bar height */
+  --hint-h:    56px;   /* key-hint bar height    */
+  --canvas-w:  1920px; /* design canvas (1080p)  */
+  --canvas-h:  1080px;
+}
+
+/* ============================================================================
+   SEMANTIC HELPERS — optional class layer mapping tokens to roles.
+   Use these in new screens so changes stay centralized.
+   ============================================================================ */
+.ds-display { font: 500 var(--t-display)/1.05 var(--font-sans); letter-spacing: -.5px; color: var(--on-surface); }
+.ds-greet   { font: 300 var(--t-greet)/1.1 var(--font-sans); color: var(--on-surface); }
+.ds-title   { font: 500 var(--t-body)/1.3 var(--font-sans); color: var(--on-surface); }
+.ds-body    { font: 400 var(--t-body-sm)/1.5 var(--font-sans); color: var(--on-surface-muted); }
+.ds-meta    { font: 400 var(--t-label-sm)/1.4 var(--font-sans); color: var(--on-surface-faint); }
+.ds-overline{ font: 600 var(--t-overline)/1 var(--font-sans); letter-spacing: .5px; text-transform: uppercase; color: var(--on-surface-faint); }
+.ds-mono    { font-family: var(--font-mono); }

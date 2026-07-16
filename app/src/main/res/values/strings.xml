@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TV Browser</string>
+    <string name="home_omnibox_hint">Search or type URL</string>
+    <string name="home_most_visited">Most visited</string>
+    <string name="tabs_new_tab">New tab</string>
+    <string name="action_bookmark">Bookmark</string>
+    <string name="action_reload">Reload</string>
+    <string name="action_back">Back</string>
+    <string name="action_forward">Forward</string>
+    <string name="action_incognito">Incognito</string>
+    <string name="action_open">Open</string>
+    <string name="action_delete">Delete</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_ua">Desktop site</string>
+    <string name="settings_adblock">Block ads &amp; trackers</string>
+    <string name="settings_download_path">Default download location</string>
+    <string name="settings_clear_data">Clear browsing data</string>
+    <string name="settings_clear_incognito">Clear incognito data</string>
+    <string name="settings_cursor_toggle_key">Cursor toggle (long-press OK)</string>
+</resources>
