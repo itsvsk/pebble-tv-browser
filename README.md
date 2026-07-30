@@ -2,12 +2,17 @@
 
 Pebble TV Browser is an Android TV web browser built with Kotlin, Jetpack Compose, AndroidX TV components, WebView, Room, Hilt, WorkManager, and Gradle. The app is designed around remote-first navigation, a TV-scale visual system, tab management, bookmarks, history, downloads, ad blocking, and an optional D-pad cursor overlay for WebView interaction.
 
+Repository: [github.com/itsvsk/pebble-tv-browser](https://github.com/itsvsk/pebble-tv-browser)
+
 ## Features
 
 - Android TV home screen with omnibox and most-visited shortcuts
+- Voice search through the Android speech recognizer
 - WebView-based browser screen with address bar, back/forward/reload controls, and desktop/mobile user-agent support
 - Multi-tab model backed by Room with an LRU WebView manager
+- In-memory incognito tabs that avoid Room, history, and bookmark persistence
 - Bookmarks, history, downloads, and settings screens
+- Remote-friendly short-press and long-press actions with contextual menus
 - EasyList-based ad-block parsing and request interception
 - DownloadManager integration with progress tracking
 - D-pad cursor controller and Compose cursor overlay for TV remote interaction
@@ -82,7 +87,9 @@ Run the EasyList parser tests directly:
 
 ## Current Status
 
-The debug build has been validated on an Android TV emulator. Core navigation, feature screen rendering, omnibox submission, and WebView loading are working. Known follow-up work includes a deeper cursor long-press fix, WebView TV-scale tuning, fuller History/Downloads testing, settings persistence checks, and tab/focus restoration polish.
+The debug build has been validated on a 1920x1080 Android TV API 34 emulator. Core browsing, remote navigation, voice search, tabs, bookmarks, populated history and downloads, contextual actions, destructive-action confirmation, incognito data handling, and WebView loading have been exercised without app-side fatal errors or ANRs.
+
+The current stability branch also fixes the cursor long-press race, keeps incognito tabs out of Room, prevents ad blocking from intercepting top-level navigation, improves TV page scaling, preserves explicit URL schemes and local ports, and exports the Room schema. Remaining validation work includes ad-block scoring, settings persistence across a cold restart, the eight-live-WebView limit, desktop user-agent verification, and back-stack/focus restoration edge cases.
 
 ## License
 
