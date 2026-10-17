@@ -360,61 +360,71 @@ private fun TabCard(
     val isHome = tab.url.isBlank() || tab.url == "about:blank"
     val displayTitle = tab.title?.takeIf { it.isNotBlank() }
         ?: if (isHome) "New tab" else host.removePrefix("www.")
-    Column(
-        modifier = Modifier
-            .pebbleFocus(shape = PebbleShape.Md, lift = true)
-            .background(if (isCurrent) PebbleColors.GlassHigh else PebbleColors.Glass, PebbleShape.Md)
-            .border(if (isCurrent) 2.dp else 1.dp, if (isCurrent) PebbleColors.Primary else PebbleColors.GlassEdge, PebbleShape.Md)
-            .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(PebbleDimens.Sp3)
-            .width(178.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TabFavicon(host = host, isHome = isHome, size = 20.dp)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                host,
-                style = PebbleType.LabelSm,
-                color = PebbleColors.OnSurfaceMuted,
-                maxLines = 1,
-                modifier = Modifier.weight(1f),
-            )
+    val focusSource = remember { MutableInteractionSource() }
+    val focused by focusSource.collectIsFocusedAsState()
+    val glowAlpha by animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
+        animationSpec = tween(durationMillis = PebbleMotion.DurationMs),
+        label = "tab-card-glow",
+    )
+    Box(modifier = Modifier.tabBloom(glowAlpha).padding(10.dp)) {
+        Column(
+            modifier = Modifier
+                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
+                .background(PebbleColors.Bg, PebbleShape.Md)
+                .background(if (isCurrent) PebbleColors.GlassHigh else PebbleColors.Glass, PebbleShape.Md)
+                .border(if (isCurrent) 2.dp else 1.dp, if (isCurrent) PebbleColors.Primary else PebbleColors.GlassEdge, PebbleShape.Md)
+                .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
+                .padding(PebbleDimens.Sp3)
+                .width(178.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TabFavicon(host = host, isHome = isHome, size = 20.dp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    host,
+                    style = PebbleType.LabelSm,
+                    color = PebbleColors.OnSurfaceMuted,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .pebbleFocus(shape = CircleShape, lift = false, tight = true)
+                        .pebbleClickable(onClick = onClose),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Outlined.Close, contentDescription = "Close", tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.height(PebbleDimens.Sp3))
             Box(
                 modifier = Modifier
-                    .size(28.dp)
-                    .pebbleFocus(shape = CircleShape, lift = false, tight = true)
-                    .pebbleClickable(onClick = onClose),
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(PebbleColors.PrimaryContainer, PebbleColors.Surface3, PebbleColors.Surface2)
+                    ), PebbleShape.Sm)
+                    .padding(horizontal = 14.dp, vertical = 16.dp),
+                contentAlignment = Alignment.TopStart,
             ) {
-                Icon(Icons.Outlined.Close, contentDescription = "Close", tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(18.dp))
+                Column {
+                    TabFavicon(host = host, isHome = isHome, size = 44.dp)
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        displayTitle,
+                        style = PebbleType.Title,
+                        color = PebbleColors.OnSurface,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
             }
+            Spacer(Modifier.height(8.dp))
+            Text(if (isCurrent) "●  Current tab" else "Open tab", style = PebbleType.LabelSm,
+                color = if (isCurrent) PebbleColors.Primary else PebbleColors.OnSurfaceMuted)
         }
-        Spacer(Modifier.height(PebbleDimens.Sp3))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(180.dp)
-                .background(androidx.compose.ui.graphics.Brush.verticalGradient(
-                    listOf(PebbleColors.PrimaryContainer, PebbleColors.Surface3, PebbleColors.Surface2)
-                ), PebbleShape.Sm)
-                .padding(horizontal = 14.dp, vertical = 16.dp),
-            contentAlignment = Alignment.TopStart,
-        ) {
-            Column {
-                TabFavicon(host = host, isHome = isHome, size = 44.dp)
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    displayTitle,
-                    style = PebbleType.Title,
-                    color = PebbleColors.OnSurface,
-                    maxLines = 2,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                )
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(if (isCurrent) "●  Current tab" else "Open tab", style = PebbleType.LabelSm,
-            color = if (isCurrent) PebbleColors.Primary else PebbleColors.OnSurfaceMuted)
     }
 }
 
@@ -456,20 +466,7 @@ private fun NewTabCard(onClick: () -> Unit) {
         modifier = Modifier
             .width(198.dp)
             .height(290.dp)
-            .drawBehind {
-                // Rounded layers give the dashed card a halo without the rectangular shadow artifact.
-                if (glowAlpha > 0f) {
-                    listOf(0.dp to 0.04f, 4.dp to 0.08f, 7.dp to 0.12f).forEach { (inset, alpha) ->
-                        val px = inset.toPx()
-                        drawRoundRect(
-                            color = PebbleColors.Primary.copy(alpha = alpha * glowAlpha),
-                            topLeft = Offset(px, px),
-                            size = Size(size.width - 2 * px, size.height - 2 * px),
-                            cornerRadius = CornerRadius((26.dp - inset).toPx()),
-                        )
-                    }
-                }
-            },
+            .tabBloom(glowAlpha),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -496,6 +493,21 @@ private fun NewTabCard(onClick: () -> Unit) {
                 Spacer(Modifier.height(4.dp))
                 Text("New tab", style = PebbleType.Label, color = PebbleColors.OnSurfaceMuted)
             }
+        }
+    }
+}
+
+private fun Modifier.tabBloom(alpha: Float): Modifier = drawBehind {
+    // Keep the halo in a rounded layer behind the card instead of using a hardware shadow.
+    if (alpha > 0f) {
+        listOf(0.dp to 0.04f, 4.dp to 0.08f, 7.dp to 0.12f).forEach { (inset, strength) ->
+            val px = inset.toPx()
+            drawRoundRect(
+                color = PebbleColors.Primary.copy(alpha = strength * alpha),
+                topLeft = Offset(px, px),
+                size = Size(size.width - 2 * px, size.height - 2 * px),
+                cornerRadius = CornerRadius((26.dp - inset).toPx()),
+            )
         }
     }
 }
