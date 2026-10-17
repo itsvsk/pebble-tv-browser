@@ -44,7 +44,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.foundation.lazy.grid.TvGridCells
@@ -60,6 +66,7 @@ import com.tvbrowser.core.common.UrlUtils
 import com.tvbrowser.core.db.entity.TabEntity
 import com.tvbrowser.core.design.PebbleColors
 import com.tvbrowser.core.design.PebbleDimens
+import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
 import androidx.compose.ui.focus.FocusRequester
@@ -438,29 +445,57 @@ private fun TabFavicon(host: String, isHome: Boolean, size: androidx.compose.ui.
 @Composable
 private fun NewTabCard(onClick: () -> Unit) {
     val dashColor = PebbleColors.Outline
+    val focusSource = remember { MutableInteractionSource() }
+    val focused by focusSource.collectIsFocusedAsState()
+    val glowAlpha by animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
+        animationSpec = tween(durationMillis = PebbleMotion.DurationMs),
+        label = "new-tab-glow",
+    )
     Box(
         modifier = Modifier
-            .pebbleFocus(shape = PebbleShape.Md, lift = false)
-            .background(PebbleColors.Glass, PebbleShape.Md)
-            .pebbleClickable(onClick = onClick)
-            .width(178.dp)
-            .height(270.dp),
+            .width(198.dp)
+            .height(290.dp)
+            .drawBehind {
+                // Rounded layers give the dashed card a halo without the rectangular shadow artifact.
+                if (glowAlpha > 0f) {
+                    listOf(0.dp to 0.04f, 4.dp to 0.08f, 7.dp to 0.12f).forEach { (inset, alpha) ->
+                        val px = inset.toPx()
+                        drawRoundRect(
+                            color = PebbleColors.Primary.copy(alpha = alpha * glowAlpha),
+                            topLeft = Offset(px, px),
+                            size = Size(size.width - 2 * px, size.height - 2 * px),
+                            cornerRadius = CornerRadius((26.dp - inset).toPx()),
+                        )
+                    }
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRoundRect(
-                color = dashColor,
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(18.dp.toPx()),
-                style = Stroke(
-                    width = 2.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f)),
-                ),
-            )
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Outlined.Add, contentDescription = null, tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(36.dp))
-            Spacer(Modifier.height(4.dp))
-            Text("New tab", style = PebbleType.Label, color = PebbleColors.OnSurfaceMuted)
+        Box(
+            modifier = Modifier
+                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
+                .background(PebbleColors.Glass, PebbleShape.Md)
+                .pebbleClickable(onClick = onClick)
+                .width(178.dp)
+                .height(270.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawRoundRect(
+                    color = dashColor,
+                    cornerRadius = CornerRadius(18.dp.toPx()),
+                    style = Stroke(
+                        width = 2.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f)),
+                    ),
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Outlined.Add, contentDescription = null, tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(36.dp))
+                Spacer(Modifier.height(4.dp))
+                Text("New tab", style = PebbleType.Label, color = PebbleColors.OnSurfaceMuted)
+            }
         }
     }
 }
