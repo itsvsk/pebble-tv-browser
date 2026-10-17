@@ -440,7 +440,8 @@ private fun NewTabCard(onClick: () -> Unit) {
     val dashColor = PebbleColors.Outline
     Box(
         modifier = Modifier
-            .pebbleFocus(shape = PebbleShape.Md, lift = true)
+            .pebbleFocus(shape = PebbleShape.Md, lift = false)
+            .background(PebbleColors.Glass, PebbleShape.Md)
             .pebbleClickable(onClick = onClick)
             .width(178.dp)
             .height(270.dp),
