@@ -11,11 +11,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -58,6 +60,12 @@ fun BrowserScreen(
     }
     val ui by vm.ui.collectAsState()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val controlsFocusRequester = remember { FocusRequester() }
+
+    DisposableEffect(entry) {
+        entry.cursorController().setControlsFocusHandler { controlsFocusRequester.requestFocus() }
+        onDispose { entry.cursorController().setControlsFocusHandler(null) }
+    }
 
     LaunchedEffect(tabId) { vm.bind(tabId) }
 
@@ -99,6 +107,7 @@ fun BrowserScreen(
                 .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md),
         ) {
           AddressBar(
+            controlsFocusRequester = controlsFocusRequester,
             url = ui.url,
             isBookmarked = ui.isBookmarked,
             desktopUa = ui.desktopUa,

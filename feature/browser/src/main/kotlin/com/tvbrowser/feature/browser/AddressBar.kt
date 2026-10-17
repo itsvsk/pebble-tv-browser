@@ -39,6 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -71,6 +73,7 @@ import com.tvbrowser.core.design.pebbleFocus
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun AddressBar(
+    controlsFocusRequester: FocusRequester,
     url: String,
     isBookmarked: Boolean,
     desktopUa: Boolean,
@@ -102,7 +105,7 @@ fun AddressBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
         ) {
-            RoundIcon(Icons.Outlined.ArrowBack, "Back", onClick = onBack)
+            RoundIcon(Icons.Outlined.ArrowBack, "Back", onClick = onBack, focusRequester = controlsFocusRequester)
             RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward)
             RoundIcon(Icons.Outlined.Refresh, "Reload", onClick = onReload)
 
@@ -156,10 +159,12 @@ private fun RoundIcon(
     onClick: () -> Unit,
     enabled: Boolean = true,
     tint: androidx.compose.ui.graphics.Color = PebbleColors.OnSurfaceMuted,
+    focusRequester: FocusRequester? = null,
 ) {
     Box(
         modifier = Modifier
             .size(50.dp)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .pebbleFocus(shape = CircleShape, lift = false, tight = true)
             .background(androidx.compose.ui.graphics.Color.Transparent, CircleShape)
             .let { if (enabled) it.pebbleClickable(onClick) else it },

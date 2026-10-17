@@ -32,11 +32,10 @@ class CursorController @Inject constructor() {
     val state: StateFlow<CursorState> = _state.asStateFlow()
 
     private var targetView: View? = null
+    private var focusControls: (() -> Unit)? = null
     private var centerDownTime: Long = 0L
     private var centerLongPressed: Boolean = false
     private val longPressMs = 500L
-    private val baseStepPx = 24f
-    private val acceleratedStepPx = 96f
 
     fun attachTarget(view: View?) {
         targetView = view
@@ -56,12 +55,32 @@ class CursorController @Inject constructor() {
         _state.value = _state.value.copy(active = active)
     }
 
+    fun setControlsFocusHandler(handler: (() -> Unit)?) {
+        focusControls = handler
+    }
+
     fun handleKeyEvent(event: KeyEvent): Boolean {
         val code = event.keyCode
         val action = event.action
 
+        if (code == KeyEvent.KEYCODE_MENU && focusControls != null) {
+            if (action == KeyEvent.ACTION_UP) {
+                setActive(false)
+                focusControls?.invoke()
+            }
+            return true
+        }
+
         if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER) {
             return handleCenterKey(event)
+        }
+
+        if (!_state.value.active && code == KeyEvent.KEYCODE_DPAD_DOWN &&
+            action == KeyEvent.ACTION_DOWN && targetView?.hasFocus() == true &&
+            targetView?.canScrollVertically(1) == false && focusControls != null
+        ) {
+            focusControls?.invoke()
+            return true
         }
 
         if (!_state.value.active) return false
@@ -129,18 +148,17 @@ class CursorController @Inject constructor() {
     }
 
     private fun moveCursor(keyCode: Int, repeatCount: Int) {
-        val step = if (repeatCount > 2) acceleratedStepPx else baseStepPx
-        val s = _state.value
-        var nx = s.x; var ny = s.y
-        when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_LEFT -> nx -= step
-            KeyEvent.KEYCODE_DPAD_RIGHT -> nx += step
-            KeyEvent.KEYCODE_DPAD_UP -> ny -= step
-            KeyEvent.KEYCODE_DPAD_DOWN -> ny += step
+        val direction = when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> CursorDirection.Left
+            KeyEvent.KEYCODE_DPAD_RIGHT -> CursorDirection.Right
+            KeyEvent.KEYCODE_DPAD_UP -> CursorDirection.Up
+            else -> CursorDirection.Down
         }
-        nx = nx.coerceIn(0f, s.viewportW.toFloat().coerceAtLeast(0f))
-        ny = ny.coerceIn(0f, s.viewportH.toFloat().coerceAtLeast(0f))
-        _state.value = s.copy(x = nx, y = ny)
+        val motion = planCursorMotion(_state.value, direction, repeatCount)
+        _state.value = _state.value.copy(x = motion.x, y = motion.y)
+        if (motion.scrollX != 0 || motion.scrollY != 0) {
+            targetView?.scrollBy(motion.scrollX, motion.scrollY)
+        }
     }
 
     private fun dispatchTouch(action: Int) {
