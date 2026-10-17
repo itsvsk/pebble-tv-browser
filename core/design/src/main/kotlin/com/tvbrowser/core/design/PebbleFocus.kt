@@ -69,7 +69,14 @@ fun Modifier.pebbleFocus(
             scaleY = scale
             translationY = ty.toPx()
         }
-        .then(if (focused && lift) Modifier.shadow(PebbleElevation.E2, shape) else Modifier)
+        .then(
+            if (focused && lift) Modifier.shadow(
+                PebbleElevation.E2,
+                shape,
+                ambientColor = PebbleColors.Primary.copy(alpha = 0.55f),
+                spotColor = PebbleColors.Primary.copy(alpha = 0.55f),
+            ) else Modifier
+        )
         .border(ring, ringColor, shape)
         .padding(ring)
         .border(gap, gapColor, shape)

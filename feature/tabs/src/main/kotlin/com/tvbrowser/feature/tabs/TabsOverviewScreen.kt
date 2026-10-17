@@ -51,6 +51,7 @@ import androidx.tv.foundation.lazy.grid.TvGridCells
 import androidx.tv.foundation.lazy.grid.TvLazyVerticalGrid
 import androidx.tv.foundation.lazy.grid.items
 import androidx.tv.foundation.lazy.grid.rememberTvLazyGridState
+import androidx.tv.foundation.lazy.list.TvLazyRow
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -82,7 +83,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun TabsOverviewScreen(
     onOpenTab: (tabId: String) -> Unit,
-    onNewTab: () -> Unit,
+    onNewTab: (String) -> Unit,
     vm: TabsViewModel = hiltViewModel(),
 ) {
     val tabs by vm.tabs.collectAsState()
@@ -98,34 +99,28 @@ fun TabsOverviewScreen(
         ) {
             Header(
                 count = tabs.size,
-                onNewTab = onNewTab,
+                onNewTab = { vm.newTab(onNewTab) },
                 onCloseAll = { if (tabs.isNotEmpty()) showCloseAll = true },
             )
-            Spacer(Modifier.height(PebbleDimens.Sp6))
-            val gridState = rememberTvLazyGridState()
-            Box(modifier = Modifier.fillMaxSize()) {
-                TvLazyVerticalGrid(
-                    state = gridState,
-                    columns = TvGridCells.Fixed(4),
-                    horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp4),
-                    verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp4),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(tabs, key = { it.id }) { tab ->
-                        TabCard(
-                            tab = tab,
-                            onClick = { onOpenTab(tab.id) },
-                            onClose = { vm.close(tab) },
-                            onLongClick = { vm.showMenu(tab) },
-                        )
-                    }
-                    item { NewTabCard(onClick = onNewTab) }
+            Spacer(Modifier.height(PebbleDimens.Sp10))
+            TvLazyRow(
+                horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp4),
+                modifier = Modifier.fillMaxWidth().height(316.dp),
+            ) {
+                items(count = tabs.size, key = { tabs[it].id }) { index ->
+                    val tab = tabs[index]
+                    TabCard(
+                        tab = tab,
+                        isCurrent = tab.id == tabs.maxByOrNull { it.lastActiveAt }?.id,
+                        onClick = { onOpenTab(tab.id) },
+                        onClose = { vm.close(tab) },
+                        onLongClick = { vm.showMenu(tab) },
+                    )
                 }
-                ScrollIndicator(
-                    state = gridState,
-                    modifier = Modifier.align(Alignment.CenterEnd),
-                )
+                item { NewTabCard(onClick = { vm.newTab(onNewTab) }) }
             }
+            Spacer(Modifier.height(PebbleDimens.Sp6))
+            Text("OK  Open tab       Hold OK  Tab actions       BACK  Return", style = PebbleType.Label, color = PebbleColors.OnSurfaceMuted)
         }
     }
     menuTab?.let { tab ->
@@ -314,10 +309,10 @@ private fun DialogButton(
 @Composable
 private fun Header(count: Int, onNewTab: () -> Unit, onCloseAll: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Column {
-            Text("Tabs", style = PebbleType.Display, color = PebbleColors.OnSurface)
-            Text("$count open", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
-        }
+        Text("Active Tabs", style = PebbleType.Display, color = PebbleColors.OnSurface)
+        Spacer(Modifier.width(PebbleDimens.Sp3))
+        Text("$count", style = PebbleType.Label, color = PebbleColors.OnPrimary,
+            modifier = Modifier.background(PebbleColors.Primary, PebbleShape.Full).padding(horizontal = 10.dp, vertical = 3.dp))
         Spacer(Modifier.weight(1f))
         Pill(label = "New tab", icon = Icons.Outlined.Add, primary = true, onClick = onNewTab)
         Spacer(Modifier.width(PebbleDimens.Sp3))
@@ -349,6 +344,7 @@ private fun Pill(label: String, icon: androidx.compose.ui.graphics.vector.ImageV
 @Composable
 private fun TabCard(
     tab: TabEntity,
+    isCurrent: Boolean,
     onClick: () -> Unit,
     onClose: () -> Unit,
     onLongClick: () -> Unit,
@@ -356,15 +352,15 @@ private fun TabCard(
     val host = UrlUtils.hostOf(tab.url) ?: tab.url
     val isHome = tab.url.isBlank() || tab.url == "about:blank"
     val displayTitle = tab.title?.takeIf { it.isNotBlank() }
-        ?: if (isHome) "New tab" else host
+        ?: if (isHome) "New tab" else host.removePrefix("www.")
     Column(
         modifier = Modifier
             .pebbleFocus(shape = PebbleShape.Md, lift = true)
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .background(if (isCurrent) PebbleColors.GlassHigh else PebbleColors.Glass, PebbleShape.Md)
+            .border(if (isCurrent) 2.dp else 1.dp, if (isCurrent) PebbleColors.Primary else PebbleColors.GlassEdge, PebbleShape.Md)
             .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(PebbleDimens.Sp3)
-            .width(280.dp),
+            .width(178.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TabFavicon(host = host, isHome = isHome, size = 20.dp)
@@ -390,8 +386,10 @@ private fun TabCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(168.dp)
-                .background(PebbleColors.Surface2, PebbleShape.Sm)
+                .height(180.dp)
+                .background(androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(PebbleColors.PrimaryContainer, PebbleColors.Surface3, PebbleColors.Surface2)
+                ), PebbleShape.Sm)
                 .padding(horizontal = 14.dp, vertical = 16.dp),
             contentAlignment = Alignment.TopStart,
         ) {
@@ -402,11 +400,14 @@ private fun TabCard(
                     displayTitle,
                     style = PebbleType.Title,
                     color = PebbleColors.OnSurface,
-                    maxLines = 3,
+                    maxLines = 2,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
             }
         }
+        Spacer(Modifier.height(8.dp))
+        Text(if (isCurrent) "●  Current tab" else "Open tab", style = PebbleType.LabelSm,
+            color = if (isCurrent) PebbleColors.Primary else PebbleColors.OnSurfaceMuted)
     }
 }
 
@@ -441,8 +442,8 @@ private fun NewTabCard(onClick: () -> Unit) {
         modifier = Modifier
             .pebbleFocus(shape = PebbleShape.Md, lift = true)
             .pebbleClickable(onClick = onClick)
-            .width(280.dp)
-            .height(220.dp),
+            .width(178.dp)
+            .height(270.dp),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {

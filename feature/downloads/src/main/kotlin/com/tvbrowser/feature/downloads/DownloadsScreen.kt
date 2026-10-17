@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,12 +30,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -78,7 +83,9 @@ class DownloadsViewModel @Inject constructor(
 
     val progress: StateFlow<Map<Long, DownloadProgress>> = records
         .flatMapLatest { list ->
-            val active = list.filter { it.status == DownloadRecord.STATUS_RUNNING }.map { it.dmId }
+            val active = list.filter {
+                it.status == DownloadRecord.STATUS_RUNNING || it.status == DownloadRecord.STATUS_PAUSED
+            }.map { it.dmId }
             dmRepo.observeProgress(active)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
@@ -106,22 +113,55 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
     val records by vm.records.collectAsState()
     val progress by vm.progress.collectAsState()
     val menuRecord by vm.selectedForMenu.collectAsState()
+    var filter by remember { mutableStateOf("All") }
 
-    val active = records.filter { it.status == DownloadRecord.STATUS_RUNNING }
-    val done = records.filter { it.status == DownloadRecord.STATUS_SUCCESS }
-    val failed = records.filter { it.status == DownloadRecord.STATUS_FAILED }
+    val visibleRecords = records.filter { matchesFilter(it, filter) }
+    val active = visibleRecords.filter { it.status == DownloadRecord.STATUS_RUNNING || it.status == DownloadRecord.STATUS_PAUSED }
+    val done = visibleRecords.filter { it.status == DownloadRecord.STATUS_SUCCESS }
+    val failed = visibleRecords.filter { it.status == DownloadRecord.STATUS_FAILED }
 
     Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8)) {
-            Header(active = active.size, done = done.size)
-            Spacer(Modifier.height(PebbleDimens.Sp6))
-            DefaultLocationCard(path = "/storage/emulated/0/Download")
-            Spacer(Modifier.height(PebbleDimens.Sp6))
-            if (records.isEmpty()) {
-                Text("No downloads yet.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
-                return@Column
+        Row(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxHeight()
+                    .background(Brush.linearGradient(listOf(PebbleColors.PrimaryContainer, PebbleColors.Surface2, PebbleColors.Bg)), PebbleShape.Md)
+                    .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md),
+                contentAlignment = Alignment.BottomStart,
+            ) {
+                Column(modifier = Modifier.padding(28.dp)) {
+                    Text("◉  PEBBLE DOWNLOADS", style = PebbleType.Overline, color = PebbleColors.Primary)
+                    Spacer(Modifier.height(10.dp))
+                    Text("Your files, in one place", style = PebbleType.Display, color = PebbleColors.OnSurface)
+                    Spacer(Modifier.height(8.dp))
+                    Text("${records.size} files  ·  ${records.count { it.status == DownloadRecord.STATUS_RUNNING }} active",
+                        style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+                }
             }
-            TvLazyColumn(verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3)) {
+            Spacer(Modifier.width(PebbleDimens.Sp4))
+            Column(
+                modifier = Modifier.width(420.dp).fillMaxHeight()
+                    .background(PebbleColors.GlassHigh, PebbleShape.Md)
+                    .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                    .padding(18.dp),
+            ) {
+                Header(active = active.size, done = done.size)
+                Spacer(Modifier.height(PebbleDimens.Sp4))
+                DefaultLocationCard(path = "/storage/emulated/0/Download")
+                Spacer(Modifier.height(PebbleDimens.Sp4))
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    listOf("All", "Videos", "Documents", "Packages").forEach { option ->
+                        FilterChip(option, filter == option) { filter = option }
+                    }
+                }
+                Spacer(Modifier.height(PebbleDimens.Sp4))
+                if (visibleRecords.isEmpty()) {
+                    Text(if (records.isEmpty()) "No downloads yet." else "No $filter downloads.",
+                        style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+                }
+                TvLazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+                    modifier = Modifier.weight(1f).padding(bottom = PebbleDimens.HintH),
+                ) {
                 if (active.isNotEmpty()) {
                     item(key = "h-active") { GroupHeader("In progress") }
                     items(active, key = { it.dmId }) { r ->
@@ -150,6 +190,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
                             onLongClick = { vm.showMenu(r) },
                         )
                     }
+                }
                 }
             }
         }
@@ -181,8 +222,19 @@ private fun Header(active: Int, done: Int) {
             Text("Downloads", style = PebbleType.Display, color = PebbleColors.OnSurface)
             Text("$active active · $done completed", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
         }
-        Spacer(Modifier.weight(1f))
-        Pill(label = "Open folder", icon = Icons.Outlined.FolderOpen, onClick = {})
+    }
+}
+
+@Composable
+private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
+            .background(if (selected) PebbleColors.Primary else PebbleColors.Surface3, PebbleShape.Full)
+            .pebbleClickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        Text(label, style = PebbleType.LabelSm,
+            color = if (selected) PebbleColors.OnPrimary else PebbleColors.OnSurfaceMuted)
     }
 }
 
@@ -222,7 +274,6 @@ private fun DefaultLocationCard(path: String) {
             Spacer(Modifier.height(2.dp))
             Text(path, style = PebbleType.Mono, color = PebbleColors.OnSurface)
         }
-        Pill(label = "Change", icon = Icons.Outlined.FolderOpen, onClick = {})
     }
 }
 
@@ -248,7 +299,7 @@ private fun GroupHeader(label: String) {
 @Composable
 private fun ActiveCard(record: DownloadRecord, progress: DownloadProgress?, onLongClick: () -> Unit) {
     val pct = progress?.fractionOrNull?.let { (it * 100).toInt() } ?: 0
-    val paused = progress?.statusCode == DownloadManager.STATUS_PAUSED
+    val paused = record.status == DownloadRecord.STATUS_PAUSED || progress?.statusCode == DownloadManager.STATUS_PAUSED
     val so = progress?.bytesSoFar ?: 0L
     val total = progress?.totalBytes ?: 0L
     val meta = if (paused) "Paused · ${formatBytes(so)}" else "${formatBytes(so)} of ${formatBytes(total)}"
@@ -458,4 +509,16 @@ private fun formatBytes(bytes: Long): String {
     var v = bytes.toDouble(); var i = 0
     while (v >= 1024 && i < units.lastIndex) { v /= 1024; i++ }
     return String.format("%.1f %s", v, units[i])
+}
+
+private fun matchesFilter(record: DownloadRecord, filter: String): Boolean {
+    val name = record.filename.lowercase()
+    val mime = record.mime.orEmpty().lowercase()
+    return when (filter) {
+        "Videos" -> mime.startsWith("video/") || listOf(".mp4", ".mkv", ".webm", ".mov").any(name::endsWith)
+        "Documents" -> mime.startsWith("text/") || mime == "application/pdf" ||
+            listOf(".pdf", ".doc", ".docx", ".txt", ".epub").any(name::endsWith)
+        "Packages" -> listOf(".apk", ".zip", ".tar", ".gz").any(name::endsWith)
+        else -> true
+    }
 }

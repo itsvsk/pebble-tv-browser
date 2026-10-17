@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Text
 import com.tvbrowser.core.design.PebbleColors
@@ -59,22 +60,19 @@ fun KeyHintBar(
                 .fillMaxSize()
                 .padding(horizontal = PebbleDimens.Gutter),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            hints.forEachIndexed { i, h ->
-                if (i > 0) {
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        " · ",
-                        style = PebbleType.Label,
-                        color = PebbleColors.OnSurfaceFaint,
-                    )
-                    Spacer(Modifier.width(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                hints.forEachIndexed { i, h ->
+                    if (i > 0) Spacer(Modifier.width(18.dp))
+                    Text(h.keys, style = PebbleType.LabelSm.copy(fontSize = 11.sp), color = PebbleColors.Primary,
+                        modifier = Modifier.background(PebbleColors.Surface3, PebbleShape.Xs)
+                            .padding(horizontal = 5.dp, vertical = 2.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text(h.label, style = PebbleType.LabelSm.copy(fontSize = 11.sp), color = PebbleColors.OnSurfaceMuted)
                 }
-                Text(h.keys, style = PebbleType.Label, color = PebbleColors.OnSurfaceMuted)
-                Spacer(Modifier.width(8.dp))
-                Text(h.label, style = PebbleType.Label, color = PebbleColors.OnSurfaceFaint)
             }
+            Text("●  TV SAFE AREA PROTECTED", style = PebbleType.LabelSm.copy(fontSize = 11.sp), color = PebbleColors.Primary)
         }
     }
 }

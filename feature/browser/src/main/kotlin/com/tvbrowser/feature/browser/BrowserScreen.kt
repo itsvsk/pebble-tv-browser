@@ -6,6 +6,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,6 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
+import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.PebbleDimens
+import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.adblock.AdBlockInterceptor
 import com.tvbrowser.core.cursor.CursorController
 import com.tvbrowser.core.cursor.CursorOverlay
@@ -55,12 +62,46 @@ fun BrowserScreen(
 
     LaunchedEffect(tabId) { vm.bind(tabId) }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(PebbleColors.Bg),
     ) {
-        AddressBar(
+        if (ui.url.isNotEmpty()) {
+            WebViewHost(
+                tabId = tabId,
+                initialUrl = ui.url,
+                config = vm.makeConfig(),
+                tabManager = vm.tabManager,
+                adBlock = entry.adBlock(),
+                cursorController = entry.cursorController(),
+                onPageStarted = { vm.onPageStarted(it) },
+                onPageFinished = { url, title -> vm.onPageFinished(url, title) },
+                onProgress = { vm.onProgress(it) },
+                onDownload = { url, ua, cd, mime ->
+                    scope.launch { runCatching { entry.downloads().enqueue(url, ua, cd, mime) } }
+                },
+            )
+        }
+        CursorOverlay(state = cursorState)
+
+        if (ui.progress in 1..99) {
+            LinearProgressIndicator(
+                progress = { ui.progress / 100f },
+                color = PebbleColors.Primary,
+                trackColor = PebbleColors.Surface3,
+                modifier = Modifier.fillMaxWidth().height(3.dp).align(Alignment.TopCenter),
+            )
+        }
+
+        Box(
+            modifier = Modifier.align(Alignment.BottomCenter)
+                .padding(horizontal = PebbleDimens.Gutter)
+                .padding(bottom = PebbleDimens.HintH + 8.dp)
+                .clip(PebbleShape.Md)
+                .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md),
+        ) {
+          AddressBar(
             url = ui.url,
             isBookmarked = ui.isBookmarked,
             desktopUa = ui.desktopUa,
@@ -90,38 +131,7 @@ fun BrowserScreen(
             },
             cursorActive = cursorState.active,
             onToggleCursor = { entry.cursorController().setActive(!cursorState.active) },
-            onMenu = { /* future: overflow */ },
-        )
-
-        if (ui.progress in 1..99) {
-            LinearProgressIndicator(
-                progress = { ui.progress / 100f },
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth().height(2.dp),
-            )
-        }
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (ui.url.isNotEmpty()) {
-                WebViewHost(
-                    tabId = tabId,
-                    initialUrl = ui.url,
-                    config = vm.makeConfig(),
-                    tabManager = vm.tabManager,
-                    adBlock = entry.adBlock(),
-                    cursorController = entry.cursorController(),
-                    onPageStarted = { vm.onPageStarted(it) },
-                    onPageFinished = { url, title -> vm.onPageFinished(url, title) },
-                    onProgress = { vm.onProgress(it) },
-                    onDownload = { url, ua, cd, mime ->
-                        scope.launch {
-                            runCatching { entry.downloads().enqueue(url, ua, cd, mime) }
-                        }
-                    },
-                )
-            }
-            CursorOverlay(state = cursorState)
+          )
         }
     }
 }

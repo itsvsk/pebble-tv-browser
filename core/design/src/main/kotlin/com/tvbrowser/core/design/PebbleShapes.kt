@@ -6,8 +6,7 @@ import androidx.tv.material3.Shapes
 
 /**
  * Pebble design tokens — radius.
- * Source: colors_and_type.css §8.
- *   xs 8 · sm 12 · md 18 (cards/rows/rail-pill) · lg 28 (menus/sheets) · xl 36 · full (pills)
+ * Updated for the glass UI: 8dp controls, 16dp cards, 20dp dialogs.
  *
  * M3 has slots small/medium/large — pebble's xs/sm/md/lg/xl/full mapped:
  *   Shapes.extraSmall -> xs 8     (chips, key caps)
@@ -20,9 +19,9 @@ import androidx.tv.material3.Shapes
 object PebbleShape {
     val Xs   = RoundedCornerShape(8.dp)
     val Sm   = RoundedCornerShape(12.dp)
-    val Md   = RoundedCornerShape(18.dp)
-    val Lg   = RoundedCornerShape(28.dp)
-    val Xl   = RoundedCornerShape(36.dp)
+    val Md   = RoundedCornerShape(16.dp)
+    val Lg   = RoundedCornerShape(20.dp)
+    val Xl   = RoundedCornerShape(24.dp)
     val Full = RoundedCornerShape(percent = 50)
 }
 

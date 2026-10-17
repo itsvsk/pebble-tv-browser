@@ -78,6 +78,7 @@ Run the EasyList parser tests directly:
 
 - [SETUP.md](SETUP.md) has local setup, CLI commands, module notes, and v1 limitations.
 - [TEST_REPORT.md](TEST_REPORT.md) captures the latest manual Android TV emulator test pass, fixed issues, and remaining known issues.
+- [DESIGN.md](DESIGN.md) maps the current Stitch glass UI to the native screens and tokens.
 - [design_handoff_pebble_tv_browser/README.md](design_handoff_pebble_tv_browser/README.md) documents the Pebble visual design handoff and reference implementation.
 
 ## Current Status

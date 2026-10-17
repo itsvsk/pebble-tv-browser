@@ -36,6 +36,10 @@ class TabsViewModel @Inject constructor(
     fun showMenu(tab: TabEntity) { _selectedForMenu.value = tab }
     fun dismissMenu() { _selectedForMenu.value = null }
 
+    fun newTab(onReady: (String) -> Unit) {
+        viewModelScope.launch { onReady(tabManager.newTab("https://www.google.com")) }
+    }
+
     fun close(tab: TabEntity) {
         viewModelScope.launch {
             tabManager.release(tab.id)

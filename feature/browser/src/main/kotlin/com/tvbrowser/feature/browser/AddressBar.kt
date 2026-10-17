@@ -23,12 +23,13 @@ import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SwipeRightAlt
 import androidx.compose.material.icons.outlined.Tab
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -77,13 +78,12 @@ fun AddressBar(
     onBack: () -> Unit,
     onForward: () -> Unit,
     onReload: () -> Unit,
-    onHome: () -> Unit, // kept for API compat; rail handles Home now
+    onHome: () -> Unit,
     onTabs: () -> Unit,
     onBookmark: () -> Unit,
     onToggleUa: () -> Unit,
     cursorActive: Boolean,
     onToggleCursor: () -> Unit,
-    onMenu: () -> Unit,
 ) {
     var text by remember(url) { mutableStateOf(url) }
     var editing by remember { mutableStateOf(false) }
@@ -93,7 +93,7 @@ fun AddressBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(PebbleDimens.ChromeH)
-            .background(PebbleColors.Surface),
+            .background(PebbleColors.GlassHigh),
     ) {
         Row(
             modifier = Modifier
@@ -103,7 +103,7 @@ fun AddressBar(
             horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
         ) {
             RoundIcon(Icons.Outlined.ArrowBack, "Back", onClick = onBack)
-            RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward, enabled = false)
+            RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward)
             RoundIcon(Icons.Outlined.Refresh, "Reload", onClick = onReload)
 
             Spacer(Modifier.width(PebbleDimens.Sp2))
@@ -119,7 +119,6 @@ fun AddressBar(
                     editing = false
                     focusManager.moveFocus(FocusDirection.Down)
                 },
-                desktopUa = desktopUa,
                 modifier = Modifier.weight(1f),
             )
 
@@ -142,7 +141,7 @@ fun AddressBar(
                 tint = if (isBookmarked) PebbleColors.PrimaryStrong else PebbleColors.OnSurfaceMuted,
             )
             RoundIcon(Icons.Outlined.Tab, "Tabs", onClick = onTabs)
-            RoundIcon(Icons.Outlined.MoreVert, "Menu", onClick = onMenu)
+            RoundIcon(Icons.Outlined.Home, "Home", onClick = onHome)
         }
     }
 
@@ -160,7 +159,7 @@ private fun RoundIcon(
 ) {
     Box(
         modifier = Modifier
-            .size(60.dp)
+            .size(50.dp)
             .pebbleFocus(shape = CircleShape, lift = false, tight = true)
             .background(androidx.compose.ui.graphics.Color.Transparent, CircleShape)
             .let { if (enabled) it.pebbleClickable(onClick) else it },
@@ -170,7 +169,7 @@ private fun RoundIcon(
             imageVector,
             contentDescription = contentDescription,
             tint = if (enabled) tint else PebbleColors.OnSurfaceFaint.copy(alpha = 0.5f),
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier.size(23.dp),
         )
     }
 }
@@ -185,17 +184,17 @@ private fun AddressPill(
     editing: Boolean,
     onEditingChange: (Boolean) -> Unit,
     onSubmit: () -> Unit,
-    desktopUa: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
-    val (scheme, host) = remember(url) { splitScheme(url) }
+    val host = remember(url) { url.substringAfter("://", url) }
+    val secure = url.startsWith("https://", ignoreCase = true)
     Row(
         modifier = modifier
-            .height(60.dp)
+            .height(54.dp)
             .pebbleFocus(shape = PebbleShape.Full, lift = false)
-            .background(PebbleColors.Surface2, PebbleShape.Full)
-            .padding(horizontal = 20.dp)
+            .background(PebbleColors.Glass, PebbleShape.Full)
+            .padding(horizontal = 16.dp)
             .onFocusChanged { onEditingChange(it.isFocused) }
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -208,12 +207,12 @@ private fun AddressPill(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            Icons.Outlined.Lock,
-            contentDescription = "Secure",
-            tint = PebbleColors.OnSurfaceMuted,
+            if (secure) Icons.Outlined.Lock else Icons.Outlined.Public,
+            contentDescription = if (secure) "Secure site" else "Site security not verified",
+            tint = if (secure) PebbleColors.Primary else PebbleColors.Warn,
             modifier = Modifier.size(20.dp),
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(10.dp))
         if (editing) {
             BasicTextField(
                 value = text,
@@ -221,6 +220,7 @@ private fun AddressPill(
                 singleLine = true,
                 textStyle = TextStyle(
                     color = PebbleColors.OnSurface,
+                    fontFamily = PebbleType.sans,
                     fontSize = 23.sp,
                     fontWeight = FontWeight.W400,
                 ),
@@ -236,49 +236,14 @@ private fun AddressPill(
                 },
             )
         } else {
-            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                if (scheme.isNotEmpty()) {
-                    Text(
-                        scheme,
-                        style = PebbleType.TitleLg,
-                        color = PebbleColors.OnSurfaceFaint,
-                        maxLines = 1,
-                    )
-                }
-                Text(
-                    host,
-                    style = PebbleType.Title,
-                    color = PebbleColors.OnSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            Text(
+                host,
+                style = PebbleType.Title,
+                color = PebbleColors.OnSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
         }
-        Spacer(Modifier.width(12.dp))
-        ModeChip(desktop = desktopUa)
     }
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun ModeChip(desktop: Boolean) {
-    Box(
-        modifier = Modifier
-            .height(28.dp)
-            .background(PebbleColors.Surface3, PebbleShape.Full)
-            .padding(horizontal = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            if (desktop) "DESKTOP" else "MOBILE",
-            style = PebbleType.Overline,
-            color = PebbleColors.OnSurfaceMuted,
-        )
-    }
-}
-
-private fun splitScheme(url: String): Pair<String, String> {
-    val idx = url.indexOf("://")
-    return if (idx > 0) (url.substring(0, idx + 3)) to url.substring(idx + 3)
-    else "" to url
 }

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tab
 import androidx.compose.material.icons.outlined.Bookmark
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
@@ -42,10 +43,11 @@ import com.tvbrowser.core.design.PebbleType
 
 enum class NavDestination(val label: String, val outlined: ImageVector, val filled: ImageVector) {
     Home("Home", Icons.Outlined.Home, Icons.Filled.Home),
+    Browser("Browse", Icons.Outlined.Public, Icons.Outlined.Public),
     Tabs("Tabs", Icons.Outlined.Tab, Icons.Filled.Tab),
-    Saved("Saved", Icons.Outlined.Bookmark, Icons.Filled.Bookmark),
+    Saved("Library", Icons.Outlined.Bookmark, Icons.Filled.Bookmark),
     History("History", Icons.Outlined.History, Icons.Filled.History),
-    Files("Files", Icons.Outlined.Download, Icons.Filled.Download),
+    Files("Downloads", Icons.Outlined.Download, Icons.Filled.Download),
     Settings("Settings", Icons.Outlined.Settings, Icons.Filled.Settings),
 }
 

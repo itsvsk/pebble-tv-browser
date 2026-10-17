@@ -2,6 +2,7 @@ package com.tvbrowser.app.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -22,15 +23,16 @@ import com.tvbrowser.feature.tabs.TabsOverviewScreen
 @Composable
 fun AppNavHost(cursorState: CursorState) {
     val nav = rememberNavController()
+    val shellVm: ShellViewModel = hiltViewModel()
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
     val active = when (currentRoute) {
         Routes.HOME -> NavDestination.Home
-        Routes.BROWSER -> NavDestination.Home // browser view still belongs to Home tab
+        Routes.BROWSER -> NavDestination.Browser
         Routes.TABS -> NavDestination.Tabs
         Routes.BOOKMARKS -> NavDestination.Saved
-        Routes.HISTORY -> NavDestination.History
+        Routes.HISTORY -> NavDestination.Saved
         Routes.DOWNLOADS -> NavDestination.Files
         Routes.SETTINGS -> NavDestination.Settings
         else -> NavDestination.Home
@@ -39,8 +41,15 @@ fun AppNavHost(cursorState: CursorState) {
     RootShell(
         active = active,
         onSelect = { dest ->
+            if (dest == NavDestination.Browser) {
+                if (currentRoute != Routes.BROWSER) {
+                    shellVm.openBrowser { tabId -> nav.navigate(Routes.browser(tabId)) }
+                }
+                return@RootShell
+            }
             val route = when (dest) {
                 NavDestination.Home -> Routes.HOME
+                NavDestination.Browser -> Routes.HOME
                 NavDestination.Tabs -> Routes.TABS
                 NavDestination.Saved -> Routes.BOOKMARKS
                 NavDestination.History -> Routes.HISTORY
@@ -81,11 +90,14 @@ fun AppNavHost(cursorState: CursorState) {
             composable(Routes.TABS) {
                 TabsOverviewScreen(
                     onOpenTab = { tabId -> nav.navigate(Routes.browser(tabId)) },
-                    onNewTab = { nav.popBackStack(Routes.HOME, inclusive = false) },
+                    onNewTab = { tabId -> nav.navigate(Routes.browser(tabId)) },
                 )
             }
             composable(Routes.BOOKMARKS) {
-                BookmarksScreen(onOpenUrl = { tabId -> nav.navigate(Routes.browser(tabId)) })
+                BookmarksScreen(
+                    onOpenUrl = { tabId -> nav.navigate(Routes.browser(tabId)) },
+                    onOpenHistory = { nav.navigate(Routes.HISTORY) },
+                )
             }
             composable(Routes.HISTORY) {
                 HistoryScreen(onOpenUrl = { tabId -> nav.navigate(Routes.browser(tabId)) })

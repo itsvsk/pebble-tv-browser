@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -19,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BookmarkRemove
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -32,8 +35,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -95,32 +100,53 @@ class BookmarksViewModel @Inject constructor(
 @Composable
 fun BookmarksScreen(
     onOpenUrl: (tabId: String) -> Unit,
+    onOpenHistory: () -> Unit,
     vm: BookmarksViewModel = hiltViewModel(),
 ) {
     val bookmarks by vm.bookmarks.collectAsState()
     val menuBm by vm.selectedForMenu.collectAsState()
     Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8)) {
-            Header(count = bookmarks.size)
-            Spacer(Modifier.height(PebbleDimens.Sp6))
-            if (bookmarks.isEmpty()) {
-                Text("No bookmarks yet.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
-                return@Column
-            }
-            FolderHeader(label = "All bookmarks")
-            Spacer(Modifier.height(PebbleDimens.Sp3))
-            TvLazyVerticalGrid(
-                columns = TvGridCells.Fixed(3),
-                horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
-                verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
-                modifier = Modifier.fillMaxSize(),
+        Row(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)) {
+            Column(
+                modifier = Modifier.width(198.dp).fillMaxHeight()
+                    .background(PebbleColors.Glass, PebbleShape.Md)
+                    .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                    .padding(14.dp),
             ) {
-                items(bookmarks, key = { it.id }) { bm ->
-                    BookmarkRow(
-                        bm = bm,
-                        onOpen = { vm.open(bm) { onOpenUrl(it) } },
-                        onLongClick = { vm.showMenu(bm) },
-                    )
+                Text("Library", style = PebbleType.Title, color = PebbleColors.OnSurface)
+                Text("Your collection", style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceMuted)
+                Spacer(Modifier.height(PebbleDimens.Sp6))
+                LibrarySideItem("Bookmarks", "${bookmarks.size} saved sites", true, onClick = {})
+                Spacer(Modifier.height(PebbleDimens.Sp2))
+                LibrarySideItem("History", "Recently visited", false, onClick = onOpenHistory)
+            }
+            Spacer(Modifier.width(PebbleDimens.Sp4))
+            Column(
+                modifier = Modifier.weight(1f).fillMaxHeight()
+                    .background(PebbleColors.Glass, PebbleShape.Md)
+                    .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                    .padding(20.dp),
+            ) {
+                Header(count = bookmarks.size)
+                Spacer(Modifier.height(PebbleDimens.Sp6))
+                if (bookmarks.isEmpty()) {
+                    Text("No bookmarks yet. Save a page from the browser to see it here.",
+                        style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+                } else {
+                    TvLazyVerticalGrid(
+                        columns = TvGridCells.Fixed(3),
+                        horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+                        verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        items(bookmarks, key = { it.id }) { bm ->
+                            BookmarkRow(
+                                bm = bm,
+                                onOpen = { vm.open(bm) { onOpenUrl(it) } },
+                                onLongClick = { vm.showMenu(bm) },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -145,7 +171,21 @@ fun BookmarksScreen(
 private fun Header(count: Int) {
     Column {
         Text("Bookmarks", style = PebbleType.Display, color = PebbleColors.OnSurface)
-        Text("$count saved", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+        Text("Favorites & sites you saved  ·  $count items", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+    }
+}
+
+@Composable
+private fun LibrarySideItem(label: String, detail: String, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .pebbleFocus(shape = PebbleShape.Sm, lift = false, tight = true)
+            .background(if (selected) PebbleColors.PrimaryContainer else PebbleColors.Surface2, PebbleShape.Sm)
+            .pebbleClickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(label, style = PebbleType.Label, color = if (selected) PebbleColors.Primary else PebbleColors.OnSurface)
+        Text(detail, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceMuted, maxLines = 1)
     }
 }
 
@@ -163,27 +203,31 @@ private fun FolderHeader(label: String) {
 @Composable
 private fun BookmarkRow(bm: Bookmark, onOpen: () -> Unit, onLongClick: () -> Unit) {
     val host = UrlUtils.hostOf(bm.url) ?: bm.url
-    Row(
+    Column(
         modifier = Modifier
-            .pebbleFocus(shape = PebbleShape.Md, lift = false)
+            .pebbleFocus(shape = PebbleShape.Md)
             .fillMaxWidth()
-            .height(72.dp)
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .height(216.dp)
+            .background(PebbleColors.GlassHigh, PebbleShape.Md)
+            .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
             .pebbleClickable(onClick = onOpen, onLongClick = onLongClick)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(10.dp),
     ) {
-        AsyncImage(
-            model = "https://www.google.com/s2/favicons?domain=$host&sz=64",
-            contentDescription = null,
-            modifier = Modifier.size(28.dp).clip(PebbleShape.Sm),
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(bm.title, style = PebbleType.Body, color = PebbleColors.OnSurface, maxLines = 1)
-            Text(host, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceFaint, maxLines = 1)
+        Box(
+            modifier = Modifier.fillMaxWidth().height(116.dp)
+                .background(Brush.linearGradient(listOf(PebbleColors.PrimaryContainer, PebbleColors.Surface3, PebbleColors.Surface1)), PebbleShape.Sm),
+            contentAlignment = Alignment.Center,
+        ) {
+            AsyncImage(
+                model = "https://www.google.com/s2/favicons?domain=$host&sz=128",
+                contentDescription = null,
+                modifier = Modifier.size(44.dp).clip(PebbleShape.Sm),
+            )
         }
+        Spacer(Modifier.height(10.dp))
+        Text(bm.title, style = PebbleType.Label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W600),
+            color = PebbleColors.OnSurface, maxLines = 2)
+        Text(host, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceFaint, maxLines = 1)
     }
 }
 
