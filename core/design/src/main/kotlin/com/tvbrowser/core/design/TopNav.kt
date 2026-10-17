@@ -2,6 +2,8 @@ package com.tvbrowser.core.design
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -24,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +48,8 @@ fun TopNav(
     onToggleCursor: () -> Unit,
 ) {
     var now by remember { mutableStateOf(LocalTime.now()) }
+    val settingsFocusSource = remember { MutableInteractionSource() }
+    val settingsFocused by settingsFocusSource.collectIsFocusedAsState()
     LaunchedEffect(Unit) {
         while (true) {
             now = LocalTime.now()
@@ -112,12 +117,17 @@ fun TopNav(
         Spacer(Modifier.width(14.dp))
         Box(
             modifier = Modifier.size(34.dp)
-                .pebbleFocus(shape = CircleShape, lift = false, tight = true)
-                .background(PebbleColors.PrimaryStrong, CircleShape)
+                .then(if (settingsFocused) Modifier.shadow(
+                    16.dp, CircleShape,
+                    ambientColor = PebbleColors.Primary.copy(alpha = 0.75f),
+                    spotColor = PebbleColors.Primary.copy(alpha = 0.75f),
+                ) else Modifier)
+                .pebbleFocus(shape = CircleShape, lift = false, tight = true, interactionSource = settingsFocusSource)
+                .background(if (settingsFocused) PebbleColors.PrimaryDim else PebbleColors.PrimaryContainer, CircleShape)
                 .pebbleClickable(onClick = { onSelect(NavDestination.Settings) }),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = PebbleColors.OnPrimary, modifier = Modifier.size(18.dp))
+            Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = if (settingsFocused) PebbleColors.OnPrimary else PebbleColors.PrimaryDim, modifier = Modifier.size(18.dp))
         }
     }
 }

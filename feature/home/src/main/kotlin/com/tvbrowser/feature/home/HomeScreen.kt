@@ -8,7 +8,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +22,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -50,7 +48,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
@@ -60,9 +57,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.TextStyle
@@ -76,8 +70,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.tv.foundation.lazy.list.TvLazyRow
-import androidx.tv.foundation.lazy.list.itemsIndexed
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -86,23 +78,17 @@ import com.tvbrowser.core.common.UrlUtils
 import com.tvbrowser.core.db.entity.MostVisitedView
 import com.tvbrowser.core.design.PebbleColors
 import com.tvbrowser.core.design.PebbleDimens
-import com.tvbrowser.core.design.PebbleLogo
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
 import com.tvbrowser.core.design.pebbleFocus
 import com.tvbrowser.core.design.pebbleClickable
-import kotlinx.coroutines.delay
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle as JtTextStyle
-import java.util.Locale
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun HomeScreen(
     homeNavFocus: FocusRequester,
     onOpenUrl: (tabId: String) -> Unit,
+    onOpenBrowse: () -> Unit,
     onOpenTabs: () -> Unit,
     onOpenBookmarks: () -> Unit,
     onOpenHistory: () -> Unit,
@@ -139,20 +125,6 @@ fun HomeScreen(
         }
     }
 
-    val quickLinks = remember(mostVisited) {
-        val defaults = listOf(
-            MostVisitedView("https://www.youtube.com", "YouTube 4K", 0, 0),
-            MostVisitedView("https://www.twitch.tv", "Twitch Interactive", 0, 0),
-            MostVisitedView("https://www.netflix.com", "Netflix Stream", 0, 0),
-            MostVisitedView("https://www.reddit.com", "Reddit TV Hub", 0, 0),
-            MostVisitedView("https://github.com", "GitHub Dashboard", 0, 0),
-            MostVisitedView("https://www.wikipedia.org", "Wikipedia Daily", 0, 0),
-            MostVisitedView("https://www.theverge.com", "The Verge Media", 0, 0),
-            MostVisitedView("https://open.spotify.com", "Spotify Web Player", 0, 0),
-        )
-        (mostVisited + defaults).distinctBy { UrlUtils.hostOf(it.url) }.take(8)
-    }
-
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -161,8 +133,6 @@ fun HomeScreen(
                 .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)
                 .padding(bottom = PebbleDimens.HintH),
         ) {
-            Text("✦  PEBBLE ENGINE  ·  TV READY  ·  WEB AT A DISTANCE", style = PebbleType.Overline, color = PebbleColors.Primary)
-            Spacer(Modifier.height(PebbleDimens.Sp4))
             SearchField(
                 value = query,
                 onValueChange = { query = it },
@@ -180,15 +150,14 @@ fun HomeScreen(
             Text("OK  Type       MIC  Speak       ▼  Jump to Speed Dials", style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceFaint)
             Spacer(Modifier.height(PebbleDimens.Sp8))
             MostVisitedSection(
-                items = quickLinks,
+                items = mostVisited,
                 onClick = { item ->
                     vm.openInNewTab(item.url) { tabId -> onOpenUrl(tabId) }
                 },
                 onLongClick = { item -> vm.showMenu(item) },
+                onOpenBrowse = onOpenBrowse,
                 firstTileFocus = firstSpeedDialFocus,
             )
-            Spacer(Modifier.height(PebbleDimens.Sp8))
-            ExploreSection { url -> vm.openInNewTab(url) { onOpenUrl(it) } }
         }
         menuItem?.let { item ->
             TileContextMenu(
@@ -203,55 +172,6 @@ fun HomeScreen(
                 onDismiss = { vm.dismissMenu() },
             )
         }
-    }
-}
-
-@Composable
-private fun Wordmark() {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        PebbleLogo(size = 28.dp)
-        Spacer(Modifier.width(12.dp))
-        Row {
-            val tracking = 4.sp
-            Text("PEBB", style = PebbleType.Title.copy(fontWeight = FontWeight.W600, letterSpacing = tracking, fontSize = 20.sp), color = PebbleColors.OnSurface.copy(alpha = 0.92f))
-            Text("L", style = PebbleType.Title.copy(fontWeight = FontWeight.W600, letterSpacing = tracking, fontSize = 20.sp), color = PebbleColors.PrimaryStrong)
-            Text("E", style = PebbleType.Title.copy(fontWeight = FontWeight.W600, letterSpacing = tracking, fontSize = 20.sp), color = PebbleColors.OnSurface.copy(alpha = 0.92f))
-        }
-    }
-}
-
-@Composable
-private fun Hero(time: LocalTime, date: LocalDate) {
-    val clockText = time.format(DateTimeFormatter.ofPattern("HH:mm"))
-    val hour = time.hour
-    val greet = when {
-        hour < 12 -> "Good morning"
-        hour < 17 -> "Good afternoon"
-        hour < 21 -> "Good evening"
-        else -> "Good night"
-    }
-    val dayName = date.dayOfWeek.getDisplayName(JtTextStyle.FULL, Locale.getDefault()).uppercase(Locale.getDefault())
-    val monthName = date.month.getDisplayName(JtTextStyle.SHORT, Locale.getDefault()).uppercase(Locale.getDefault())
-    val dateLine = "$dayName, ${date.dayOfMonth} $monthName"
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            clockText,
-            style = PebbleType.Clock.copy(fontSize = 64.sp, lineHeight = 68.sp),
-            color = PebbleColors.OnSurface,
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            greet,
-            style = PebbleType.Greet.copy(fontSize = 24.sp, lineHeight = 30.sp),
-            color = PebbleColors.OnSurface,
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            dateLine,
-            style = PebbleType.Overline.copy(fontSize = 14.sp, letterSpacing = 1.4.sp),
-            color = PebbleColors.OnSurfaceFaint,
-        )
     }
 }
 
@@ -378,12 +298,35 @@ private fun MostVisitedSection(
     items: List<MostVisitedView>,
     onClick: (MostVisitedView) -> Unit,
     onLongClick: (MostVisitedView) -> Unit,
+    onOpenBrowse: () -> Unit,
     firstTileFocus: FocusRequester,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        SectionTitle("Speed Dials", "${items.size} quick links")
+        SectionTitle("Speed Dials", if (items.isEmpty()) "Frequently visited sites" else "${items.size} quick links")
         Spacer(Modifier.height(PebbleDimens.Sp4))
-        Column(verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3)) {
+        if (items.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(PebbleColors.Glass, PebbleShape.Md)
+                    .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                    .padding(PebbleDimens.Sp5),
+                verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+            ) {
+                Text("No frequently visited pages yet", style = PebbleType.Title, color = PebbleColors.OnSurface)
+                Text("Browse the web and the pages you visit will appear here.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+                Box(
+                    modifier = Modifier
+                        .focusRequester(firstTileFocus)
+                        .pebbleFocus(shape = PebbleShape.Full, lift = false)
+                        .background(PebbleColors.PrimaryContainer, PebbleShape.Full)
+                        .pebbleClickable(onClick = onOpenBrowse)
+                        .padding(horizontal = PebbleDimens.Sp4, vertical = PebbleDimens.Sp2),
+                ) {
+                    Text("Open Browse", style = PebbleType.Label, color = PebbleColors.OnPrimaryContainer)
+                }
+            }
+        } else Column(verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3)) {
             items.chunked(4).forEachIndexed { rowIndex, rowItems ->
                 Row(horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3)) {
                     rowItems.forEachIndexed { index, item ->
@@ -410,45 +353,6 @@ private fun SectionTitle(title: String, subtitle: String) {
         Text(title, style = PebbleType.TitleLg.copy(fontWeight = FontWeight.W700), color = PebbleColors.OnSurface)
         Spacer(Modifier.width(10.dp))
         Text(subtitle, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceMuted)
-    }
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun ExploreSection(onOpen: (String) -> Unit) {
-    val portals = listOf(
-        Triple("Watch in 4K", "YouTube · video and live streams", "https://www.youtube.com"),
-        Triple("Explore live", "Twitch · interactive broadcasts", "https://www.twitch.tv"),
-        Triple("Discover more", "The Verge · technology and culture", "https://www.theverge.com"),
-    )
-    val artwork = listOf(R.drawable.feature_city, R.drawable.feature_ocean, R.drawable.feature_prism)
-    Column {
-        SectionTitle("Explore the Web", "Featured portals")
-        Spacer(Modifier.height(PebbleDimens.Sp4))
-        Row(horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3)) {
-            portals.forEachIndexed { index, (title, detail, url) ->
-                Box(
-                    modifier = Modifier.weight(1f)
-                        .height(158.dp)
-                        .pebbleFocus(shape = PebbleShape.Md)
-                        .clip(PebbleShape.Md)
-                        .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
-                        .pebbleClickable(onClick = { onOpen(url) })
-                ) {
-                    Image(painter = painterResource(artwork[index]), contentDescription = null,
-                        contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
-                        listOf(PebbleColors.Bg.copy(alpha = 0.1f), PebbleColors.Bg.copy(alpha = 0.84f)))))
-                    Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                        Text("✦  FEATURED", style = PebbleType.Overline, color = PebbleColors.Primary)
-                        Column {
-                            Text(title, style = PebbleType.Title, color = PebbleColors.OnSurface, maxLines = 1)
-                            Text(detail, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceMuted, maxLines = 2)
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

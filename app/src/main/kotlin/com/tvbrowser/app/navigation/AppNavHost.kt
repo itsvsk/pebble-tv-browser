@@ -82,6 +82,7 @@ fun AppNavHost(cursorState: CursorState, onToggleCursor: () -> Unit) {
                 HomeScreen(
                     homeNavFocus = homeNavFocus,
                     onOpenUrl = { tabId -> nav.navigate(Routes.browser(tabId)) },
+                    onOpenBrowse = { shellVm.openBrowser { tabId -> nav.navigate(Routes.browser(tabId)) } },
                     onOpenTabs = { nav.navigate(Routes.TABS) },
                     onOpenBookmarks = { nav.navigate(Routes.BOOKMARKS) },
                     onOpenHistory = { nav.navigate(Routes.HISTORY) },

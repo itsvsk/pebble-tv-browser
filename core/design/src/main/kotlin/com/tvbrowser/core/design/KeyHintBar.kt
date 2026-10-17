@@ -1,7 +1,6 @@
 package com.tvbrowser.core.design
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -60,7 +59,6 @@ fun KeyHintBar(
                 .fillMaxSize()
                 .padding(horizontal = PebbleDimens.Gutter),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 hints.forEachIndexed { i, h ->
@@ -72,7 +70,6 @@ fun KeyHintBar(
                     Text(h.label, style = PebbleType.LabelSm.copy(fontSize = 11.sp), color = PebbleColors.OnSurfaceMuted)
                 }
             }
-            Text("●  TV SAFE AREA PROTECTED", style = PebbleType.LabelSm.copy(fontSize = 11.sp), color = PebbleColors.Primary)
         }
     }
 }
