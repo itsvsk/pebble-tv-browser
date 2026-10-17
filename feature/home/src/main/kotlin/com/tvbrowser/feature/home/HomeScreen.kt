@@ -101,6 +101,7 @@ import java.util.Locale
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    homeNavFocus: FocusRequester,
     onOpenUrl: (tabId: String) -> Unit,
     onOpenTabs: () -> Unit,
     onOpenBookmarks: () -> Unit,
@@ -172,6 +173,7 @@ fun HomeScreen(
                 },
                 onVoice = { voiceLauncher.launch(voiceIntent) },
                 focusRequester = omniboxFocus,
+                onUp = { homeNavFocus.requestFocus() },
                 onDown = { firstSpeedDialFocus.requestFocus() },
             )
             Spacer(Modifier.height(PebbleDimens.Sp3))
@@ -261,6 +263,7 @@ private fun SearchField(
     onSubmit: () -> Unit,
     onVoice: () -> Unit,
     focusRequester: androidx.compose.ui.focus.FocusRequester,
+    onUp: () -> Unit,
     onDown: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
@@ -283,7 +286,7 @@ private fun SearchField(
                 .onPreviewKeyEvent { e ->
                     if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     when (e.key) {
-                        Key.DirectionUp -> { focusManager.moveFocus(FocusDirection.Up); true }
+                        Key.DirectionUp -> { onUp(); true }
                         Key.DirectionDown -> { onDown(); true }
                         Key.DirectionRight -> { focusManager.moveFocus(FocusDirection.Right); true }
                         else -> false

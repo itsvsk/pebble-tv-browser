@@ -2,6 +2,8 @@ package com.tvbrowser.app.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -26,6 +28,7 @@ fun AppNavHost(cursorState: CursorState) {
     val shellVm: ShellViewModel = hiltViewModel()
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    val homeNavFocus = remember { FocusRequester() }
 
     val active = when (currentRoute) {
         Routes.HOME -> NavDestination.Home
@@ -40,6 +43,7 @@ fun AppNavHost(cursorState: CursorState) {
 
     RootShell(
         active = active,
+        homeFocusRequester = homeNavFocus,
         onSelect = { dest ->
             if (dest == NavDestination.Browser) {
                 if (currentRoute != Routes.BROWSER) {
@@ -67,6 +71,7 @@ fun AppNavHost(cursorState: CursorState) {
         NavHost(navController = nav, startDestination = Routes.HOME) {
             composable(Routes.HOME) {
                 HomeScreen(
+                    homeNavFocus = homeNavFocus,
                     onOpenUrl = { tabId -> nav.navigate(Routes.browser(tabId)) },
                     onOpenTabs = { nav.navigate(Routes.TABS) },
                     onOpenBookmarks = { nav.navigate(Routes.BOOKMARKS) },

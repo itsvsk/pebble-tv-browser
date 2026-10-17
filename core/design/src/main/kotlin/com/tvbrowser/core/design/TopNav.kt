@@ -23,6 +23,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,7 +37,11 @@ import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun TopNav(active: NavDestination, onSelect: (NavDestination) -> Unit) {
+fun TopNav(
+    active: NavDestination,
+    onSelect: (NavDestination) -> Unit,
+    homeFocusRequester: FocusRequester,
+) {
     var now by remember { mutableStateOf(LocalTime.now()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -67,7 +73,12 @@ fun TopNav(active: NavDestination, onSelect: (NavDestination) -> Unit) {
                 NavDestination.Home, NavDestination.Browser, NavDestination.Tabs,
                 NavDestination.Saved, NavDestination.Files,
             ).forEach { destination ->
-                NavPill(destination, active == destination) { onSelect(destination) }
+                NavPill(
+                    destination = destination,
+                    selected = active == destination,
+                    focusRequester = if (destination == NavDestination.Home) homeFocusRequester else null,
+                    onClick = { onSelect(destination) },
+                )
             }
         }
         Spacer(Modifier.weight(1f))
@@ -97,9 +108,15 @@ fun TopNav(active: NavDestination, onSelect: (NavDestination) -> Unit) {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun NavPill(destination: NavDestination, selected: Boolean, onClick: () -> Unit) {
+private fun NavPill(
+    destination: NavDestination,
+    selected: Boolean,
+    focusRequester: FocusRequester?,
+    onClick: () -> Unit,
+) {
     Box(
         modifier = Modifier.height(36.dp)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
             .background(if (selected) PebbleColors.Primary else PebbleColors.GlassHigh, PebbleShape.Full)
             .pebbleClickable(onClick = onClick)
