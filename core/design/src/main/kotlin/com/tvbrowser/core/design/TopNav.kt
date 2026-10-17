@@ -13,8 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material.icons.outlined.SwipeRightAlt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,7 +28,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -41,6 +41,8 @@ fun TopNav(
     active: NavDestination,
     onSelect: (NavDestination) -> Unit,
     homeFocusRequester: FocusRequester,
+    cursorModeActive: Boolean?,
+    onToggleCursor: () -> Unit,
 ) {
     var now by remember { mutableStateOf(LocalTime.now()) }
     LaunchedEffect(Unit) {
@@ -82,16 +84,30 @@ fun TopNav(
             }
         }
         Spacer(Modifier.weight(1f))
-        Text(
-            "▣  TV MODE",
-            style = PebbleType.LabelSm.copy(fontSize = 11.sp),
-            color = PebbleColors.OnSurfaceMuted,
-            modifier = Modifier.background(PebbleColors.Surface2, PebbleShape.Xs)
-                .padding(horizontal = 10.dp, vertical = 5.dp),
-        )
-        Spacer(Modifier.width(14.dp))
-        Icon(Icons.Outlined.Wifi, contentDescription = "Network", tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(19.dp))
-        Spacer(Modifier.width(14.dp))
+        if (cursorModeActive != null) {
+            Row(
+                modifier = Modifier
+                    .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
+                    .background(PebbleColors.GlassHigh, PebbleShape.Full)
+                    .pebbleClickable(onClick = onToggleCursor)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    if (cursorModeActive) Icons.Outlined.Mouse else Icons.Outlined.SwipeRightAlt,
+                    contentDescription = if (cursorModeActive) "Pointer mode" else "D-pad mode",
+                    tint = PebbleColors.Primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text(
+                    if (cursorModeActive) "Pointer" else "D-pad",
+                    style = PebbleType.LabelSm,
+                    color = PebbleColors.OnSurface,
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+        }
         Text(now.format(DateTimeFormatter.ofPattern("hh:mm a")), style = PebbleType.Label, color = PebbleColors.OnSurface)
         Spacer(Modifier.width(14.dp))
         Box(

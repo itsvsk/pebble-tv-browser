@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.border
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.Alignment
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -16,20 +12,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.MaterialTheme
-import com.tvbrowser.core.design.PebbleColors
-import com.tvbrowser.core.design.PebbleDimens
-import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.adblock.AdBlockInterceptor
 import com.tvbrowser.core.cursor.CursorController
 import com.tvbrowser.core.cursor.CursorOverlay
 import com.tvbrowser.core.cursor.CursorState
+import com.tvbrowser.core.design.PebbleColors
 import com.tvbrowser.core.downloads.DownloadManagerRepo
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -45,13 +38,11 @@ interface BrowserEntryPoint {
     fun downloads(): DownloadManagerRepo
 }
 
-@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun BrowserScreen(
     tabId: String,
     cursorState: CursorState,
     onBackHome: () -> Unit,
-    onOpenTabs: () -> Unit,
     vm: BrowserViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -69,44 +60,8 @@ fun BrowserScreen(
 
     LaunchedEffect(tabId) { vm.bind(tabId) }
 
-    Box(
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        if (ui.url.isNotEmpty()) {
-            WebViewHost(
-                tabId = tabId,
-                initialUrl = ui.url,
-                config = vm.makeConfig(),
-                tabManager = vm.tabManager,
-                adBlock = entry.adBlock(),
-                cursorController = entry.cursorController(),
-                onPageStarted = { vm.onPageStarted(it) },
-                onPageFinished = { url, title -> vm.onPageFinished(url, title) },
-                onProgress = { vm.onProgress(it) },
-                onDownload = { url, ua, cd, mime ->
-                    scope.launch { runCatching { entry.downloads().enqueue(url, ua, cd, mime) } }
-                },
-            )
-        }
-        CursorOverlay(state = cursorState)
-
-        if (ui.progress in 1..99) {
-            LinearProgressIndicator(
-                progress = { ui.progress / 100f },
-                color = PebbleColors.Primary,
-                trackColor = PebbleColors.Surface3,
-                modifier = Modifier.fillMaxWidth().height(3.dp).align(Alignment.TopCenter),
-            )
-        }
-
-        Box(
-            modifier = Modifier.align(Alignment.BottomCenter)
-                .padding(horizontal = PebbleDimens.Gutter)
-                .padding(bottom = PebbleDimens.HintH + 8.dp)
-                .clip(PebbleShape.Md)
-                .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md),
-        ) {
-          AddressBar(
+    Column(modifier = Modifier.fillMaxSize()) {
+        AddressBar(
             controlsFocusRequester = controlsFocusRequester,
             url = ui.url,
             isBookmarked = ui.isBookmarked,
@@ -124,8 +79,6 @@ fun BrowserScreen(
                 if (wv.canGoForward()) wv.goForward()
             },
             onReload = { vm.tabManager.getOrCreate(tabId, vm.makeConfig()).reload() },
-            onHome = onBackHome,
-            onTabs = onOpenTabs,
             onBookmark = { vm.toggleBookmark() },
             onToggleUa = {
                 vm.toggleDesktopUa()
@@ -135,9 +88,35 @@ fun BrowserScreen(
                     else android.webkit.WebSettings.getDefaultUserAgent(context)
                 wv.reload()
             },
-            cursorActive = cursorState.active,
-            onToggleCursor = { entry.cursorController().setActive(!cursorState.active) },
-          )
+        )
+
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            if (ui.url.isNotEmpty()) {
+                WebViewHost(
+                    tabId = tabId,
+                    initialUrl = ui.url,
+                    config = vm.makeConfig(),
+                    tabManager = vm.tabManager,
+                    adBlock = entry.adBlock(),
+                    cursorController = entry.cursorController(),
+                    onPageStarted = { vm.onPageStarted(it) },
+                    onPageFinished = { url, title -> vm.onPageFinished(url, title) },
+                    onProgress = { vm.onProgress(it) },
+                    onDownload = { url, ua, cd, mime ->
+                        scope.launch { runCatching { entry.downloads().enqueue(url, ua, cd, mime) } }
+                    },
+                )
+            }
+            CursorOverlay(state = cursorState)
+
+            if (ui.progress in 1..99) {
+                LinearProgressIndicator(
+                    progress = { ui.progress / 100f },
+                    color = PebbleColors.Primary,
+                    trackColor = PebbleColors.Surface3,
+                    modifier = Modifier.fillMaxWidth().height(3.dp).align(Alignment.TopCenter),
+                )
+            }
         }
     }
 }

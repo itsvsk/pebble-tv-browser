@@ -30,7 +30,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val cursorState by cursorController.state.collectAsState()
             PebbleTheme {
-                AppNavHost(cursorState = cursorState)
+                AppNavHost(
+                    cursorState = cursorState,
+                    onToggleCursor = { cursorController.setActive(!cursorState.active) },
+                )
             }
         }
     }

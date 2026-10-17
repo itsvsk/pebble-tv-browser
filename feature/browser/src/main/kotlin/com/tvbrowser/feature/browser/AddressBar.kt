@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,13 +22,9 @@ import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.SwipeRightAlt
-import androidx.compose.material.icons.outlined.Tab
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,8 +62,7 @@ import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
 
 /**
- * Pebble browser chrome bar (92dp, surface).
- * Layout: [back][fwd][reload] · address-pill (lock + scheme + url + mode-chip) · [UA][cursor][star][tabs][overflow].
+ * Compact browser controls directly below the main top navigation.
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -81,12 +75,8 @@ fun AddressBar(
     onBack: () -> Unit,
     onForward: () -> Unit,
     onReload: () -> Unit,
-    onHome: () -> Unit,
-    onTabs: () -> Unit,
     onBookmark: () -> Unit,
     onToggleUa: () -> Unit,
-    cursorActive: Boolean,
-    onToggleCursor: () -> Unit,
 ) {
     var text by remember(url) { mutableStateOf(url) }
     var editing by remember { mutableStateOf(false) }
@@ -95,13 +85,13 @@ fun AddressBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(PebbleDimens.ChromeH)
+            .height(58.dp)
             .background(PebbleColors.GlassHigh),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = PebbleDimens.Sp4),
+                .padding(horizontal = PebbleDimens.Gutter),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
         ) {
@@ -133,18 +123,11 @@ fun AddressBar(
                 onClick = onToggleUa,
             )
             RoundIcon(
-                imageVector = if (cursorActive) Icons.Outlined.Mouse else Icons.Outlined.SwipeRightAlt,
-                contentDescription = if (cursorActive) "Cursor mode" else "D-pad mode",
-                onClick = onToggleCursor,
-            )
-            RoundIcon(
                 imageVector = if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder,
                 contentDescription = "Bookmark",
                 onClick = onBookmark,
                 tint = if (isBookmarked) PebbleColors.PrimaryStrong else PebbleColors.OnSurfaceMuted,
             )
-            RoundIcon(Icons.Outlined.Tab, "Tabs", onClick = onTabs)
-            RoundIcon(Icons.Outlined.Home, "Home", onClick = onHome)
         }
     }
 
@@ -163,7 +146,7 @@ private fun RoundIcon(
 ) {
     Box(
         modifier = Modifier
-            .size(50.dp)
+            .size(38.dp)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .pebbleFocus(shape = CircleShape, lift = false, tight = true)
             .background(androidx.compose.ui.graphics.Color.Transparent, CircleShape)
@@ -174,7 +157,7 @@ private fun RoundIcon(
             imageVector,
             contentDescription = contentDescription,
             tint = if (enabled) tint else PebbleColors.OnSurfaceFaint.copy(alpha = 0.5f),
-            modifier = Modifier.size(23.dp),
+            modifier = Modifier.size(21.dp),
         )
     }
 }
@@ -196,7 +179,7 @@ private fun AddressPill(
     val secure = url.startsWith("https://", ignoreCase = true)
     Row(
         modifier = modifier
-            .height(54.dp)
+            .height(42.dp)
             .pebbleFocus(shape = PebbleShape.Full, lift = false)
             .background(PebbleColors.Glass, PebbleShape.Full)
             .padding(horizontal = 16.dp)
@@ -226,7 +209,7 @@ private fun AddressPill(
                 textStyle = TextStyle(
                     color = PebbleColors.OnSurface,
                     fontFamily = PebbleType.sans,
-                    fontSize = 23.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.W400,
                 ),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
@@ -235,7 +218,7 @@ private fun AddressPill(
                 modifier = Modifier.weight(1f),
                 decorationBox = { inner ->
                     if (text.isEmpty()) {
-                        Text("Search or type URL", style = PebbleType.TitleLg, color = PebbleColors.OnSurfaceFaint)
+                        Text("Search or type URL", style = PebbleType.Title, color = PebbleColors.OnSurfaceFaint)
                     }
                     inner()
                 },
@@ -243,7 +226,7 @@ private fun AddressPill(
         } else {
             Text(
                 host,
-                style = PebbleType.Title,
+                style = PebbleType.Label,
                 color = PebbleColors.OnSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

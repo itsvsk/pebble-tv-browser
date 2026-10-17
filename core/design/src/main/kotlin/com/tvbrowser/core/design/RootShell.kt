@@ -28,6 +28,8 @@ fun RootShell(
     showRail: Boolean = true,
     showHints: Boolean = true,
     homeFocusRequester: FocusRequester,
+    cursorModeActive: Boolean?,
+    onToggleCursor: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     Column(
@@ -56,7 +58,13 @@ fun RootShell(
                 }
             },
     ) {
-        if (showRail) TopNav(active = active, onSelect = onSelect, homeFocusRequester = homeFocusRequester)
+        if (showRail) TopNav(
+            active = active,
+            onSelect = onSelect,
+            homeFocusRequester = homeFocusRequester,
+            cursorModeActive = cursorModeActive,
+            onToggleCursor = onToggleCursor,
+        )
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             content()
             if (showHints) KeyHintBar(hints = hints, modifier = Modifier.align(Alignment.BottomCenter))

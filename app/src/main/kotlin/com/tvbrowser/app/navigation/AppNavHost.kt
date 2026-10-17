@@ -24,7 +24,7 @@ import com.tvbrowser.feature.settings.SettingsScreen
 import com.tvbrowser.feature.tabs.TabsOverviewScreen
 
 @Composable
-fun AppNavHost(cursorState: CursorState) {
+fun AppNavHost(cursorState: CursorState, onToggleCursor: () -> Unit) {
     val nav = rememberNavController()
     val shellVm: ShellViewModel = hiltViewModel()
     val backStackEntry by nav.currentBackStackEntryAsState()
@@ -45,11 +45,10 @@ fun AppNavHost(cursorState: CursorState) {
     RootShell(
         active = active,
         homeFocusRequester = homeNavFocus,
-        hints = if (currentRoute == Routes.BROWSER) listOf(
-            KeyHint("MENU / END ↓", "Controls"),
-            KeyHint("HOLD OK", "Pointer"),
-            KeyHint("BACK", "Return"),
-        ) else listOf(
+        cursorModeActive = cursorState.active.takeIf { currentRoute == Routes.BROWSER },
+        onToggleCursor = onToggleCursor,
+        showHints = currentRoute != Routes.BROWSER,
+        hints = listOf(
             KeyHint("OK", "Select"),
             KeyHint("BACK", "Return / Exit"),
             KeyHint("D-PAD", "Navigate"),
@@ -99,7 +98,6 @@ fun AppNavHost(cursorState: CursorState) {
                     tabId = tabId,
                     cursorState = cursorState,
                     onBackHome = { nav.popBackStack(Routes.HOME, inclusive = false) },
-                    onOpenTabs = { nav.navigate(Routes.TABS) },
                 )
             }
             composable(Routes.TABS) {
