@@ -48,6 +48,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -66,6 +67,7 @@ import com.tvbrowser.core.common.UrlUtils
 import com.tvbrowser.core.db.entity.TabEntity
 import com.tvbrowser.core.design.PebbleColors
 import com.tvbrowser.core.design.PebbleDimens
+import com.tvbrowser.core.design.PebbleElevation
 import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
@@ -368,6 +370,20 @@ private fun TabCard(
         label = "tab-card-glow",
     )
     Box(modifier = Modifier.tabBloom(glowAlpha).padding(10.dp)) {
+        if (focused) {
+            // An opaque backing keeps the soft shadow behind the tab content.
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .shadow(
+                        PebbleElevation.E3,
+                        PebbleShape.Md,
+                        ambientColor = PebbleColors.Primary.copy(alpha = 0.85f),
+                        spotColor = PebbleColors.Primary.copy(alpha = 0.85f),
+                    )
+                    .background(PebbleColors.Bg, PebbleShape.Md),
+            )
+        }
         Column(
             modifier = Modifier
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
