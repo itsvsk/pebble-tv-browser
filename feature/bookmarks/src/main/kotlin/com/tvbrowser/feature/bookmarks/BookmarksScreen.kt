@@ -105,7 +105,7 @@ fun BookmarksScreen(
 ) {
     val bookmarks by vm.bookmarks.collectAsState()
     val menuBm by vm.selectedForMenu.collectAsState()
-    Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Row(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)) {
             Column(
                 modifier = Modifier.width(198.dp).fillMaxHeight()

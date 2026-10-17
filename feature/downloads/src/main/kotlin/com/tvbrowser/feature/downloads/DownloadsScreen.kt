@@ -120,7 +120,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
     val done = visibleRecords.filter { it.status == DownloadRecord.STATUS_SUCCESS }
     val failed = visibleRecords.filter { it.status == DownloadRecord.STATUS_FAILED }
 
-    Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Row(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)) {
             Box(
                 modifier = Modifier.weight(1f).fillMaxHeight()

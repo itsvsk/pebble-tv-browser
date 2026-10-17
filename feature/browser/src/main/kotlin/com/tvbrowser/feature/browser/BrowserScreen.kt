@@ -1,6 +1,5 @@
 package com.tvbrowser.feature.browser
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -63,9 +62,7 @@ fun BrowserScreen(
     LaunchedEffect(tabId) { vm.bind(tabId) }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PebbleColors.Bg),
+        modifier = Modifier.fillMaxSize(),
     ) {
         if (ui.url.isNotEmpty()) {
             WebViewHost(

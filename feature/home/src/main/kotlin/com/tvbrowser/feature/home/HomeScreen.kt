@@ -153,7 +153,7 @@ fun HomeScreen(
         (mostVisited + defaults).distinctBy { UrlUtils.hostOf(it.url) }.take(8)
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(PebbleColors.Surface2, PebbleColors.Bg)))) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()

@@ -1,18 +1,17 @@
 package com.tvbrowser.core.design
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
-import com.tvbrowser.core.design.PebbleColors
-import com.tvbrowser.core.design.PebbleDimens
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 
 /**
  * Persistent glass navigation and key hints shared by all native screens.
@@ -34,7 +33,28 @@ fun RootShell(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(PebbleColors.Surface2, PebbleColors.Bg, PebbleColors.Bg))),
+            .drawWithCache {
+                // The Stitch screens share a wide cyan halo over a darker teal wash.
+                val topGlow = Brush.radialGradient(
+                    colors = listOf(
+                        PebbleColors.Primary.copy(alpha = 0.16f),
+                        PebbleColors.Primary.copy(alpha = 0.07f),
+                        Color.Transparent,
+                    ),
+                    center = Offset(size.width * 0.5f, -size.height * 0.16f),
+                    radius = size.width * 0.72f,
+                )
+                val sideGlow = Brush.radialGradient(
+                    colors = listOf(PebbleColors.PrimaryDim.copy(alpha = 0.07f), Color.Transparent),
+                    center = Offset(size.width * 0.14f, size.height * 0.48f),
+                    radius = size.width * 0.55f,
+                )
+                onDrawBehind {
+                    drawRect(PebbleColors.Bg)
+                    drawRect(topGlow)
+                    drawRect(sideGlow)
+                }
+            },
     ) {
         if (showRail) TopNav(active = active, onSelect = onSelect, homeFocusRequester = homeFocusRequester)
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {

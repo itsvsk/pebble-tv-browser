@@ -91,7 +91,7 @@ fun TabsOverviewScreen(
     val menuTab by vm.selectedForMenu.collectAsState()
     var showCloseAll by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()

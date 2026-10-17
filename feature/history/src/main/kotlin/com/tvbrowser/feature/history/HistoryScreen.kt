@@ -128,7 +128,7 @@ fun HistoryScreen(
     val entries by vm.entries.collectAsState()
     val bookmarkedUrls by vm.bookmarkedUrls.collectAsState()
     val menuEntry by vm.selectedForMenu.collectAsState()
-    Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8)) {
             Header(onClear = { vm.clearAll() })
             Spacer(Modifier.height(PebbleDimens.Sp6))

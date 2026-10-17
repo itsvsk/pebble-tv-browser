@@ -100,7 +100,7 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
     var showClearHistory by remember { mutableStateOf(false) }
     var showClearIncognito by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
