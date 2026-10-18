@@ -2,8 +2,12 @@ package com.tvbrowser.feature.bookmarks
 
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,8 +36,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -59,6 +68,8 @@ import com.tvbrowser.core.db.entity.Bookmark
 import com.tvbrowser.core.db.repo.BookmarkRepository
 import com.tvbrowser.core.design.PebbleColors
 import com.tvbrowser.core.design.PebbleDimens
+import com.tvbrowser.core.design.PebbleElevation
+import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
 import com.tvbrowser.core.design.pebbleClickable
@@ -203,31 +214,67 @@ private fun FolderHeader(label: String) {
 @Composable
 private fun BookmarkRow(bm: Bookmark, onOpen: () -> Unit, onLongClick: () -> Unit) {
     val host = UrlUtils.hostOf(bm.url) ?: bm.url
-    Column(
-        modifier = Modifier
-            .pebbleFocus(shape = PebbleShape.Md)
-            .fillMaxWidth()
-            .height(216.dp)
-            .background(PebbleColors.GlassHigh, PebbleShape.Md)
-            .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
-            .pebbleClickable(onClick = onOpen, onLongClick = onLongClick)
-            .padding(10.dp),
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth().height(116.dp)
-                .background(Brush.linearGradient(listOf(PebbleColors.PrimaryContainer, PebbleColors.Surface3, PebbleColors.Surface1)), PebbleShape.Sm),
-            contentAlignment = Alignment.Center,
-        ) {
-            AsyncImage(
-                model = "https://www.google.com/s2/favicons?domain=$host&sz=128",
-                contentDescription = null,
-                modifier = Modifier.size(44.dp).clip(PebbleShape.Sm),
+    val focusSource = remember { MutableInteractionSource() }
+    val focused by focusSource.collectIsFocusedAsState()
+    val glowAlpha by animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
+        animationSpec = tween(durationMillis = PebbleMotion.DurationMs),
+        label = "bookmark-glow",
+    )
+    Box(modifier = Modifier.fillMaxWidth().bookmarkBloom(glowAlpha).padding(6.dp)) {
+        if (focused) {
+            Box(
+                modifier = Modifier.matchParentSize()
+                    .shadow(
+                        PebbleElevation.E2,
+                        PebbleShape.Md,
+                        ambientColor = PebbleColors.Primary.copy(alpha = 0.45f),
+                        spotColor = PebbleColors.Primary.copy(alpha = 0.45f),
+                    )
+                    .background(PebbleColors.Bg, PebbleShape.Md),
             )
         }
-        Spacer(Modifier.height(10.dp))
-        Text(bm.title, style = PebbleType.Label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W600),
-            color = PebbleColors.OnSurface, maxLines = 2)
-        Text(host, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceFaint, maxLines = 1)
+        Column(
+            modifier = Modifier
+                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
+                .fillMaxWidth()
+                .height(216.dp)
+                .background(PebbleColors.Bg, PebbleShape.Md)
+                .background(PebbleColors.GlassHigh, PebbleShape.Md)
+                .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                .pebbleClickable(onClick = onOpen, onLongClick = onLongClick)
+                .padding(10.dp),
+        ) {
+            Box(
+                modifier = Modifier.fillMaxWidth().height(116.dp)
+                    .background(Brush.linearGradient(listOf(PebbleColors.PrimaryContainer, PebbleColors.Surface3, PebbleColors.Surface1)), PebbleShape.Sm),
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = "https://www.google.com/s2/favicons?domain=$host&sz=128",
+                    contentDescription = null,
+                    modifier = Modifier.size(44.dp).clip(PebbleShape.Sm),
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(bm.title, style = PebbleType.Label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W600),
+                color = PebbleColors.OnSurface, maxLines = 2)
+            Text(host, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceFaint, maxLines = 1)
+        }
+    }
+}
+
+private fun Modifier.bookmarkBloom(alpha: Float): Modifier = drawBehind {
+    if (alpha > 0f) {
+        listOf(0.dp to 0.025f, 2.dp to 0.04f, 4.dp to 0.06f).forEach { (inset, strength) ->
+            val px = inset.toPx()
+            drawRoundRect(
+                color = PebbleColors.Primary.copy(alpha = strength * alpha),
+                topLeft = Offset(px, px),
+                size = Size(size.width - 2 * px, size.height - 2 * px),
+                cornerRadius = CornerRadius((22.dp - inset).toPx()),
+            )
+        }
     }
 }
 
