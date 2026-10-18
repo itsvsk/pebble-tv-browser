@@ -27,7 +27,8 @@ fun RootShell(
     ),
     showRail: Boolean = true,
     showHints: Boolean = true,
-    homeFocusRequester: FocusRequester,
+    focusRequesters: Map<NavDestination, FocusRequester>,
+    onFocusedDestinationChanged: (NavDestination, Boolean) -> Unit,
     cursorModeActive: Boolean?,
     onToggleCursor: () -> Unit,
     content: @Composable () -> Unit,
@@ -61,7 +62,8 @@ fun RootShell(
         if (showRail) TopNav(
             active = active,
             onSelect = onSelect,
-            homeFocusRequester = homeFocusRequester,
+            focusRequesters = focusRequesters,
+            onFocusedDestinationChanged = onFocusedDestinationChanged,
             cursorModeActive = cursorModeActive,
             onToggleCursor = onToggleCursor,
         )

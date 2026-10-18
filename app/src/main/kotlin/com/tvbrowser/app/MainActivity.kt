@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (cursorController.handleKeyEvent(event)) return true
+        if (event.keyCode != KeyEvent.KEYCODE_BACK && cursorController.handleKeyEvent(event)) return true
         return super.dispatchKeyEvent(event)
     }
 }

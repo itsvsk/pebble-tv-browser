@@ -11,7 +11,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -42,6 +45,9 @@ interface BrowserEntryPoint {
 fun BrowserScreen(
     tabId: String,
     cursorState: CursorState,
+    chromeVisible: Boolean,
+    onWebNavigation: () -> Unit,
+    onShowChrome: () -> Unit,
     onBackHome: () -> Unit,
     vm: BrowserViewModel = hiltViewModel(),
 ) {
@@ -52,16 +58,32 @@ fun BrowserScreen(
     val ui by vm.ui.collectAsState()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val controlsFocusRequester = remember { FocusRequester() }
+    val currentOnWebNavigation by rememberUpdatedState(onWebNavigation)
+    val currentOnShowChrome by rememberUpdatedState(onShowChrome)
+    var focusControlsWhenShown by remember { mutableStateOf(false) }
 
     DisposableEffect(entry) {
-        entry.cursorController().setControlsFocusHandler { controlsFocusRequester.requestFocus() }
-        onDispose { entry.cursorController().setControlsFocusHandler(null) }
+        entry.cursorController().setControlsFocusHandler {
+            focusControlsWhenShown = true
+            currentOnShowChrome()
+        }
+        entry.cursorController().setWebNavigationHandler { currentOnWebNavigation() }
+        onDispose {
+            entry.cursorController().setControlsFocusHandler(null)
+            entry.cursorController().setWebNavigationHandler(null)
+        }
     }
 
     LaunchedEffect(tabId) { vm.bind(tabId) }
+    LaunchedEffect(chromeVisible, focusControlsWhenShown) {
+        if (chromeVisible && focusControlsWhenShown) {
+            controlsFocusRequester.requestFocus()
+            focusControlsWhenShown = false
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        AddressBar(
+        if (chromeVisible) AddressBar(
             controlsFocusRequester = controlsFocusRequester,
             url = ui.url,
             isBookmarked = ui.isBookmarked,

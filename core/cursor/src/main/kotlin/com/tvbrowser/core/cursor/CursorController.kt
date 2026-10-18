@@ -33,6 +33,7 @@ class CursorController @Inject constructor() {
 
     private var targetView: View? = null
     private var focusControls: (() -> Unit)? = null
+    private var onWebNavigation: (() -> Unit)? = null
     private var centerDownTime: Long = 0L
     private var centerLongPressed: Boolean = false
     private val longPressMs = 500L
@@ -59,9 +60,24 @@ class CursorController @Inject constructor() {
         focusControls = handler
     }
 
+    fun setWebNavigationHandler(handler: (() -> Unit)?) {
+        onWebNavigation = handler
+    }
+
     fun handleKeyEvent(event: KeyEvent): Boolean {
         val code = event.keyCode
         val action = event.action
+
+        if (action == KeyEvent.ACTION_DOWN &&
+            (_state.value.active || targetView?.hasFocus() == true) &&
+            code in listOf(
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+                KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_CHANNEL_DOWN,
+            )
+        ) {
+            onWebNavigation?.invoke()
+        }
 
         if (code == KeyEvent.KEYCODE_MENU && focusControls != null) {
             if (action == KeyEvent.ACTION_UP) {
@@ -89,10 +105,6 @@ class CursorController @Inject constructor() {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
                 if (action == KeyEvent.ACTION_DOWN) moveCursor(code, event.repeatCount)
-                true
-            }
-            KeyEvent.KEYCODE_BACK -> {
-                if (action == KeyEvent.ACTION_UP) setActive(false)
                 true
             }
             KeyEvent.KEYCODE_CHANNEL_UP -> {
@@ -131,6 +143,7 @@ class CursorController @Inject constructor() {
                 val held = now - centerDownTime
                 if (_state.value.active) {
                     if (!centerLongPressed) {
+                        onWebNavigation?.invoke()
                         dispatchTouch(MotionEvent.ACTION_UP)
                     }
                     centerLongPressed = false

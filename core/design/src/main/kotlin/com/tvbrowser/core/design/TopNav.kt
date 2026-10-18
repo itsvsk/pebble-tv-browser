@@ -29,6 +29,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
@@ -43,7 +49,8 @@ import java.time.format.DateTimeFormatter
 fun TopNav(
     active: NavDestination,
     onSelect: (NavDestination) -> Unit,
-    homeFocusRequester: FocusRequester,
+    focusRequesters: Map<NavDestination, FocusRequester>,
+    onFocusedDestinationChanged: (NavDestination, Boolean) -> Unit,
     cursorModeActive: Boolean?,
     onToggleCursor: () -> Unit,
 ) {
@@ -83,7 +90,11 @@ fun TopNav(
                 NavPill(
                     destination = destination,
                     selected = active == destination,
-                    focusRequester = if (destination == NavDestination.Home) homeFocusRequester else null,
+                    focusRequester = focusRequesters.getValue(destination),
+                    onFocusChanged = { focused -> onFocusedDestinationChanged(destination, focused) },
+                    onLeft = if (destination == NavDestination.Home) {
+                        { focusRequesters.getValue(NavDestination.Settings).requestFocus() }
+                    } else null,
                     onClick = { onSelect(destination) },
                 )
             }
@@ -117,6 +128,14 @@ fun TopNav(
         Spacer(Modifier.width(14.dp))
         Box(
             modifier = Modifier.size(34.dp)
+                .focusRequester(focusRequesters.getValue(NavDestination.Settings))
+                .onFocusChanged { onFocusedDestinationChanged(NavDestination.Settings, it.isFocused) }
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
+                        focusRequesters.getValue(NavDestination.Home).requestFocus()
+                        true
+                    } else false
+                }
                 .then(if (settingsFocused) Modifier.shadow(
                     16.dp, CircleShape,
                     ambientColor = PebbleColors.Primary.copy(alpha = 0.75f),
@@ -137,12 +156,21 @@ fun TopNav(
 private fun NavPill(
     destination: NavDestination,
     selected: Boolean,
-    focusRequester: FocusRequester?,
+    focusRequester: FocusRequester,
+    onFocusChanged: (Boolean) -> Unit,
+    onLeft: (() -> Unit)?,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier.height(36.dp)
-            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .focusRequester(focusRequester)
+            .onFocusChanged { onFocusChanged(it.isFocused) }
+            .then(if (onLeft != null) Modifier.onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft) {
+                    onLeft()
+                    true
+                } else false
+            } else Modifier)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
             .background(if (selected) PebbleColors.Primary else PebbleColors.GlassHigh, PebbleShape.Full)
             .pebbleClickable(onClick = onClick)
