@@ -28,14 +28,18 @@ import com.tvbrowser.feature.settings.SettingsScreen
 import com.tvbrowser.feature.tabs.TabsOverviewScreen
 
 @Composable
-fun AppNavHost(cursorState: CursorState, onSetCursorActive: (Boolean) -> Unit) {
+fun AppNavHost(
+    cursorState: CursorState,
+    onSetCursorActive: (Boolean) -> Unit,
+    onSetCursorPreferred: (Boolean) -> Unit,
+) {
     val nav = rememberNavController()
     val shellVm: ShellViewModel = hiltViewModel()
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val onToggleCursor = { onSetCursorActive(!cursorState.active) }
+    val onToggleCursor = { onSetCursorPreferred(!cursorState.preferredActive) }
     fun openBrowser(tabId: String) {
-        onSetCursorActive(true)
+        onSetCursorPreferred(true)
         nav.navigate(Routes.browser(tabId))
     }
     val navFocusRequesters = remember { NavDestination.entries.associateWith { FocusRequester() } }
@@ -59,7 +63,7 @@ fun AppNavHost(cursorState: CursorState, onSetCursorActive: (Boolean) -> Unit) {
 
     // Each Browse entry starts in pointer mode; changing modes within that entry remains manual.
     LaunchedEffect(backStackEntry?.id) {
-        if (currentRoute != null) onSetCursorActive(currentRoute == Routes.BROWSER)
+        if (currentRoute != null) onSetCursorPreferred(currentRoute == Routes.BROWSER)
     }
 
     LaunchedEffect(browserChromeVisible, focusTopBarWhenShown, active) {
@@ -90,7 +94,7 @@ fun AppNavHost(cursorState: CursorState, onSetCursorActive: (Boolean) -> Unit) {
             if (focused) focusedNav = destination
             else if (focusedNav == destination) focusedNav = null
         },
-        cursorModeActive = cursorState.active.takeIf { currentRoute == Routes.BROWSER },
+        cursorModeActive = cursorState.preferredActive.takeIf { currentRoute == Routes.BROWSER },
         onToggleCursor = onToggleCursor,
         showRail = currentRoute != Routes.BROWSER || browserChromeVisible,
         showHints = currentRoute != Routes.BROWSER,
@@ -144,6 +148,10 @@ fun AppNavHost(cursorState: CursorState, onSetCursorActive: (Boolean) -> Unit) {
                     chromeVisible = browserChromeVisible,
                     topNavFocusRequester = navFocusRequesters.getValue(NavDestination.Browser),
                     onWebNavigation = { browserChromeVisible = false },
+                    onResumePointer = {
+                        onSetCursorActive(true)
+                        browserChromeVisible = false
+                    },
                     onShowChrome = { browserChromeVisible = true },
                     onBackHome = { nav.popBackStack(Routes.HOME, inclusive = false) },
                 )

@@ -25,6 +25,7 @@ class MainActivity : ComponentActivity() {
                 AppNavHost(
                     cursorState = cursorState,
                     onSetCursorActive = cursorController::setActive,
+                    onSetCursorPreferred = cursorController::setPreferredActive,
                 )
             }
         }

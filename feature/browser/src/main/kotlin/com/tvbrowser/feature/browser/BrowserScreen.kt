@@ -46,6 +46,7 @@ fun BrowserScreen(
     chromeVisible: Boolean,
     topNavFocusRequester: FocusRequester,
     onWebNavigation: () -> Unit,
+    onResumePointer: () -> Unit,
     onShowChrome: () -> Unit,
     onBackHome: () -> Unit,
     vm: BrowserViewModel = hiltViewModel(),
@@ -85,6 +86,8 @@ fun BrowserScreen(
         if (chromeVisible) AddressBar(
             controlsFocusRequester = controlsFocusRequester,
             topNavFocusRequester = topNavFocusRequester,
+            pointerPreferred = cursorState.preferredActive,
+            onResumePointer = onResumePointer,
             url = ui.url,
             isBookmarked = ui.isBookmarked,
             desktopUa = ui.desktopUa,

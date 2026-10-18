@@ -13,6 +13,7 @@ import javax.inject.Singleton
 
 data class CursorState(
     val active: Boolean = false,
+    val preferredActive: Boolean = false,
     val x: Float = 0f,
     val y: Float = 0f,
     val viewportW: Int = 0,
@@ -77,8 +78,16 @@ class CursorController @Inject constructor() {
     }
 
     fun setActive(active: Boolean) {
+        updateMode(active, _state.value.preferredActive)
+    }
+
+    fun setPreferredActive(active: Boolean) {
+        updateMode(active, active)
+    }
+
+    private fun updateMode(active: Boolean, preferredActive: Boolean) {
         if (!active && pointerTouchDown) dispatchTouch(MotionEvent.ACTION_CANCEL)
-        _state.value = _state.value.copy(active = active)
+        _state.value = _state.value.copy(active = active, preferredActive = preferredActive)
     }
 
     private fun updateViewport(view: View) {
@@ -191,7 +200,7 @@ class CursorController @Inject constructor() {
                     (event.isLongPress || now - centerDownTime >= longPressMs)
                 ) {
                     centerLongPressed = true
-                    setActive(!_state.value.active)
+                    setPreferredActive(!_state.value.active)
                     return true
                 }
                 if (_state.value.active && !centerLongPressed && event.repeatCount == 0) {
@@ -212,7 +221,7 @@ class CursorController @Inject constructor() {
                 }
                 if (cursorAvailable && held >= longPressMs && !centerLongPressed) {
                     centerLongPressed = true
-                    setActive(true)
+                    setPreferredActive(true)
                     return true
                 }
                 return false

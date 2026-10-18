@@ -73,6 +73,8 @@ import com.tvbrowser.core.design.pebbleFocus
 fun AddressBar(
     controlsFocusRequester: FocusRequester,
     topNavFocusRequester: FocusRequester,
+    pointerPreferred: Boolean,
+    onResumePointer: () -> Unit,
     url: String,
     isBookmarked: Boolean,
     desktopUa: Boolean,
@@ -92,6 +94,14 @@ fun AddressBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(58.dp)
+            .onPreviewKeyEvent { event ->
+                if (pointerPreferred && event.type == KeyEventType.KeyDown &&
+                    event.key == Key.DirectionDown
+                ) {
+                    onResumePointer()
+                    true
+                } else false
+            }
             // The WebView is a later sibling; its initial white frame must stay below the controls.
             .zIndex(1f)
             .background(PebbleColors.GlassHigh),
