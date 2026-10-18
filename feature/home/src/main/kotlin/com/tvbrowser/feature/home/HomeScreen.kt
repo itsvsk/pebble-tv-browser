@@ -6,8 +6,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -46,10 +50,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -78,6 +87,8 @@ import com.tvbrowser.core.common.UrlUtils
 import com.tvbrowser.core.db.entity.MostVisitedView
 import com.tvbrowser.core.design.PebbleColors
 import com.tvbrowser.core.design.PebbleDimens
+import com.tvbrowser.core.design.PebbleElevation
+import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
 import com.tvbrowser.core.design.pebbleFocus
@@ -365,36 +376,73 @@ private fun Tile(
     modifier: Modifier = Modifier,
 ) {
     val host = UrlUtils.hostOf(item.url) ?: item.url
-    Box(
-        modifier = modifier
-            .pebbleFocus(shape = PebbleShape.Md, lift = true)
-            .background(PebbleColors.Glass, PebbleShape.Md)
-            .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
-            .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(PebbleDimens.Sp3)
-            .height(108.dp),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
+    val focusSource = remember { MutableInteractionSource() }
+    val focused by focusSource.collectIsFocusedAsState()
+    val glowAlpha by animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
+        animationSpec = tween(durationMillis = PebbleMotion.DurationMs),
+        label = "speed-dial-glow",
+    )
+    Box(modifier = modifier.speedDialBloom(glowAlpha).padding(10.dp)) {
+        if (focused) {
             Box(
                 modifier = Modifier
-                    .size(34.dp)
-                    .clip(PebbleShape.Xs)
-                    .background(PebbleColors.Surface3, PebbleShape.Xs),
-                contentAlignment = Alignment.Center,
+                    .matchParentSize()
+                    .shadow(
+                        PebbleElevation.E3,
+                        PebbleShape.Md,
+                        ambientColor = PebbleColors.Primary.copy(alpha = 0.85f),
+                        spotColor = PebbleColors.Primary.copy(alpha = 0.85f),
+                    )
+                    .background(PebbleColors.Bg, PebbleShape.Md),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
+                .background(PebbleColors.Bg, PebbleShape.Md)
+                .background(PebbleColors.Glass, PebbleShape.Md)
+                .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
+                .padding(PebbleDimens.Sp3)
+                .height(108.dp),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                AsyncImage(
-                    model = "https://www.google.com/s2/favicons?domain=$host&sz=64",
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp).clip(PebbleShape.Xs),
-                )
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(PebbleShape.Xs)
+                        .background(PebbleColors.Surface3, PebbleShape.Xs),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AsyncImage(
+                        model = "https://www.google.com/s2/favicons?domain=$host&sz=64",
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp).clip(PebbleShape.Xs),
+                    )
+                }
+                Column {
+                    Text(item.title?.takeIf { it.isNotBlank() } ?: host, style = PebbleType.Label.copy(fontWeight = FontWeight.W600), color = PebbleColors.OnSurface, maxLines = 1)
+                    Text(host, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceFaint, maxLines = 1)
+                }
             }
-            Column {
-                Text(item.title?.takeIf { it.isNotBlank() } ?: host, style = PebbleType.Label.copy(fontWeight = FontWeight.W600), color = PebbleColors.OnSurface, maxLines = 1)
-                Text(host, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceFaint, maxLines = 1)
-            }
+        }
+    }
+}
+
+private fun Modifier.speedDialBloom(alpha: Float): Modifier = drawBehind {
+    if (alpha > 0f) {
+        listOf(0.dp to 0.04f, 4.dp to 0.08f, 7.dp to 0.12f).forEach { (inset, strength) ->
+            val px = inset.toPx()
+            drawRoundRect(
+                color = PebbleColors.Primary.copy(alpha = strength * alpha),
+                topLeft = Offset(px, px),
+                size = Size(size.width - 2 * px, size.height - 2 * px),
+                cornerRadius = CornerRadius((26.dp - inset).toPx()),
+            )
         }
     }
 }
