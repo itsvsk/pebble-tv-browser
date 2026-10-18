@@ -55,6 +55,7 @@ import com.tvbrowser.core.common.PrefKeys
 import com.tvbrowser.core.common.SettingsRepository
 import com.tvbrowser.core.db.repo.HistoryRepository
 import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.seaGlass
 import com.tvbrowser.core.design.PebbleDimens
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
@@ -259,8 +260,7 @@ private fun SetRow(
         modifier = modifier
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically,

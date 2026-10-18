@@ -67,6 +67,7 @@ import com.tvbrowser.core.common.UrlUtils
 import com.tvbrowser.core.db.entity.Bookmark
 import com.tvbrowser.core.db.repo.BookmarkRepository
 import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.seaGlass
 import com.tvbrowser.core.design.PebbleDimens
 import com.tvbrowser.core.design.PebbleElevation
 import com.tvbrowser.core.design.PebbleMotion
@@ -120,8 +121,7 @@ fun BookmarksScreen(
         Row(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)) {
             Column(
                 modifier = Modifier.width(198.dp).fillMaxHeight()
-                    .background(PebbleColors.Glass, PebbleShape.Md)
-                    .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                    .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon)
                     .padding(14.dp),
             ) {
                 Text("Library", style = PebbleType.Title, color = PebbleColors.OnSurface)
@@ -134,8 +134,7 @@ fun BookmarksScreen(
             Spacer(Modifier.width(PebbleDimens.Sp4))
             Column(
                 modifier = Modifier.weight(1f).fillMaxHeight()
-                    .background(PebbleColors.Glass, PebbleShape.Md)
-                    .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                    .seaGlass(PebbleShape.Md, PebbleColors.GlassRose)
                     .padding(20.dp),
             ) {
                 Header(count = bookmarks.size)
@@ -239,9 +238,7 @@ private fun BookmarkRow(bm: Bookmark, onOpen: () -> Unit, onLongClick: () -> Uni
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
                 .fillMaxWidth()
                 .height(216.dp)
-                .background(PebbleColors.Bg, PebbleShape.Md)
-                .background(PebbleColors.GlassHigh, PebbleShape.Md)
-                .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)
                 .pebbleClickable(onClick = onOpen, onLongClick = onLongClick)
                 .padding(10.dp),
         ) {

@@ -54,6 +54,7 @@ import com.tvbrowser.core.db.entity.HistoryEntry
 import com.tvbrowser.core.db.repo.BookmarkRepository
 import com.tvbrowser.core.db.repo.HistoryRepository
 import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.seaGlass
 import com.tvbrowser.core.design.PebbleDimens
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
@@ -218,8 +219,7 @@ private fun HistoryRow(entry: HistoryEntry, onOpen: () -> Unit, onLongClick: () 
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
             .height(72.dp)
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
             .pebbleClickable(onClick = onOpen, onLongClick = onLongClick)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,

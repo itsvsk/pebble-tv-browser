@@ -73,8 +73,8 @@ fun Modifier.pebbleFocus(
             if (focused && lift) Modifier.shadow(
                 PebbleElevation.E2,
                 shape,
-                ambientColor = PebbleColors.Primary.copy(alpha = 0.55f),
-                spotColor = PebbleColors.Primary.copy(alpha = 0.55f),
+                ambientColor = PebbleColors.Primary.copy(alpha = 0.30f),
+                spotColor = PebbleColors.Primary.copy(alpha = 0.30f),
             ) else Modifier
         )
         .border(ring, ringColor, shape)

@@ -38,20 +38,20 @@ fun RootShell(
         modifier = Modifier
             .fillMaxSize()
             .drawWithCache {
-                // The Stitch screens share a wide cyan halo over a darker teal wash.
+                // Sea Glass uses a warm canvas with diffused color passing through it.
                 val topGlow = Brush.radialGradient(
                     colors = listOf(
-                        PebbleColors.Primary.copy(alpha = 0.16f),
-                        PebbleColors.Primary.copy(alpha = 0.07f),
+                        PebbleColors.GlassMint.copy(alpha = 0.75f),
+                        PebbleColors.GlassMint.copy(alpha = 0.20f),
                         Color.Transparent,
                     ),
-                    center = Offset(size.width * 0.5f, -size.height * 0.16f),
-                    radius = size.width * 0.72f,
+                    center = Offset(size.width * 0.70f, -size.height * 0.12f),
+                    radius = size.width * 0.78f,
                 )
                 val sideGlow = Brush.radialGradient(
-                    colors = listOf(PebbleColors.PrimaryDim.copy(alpha = 0.07f), Color.Transparent),
-                    center = Offset(size.width * 0.14f, size.height * 0.48f),
-                    radius = size.width * 0.55f,
+                    colors = listOf(PebbleColors.GlassLagoon.copy(alpha = 0.65f), Color.Transparent),
+                    center = Offset(-size.width * 0.10f, size.height * 0.64f),
+                    radius = size.width * 0.62f,
                 )
                 onDrawBehind {
                     drawRect(PebbleColors.Bg)

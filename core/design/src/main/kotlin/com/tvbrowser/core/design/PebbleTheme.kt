@@ -5,14 +5,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.darkColorScheme
+import androidx.tv.material3.lightColorScheme
 
 /**
  * Pebble theme — wires the design tokens into TV Material 3.
  *
  * M3 has slots for primary/surface/etc but NO slot for a 6-step surface ramp.
  * Strategy:
- *  - Map what M3 has slots for into [darkColorScheme].
+ *  - Map what M3 has slots for into [lightColorScheme].
  *  - Expose the rest of the ramp + status colors via [LocalPebbleColors] / [PebbleTheme.colors].
  *
  * Slot mapping (per README §"DESIGN TOKENS → Compose mapping"):
@@ -29,7 +29,7 @@ import androidx.tv.material3.darkColorScheme
  *   error               = danger
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
-private val PebbleColorScheme = darkColorScheme(
+private val PebbleColorScheme = lightColorScheme(
     primary = PebbleColors.Primary,
     onPrimary = PebbleColors.OnPrimary,
     primaryContainer = PebbleColors.PrimaryContainer,

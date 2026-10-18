@@ -52,6 +52,7 @@ import androidx.tv.material3.Text
 import com.tvbrowser.core.db.entity.DownloadRecord
 import com.tvbrowser.core.db.repo.DownloadRepository
 import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.seaGlass
 import com.tvbrowser.core.design.PebbleDimens
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
@@ -147,8 +148,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
             Spacer(Modifier.width(PebbleDimens.Sp4))
             Column(
                 modifier = Modifier.width(420.dp).fillMaxHeight()
-                    .background(PebbleColors.GlassHigh, PebbleShape.Md)
-                    .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                    .seaGlass(PebbleShape.Md, PebbleColors.GlassMint)
                     .padding(18.dp),
             ) {
                 Header(active = active.size, done = done.size)
@@ -269,8 +269,7 @@ private fun DefaultLocationCard(path: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
             .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -314,8 +313,7 @@ private fun ActiveCard(record: DownloadRecord, progress: DownloadProgress?, onLo
         modifier = Modifier
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
             .pebbleClickable(onClick = onLongClick, onLongClick = onLongClick)
             .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -346,8 +344,7 @@ private fun DoneCard(record: DownloadRecord, onOpen: () -> Unit, onLongClick: ()
         modifier = Modifier
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
             .pebbleClickable(onClick = onOpen, onLongClick = onLongClick)
             .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -369,8 +366,7 @@ private fun FailedCard(record: DownloadRecord, onLongClick: () -> Unit) {
         modifier = Modifier
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
             .pebbleClickable(onClick = onLongClick, onLongClick = onLongClick)
             .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically,

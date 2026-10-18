@@ -10,7 +10,7 @@ import androidx.tv.material3.Typography
 
 /**
  * Pebble design tokens — type.
- * Updated for the Plus Jakarta Sans typography in Pebble - new glass UI.
+ * Sea Glass pairs editorial serif headings with clear sans-serif controls.
  *
  * Mapping pebble-scale -> M3 Typography slots:
  *   clock     -> displayLarge       (92 / W200 / -2)
@@ -46,14 +46,14 @@ object PebbleType {
         fontFeatureSettings = "tnum",
     )
     val Display = TextStyle(
-        fontFamily = sans,
+        fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.W500,
         fontSize = 38.sp,
         lineHeight = 44.sp,
         letterSpacing = (-0.5).sp,
     )
     val Greet = TextStyle(
-        fontFamily = sans,
+        fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.W300,
         fontSize = 30.sp,
         lineHeight = 36.sp,

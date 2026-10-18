@@ -93,6 +93,7 @@ import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
 import com.tvbrowser.core.design.pebbleFocus
 import com.tvbrowser.core.design.pebbleClickable
+import com.tvbrowser.core.design.seaGlass
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -210,8 +211,7 @@ private fun SearchField(
                 .weight(1f)
                 .fillMaxHeight()
                 .pebbleFocus(shape = PebbleShape.Full, lift = false)
-                .background(PebbleColors.GlassHigh, PebbleShape.Full)
-                .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Full)
+                .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon)
                 .focusRequester(focusRequester)
                 .onFocusChanged { focused = it.isFocused }
                 .onPreviewKeyEvent { e ->
@@ -319,8 +319,7 @@ private fun MostVisitedSection(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(PebbleColors.Glass, PebbleShape.Md)
-                    .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                    .seaGlass(PebbleShape.Md, PebbleColors.GlassMint)
                     .padding(PebbleDimens.Sp5),
                 verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
             ) {
@@ -400,9 +399,7 @@ private fun Tile(
         Box(
             modifier = Modifier
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
-                .background(PebbleColors.Bg, PebbleShape.Md)
-                .background(PebbleColors.Glass, PebbleShape.Md)
-                .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md)
+                .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)
                 .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(PebbleDimens.Sp3)
                 .height(108.dp),

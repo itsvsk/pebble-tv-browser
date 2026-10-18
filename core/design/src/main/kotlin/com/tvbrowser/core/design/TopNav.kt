@@ -67,9 +67,8 @@ fun TopNav(
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp)
-            .background(PebbleColors.Bg)
-            .background(PebbleColors.Glass)
-            .border(0.5.dp, PebbleColors.GlassEdge)
+            .background(PebbleColors.GlassHigh)
+            .border(0.5.dp, PebbleColors.OutlineFaint)
             .padding(horizontal = PebbleDimens.Gutter),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -79,8 +78,7 @@ fun TopNav(
         Spacer(Modifier.width(30.dp))
         Row(
             modifier = Modifier
-                .background(PebbleColors.GlassHigh, PebbleShape.Full)
-                .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Full)
+                .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 3.dp)
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -105,7 +103,7 @@ fun TopNav(
             Row(
                 modifier = Modifier
                     .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-                    .background(PebbleColors.GlassHigh, PebbleShape.Full)
+                    .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 2.dp)
                     .pebbleClickable(onClick = onToggleCursor)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -139,15 +137,15 @@ fun TopNav(
                 }
                 .then(if (settingsFocused) Modifier.shadow(
                     16.dp, CircleShape,
-                    ambientColor = PebbleColors.Primary.copy(alpha = 0.75f),
-                    spotColor = PebbleColors.Primary.copy(alpha = 0.75f),
+                    ambientColor = PebbleColors.Primary.copy(alpha = 0.32f),
+                    spotColor = PebbleColors.Primary.copy(alpha = 0.32f),
                 ) else Modifier)
                 .pebbleFocus(shape = CircleShape, lift = false, tight = true, interactionSource = settingsFocusSource)
-                .background(if (settingsFocused) PebbleColors.PrimaryDim else PebbleColors.PrimaryContainer, CircleShape)
+                .seaGlass(CircleShape, if (settingsFocused) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 3.dp)
                 .pebbleClickable(onClick = { onSelect(NavDestination.Settings) }),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = if (settingsFocused) PebbleColors.OnPrimary else PebbleColors.PrimaryDim, modifier = Modifier.size(18.dp))
+            Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = PebbleColors.Primary, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -173,7 +171,8 @@ private fun NavPill(
                 } else false
             } else Modifier)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-            .background(if (selected) PebbleColors.Primary else PebbleColors.GlassHigh, PebbleShape.Full)
+            .then(if (selected) Modifier.seaGlass(PebbleShape.Full, PebbleColors.GlassMint, 3.dp)
+                else Modifier.background(PebbleColors.GlassHigh, PebbleShape.Full))
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
@@ -181,7 +180,7 @@ private fun NavPill(
         Text(
             destination.label,
             style = PebbleType.Label.copy(fontWeight = if (selected) FontWeight.W700 else FontWeight.W500),
-            color = if (selected) PebbleColors.OnPrimary else PebbleColors.OnSurfaceMuted,
+            color = if (selected) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurfaceMuted,
         )
     }
 }

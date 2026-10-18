@@ -58,6 +58,7 @@ import coil.compose.AsyncImage
 import com.tvbrowser.core.common.UrlUtils
 import com.tvbrowser.core.db.entity.TabEntity
 import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.seaGlass
 import com.tvbrowser.core.design.PebbleDimens
 import com.tvbrowser.core.design.PebbleElevation
 import com.tvbrowser.core.design.PebbleMotion
@@ -303,9 +304,8 @@ private fun TabCard(
         Column(
             modifier = Modifier
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
-                .background(PebbleColors.Bg, PebbleShape.Md)
-                .background(if (isCurrent) PebbleColors.GlassHigh else PebbleColors.Glass, PebbleShape.Md)
-                .border(if (isCurrent) 2.dp else 1.dp, if (isCurrent) PebbleColors.Primary else PebbleColors.GlassEdge, PebbleShape.Md)
+                .seaGlass(PebbleShape.Md, if (isCurrent) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 4.dp)
+                .then(if (isCurrent) Modifier.border(2.dp, PebbleColors.Primary, PebbleShape.Md) else Modifier)
                 .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(PebbleDimens.Sp3)
                 .width(178.dp),
@@ -404,7 +404,7 @@ private fun NewTabCard(onClick: () -> Unit) {
         Box(
             modifier = Modifier
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
-                .background(PebbleColors.Glass, PebbleShape.Md)
+                .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
                 .pebbleClickable(onClick = onClick)
                 .width(178.dp)
                 .height(270.dp),

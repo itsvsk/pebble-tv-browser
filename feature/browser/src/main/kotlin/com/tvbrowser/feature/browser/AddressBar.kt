@@ -56,6 +56,7 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.seaGlass
 import com.tvbrowser.core.design.PebbleDimens
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
@@ -90,7 +91,6 @@ fun AddressBar(
             .height(58.dp)
             // The WebView is a later sibling; its initial white frame must stay below the controls.
             .zIndex(1f)
-            .background(PebbleColors.Bg)
             .background(PebbleColors.GlassHigh),
     ) {
         Row(
@@ -137,7 +137,7 @@ fun AddressBar(
                 imageVector = if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder,
                 contentDescription = "Bookmark",
                 onClick = onBookmark,
-                tint = if (isBookmarked) PebbleColors.PrimaryStrong else PebbleColors.OnSurfaceMuted,
+                tint = if (isBookmarked) PebbleColors.Primary else PebbleColors.OnSurfaceMuted,
                 focusRequester = bookmarkFocusRequester,
                 onRight = { controlsFocusRequester.requestFocus() },
             )
@@ -185,7 +185,6 @@ private fun RoundIcon(
     }
 }
 
-
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun AddressPill(
@@ -204,7 +203,7 @@ private fun AddressPill(
         modifier = modifier
             .height(42.dp)
             .pebbleFocus(shape = PebbleShape.Full, lift = false)
-            .background(PebbleColors.Glass, PebbleShape.Full)
+            .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 2.dp)
             .padding(horizontal = 16.dp)
             .onFocusChanged { onEditingChange(it.isFocused) }
             .onPreviewKeyEvent { e ->
