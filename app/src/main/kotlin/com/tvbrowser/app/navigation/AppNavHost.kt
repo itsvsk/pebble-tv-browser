@@ -36,8 +36,10 @@ fun AppNavHost(cursorState: CursorState, onToggleCursor: () -> Unit) {
     val navFocusRequesters = remember { NavDestination.entries.associateWith { FocusRequester() } }
     val homeNavFocus = navFocusRequesters.getValue(NavDestination.Home)
     var focusedNav by remember { mutableStateOf<NavDestination?>(null) }
-    var browserChromeVisible by remember { mutableStateOf(true) }
-    var focusTopBarWhenShown by remember { mutableStateOf(false) }
+    // Start every destination with its chrome visible in the first frame. Resetting in a
+    // LaunchedEffect would briefly reuse the previous browser entry's hidden state.
+    var browserChromeVisible by remember(backStackEntry?.id) { mutableStateOf(true) }
+    var focusTopBarWhenShown by remember(backStackEntry?.id) { mutableStateOf(true) }
 
     val active = when (currentRoute) {
         Routes.HOME -> NavDestination.Home
@@ -50,10 +52,6 @@ fun AppNavHost(cursorState: CursorState, onToggleCursor: () -> Unit) {
         else -> NavDestination.Home
     }
 
-    LaunchedEffect(backStackEntry?.id) {
-        browserChromeVisible = true
-        focusTopBarWhenShown = true
-    }
     LaunchedEffect(browserChromeVisible, focusTopBarWhenShown, active) {
         if (browserChromeVisible && focusTopBarWhenShown) {
             navFocusRequesters.getValue(active).requestFocus()
