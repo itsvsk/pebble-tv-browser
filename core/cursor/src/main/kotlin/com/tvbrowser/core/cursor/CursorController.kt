@@ -39,35 +39,56 @@ class CursorController @Inject constructor() {
     private var centerLongPressed: Boolean = false
     private val longPressMs = 500L
     private var scrollAnimator: ValueAnimator? = null
+    private var scrollTargetX = 0
     private var scrollTargetY = 0
+    private var lastScrollDirectionX = 0
+    private var lastScrollDirectionY = 0
+    private var pointerPositionInitialized = false
+    private var pointerTouchDownTime = 0L
+    private var pointerTouchDown = false
+    private var pointerUpHandoffInProgress = false
+    private val layoutListener = View.OnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+        if (targetView === view) updateViewport(view)
+    }
 
     fun attachTarget(view: View?) {
+        if (targetView !== view && pointerTouchDown) dispatchTouch(MotionEvent.ACTION_CANCEL)
         scrollAnimator?.cancel()
         scrollAnimator = null
+        targetView?.removeOnLayoutChangeListener(layoutListener)
         targetView = view
         view?.let { v ->
+            v.addOnLayoutChangeListener(layoutListener)
             v.post {
                 if (targetView !== v) return@post
-                _state.value = _state.value.copy(
-                    viewportW = v.width,
-                    viewportH = v.height,
-                    x = if (_state.value.x == 0f) v.width / 2f else _state.value.x.coerceIn(0f, v.width.toFloat()),
-                    y = if (_state.value.y == 0f) v.height / 2f else _state.value.y.coerceIn(0f, v.height.toFloat()),
-                )
+                updateViewport(v)
             }
         }
     }
 
     fun detachTarget(view: View) {
         if (targetView === view) {
+            if (pointerTouchDown) dispatchTouch(MotionEvent.ACTION_CANCEL)
             scrollAnimator?.cancel()
             scrollAnimator = null
+            view.removeOnLayoutChangeListener(layoutListener)
             targetView = null
         }
     }
 
     fun setActive(active: Boolean) {
+        if (!active && pointerTouchDown) dispatchTouch(MotionEvent.ACTION_CANCEL)
         _state.value = _state.value.copy(active = active)
+    }
+
+    private fun updateViewport(view: View) {
+        if (view.width <= 0 || view.height <= 0) return
+        _state.value = _state.value.withViewport(
+            view.width,
+            view.height,
+            pointerPositionInitialized,
+        )
+        pointerPositionInitialized = true
     }
 
     fun setControlsFocusHandler(handler: (() -> Unit)?) {
@@ -81,9 +102,25 @@ class CursorController @Inject constructor() {
     fun handleKeyEvent(event: KeyEvent): Boolean {
         val code = event.keyCode
         val action = event.action
+        val view = targetView
+
+        if (pointerUpHandoffInProgress && code == KeyEvent.KEYCODE_DPAD_UP) {
+            if (action == KeyEvent.ACTION_UP) pointerUpHandoffInProgress = false
+            return true
+        }
+        if (code == KeyEvent.KEYCODE_DPAD_UP && action == KeyEvent.ACTION_DOWN &&
+            view != null && focusControls != null &&
+            shouldReturnToControlsFromPointer(_state.value, view?.canScrollVertically(-1) == true)
+        ) {
+            pointerUpHandoffInProgress = true
+            scrollAnimator?.cancel()
+            setActive(false)
+            focusControls?.invoke()
+            return true
+        }
 
         if (action == KeyEvent.ACTION_DOWN &&
-            (_state.value.active || targetView?.hasFocus() == true) &&
+            (_state.value.active || view?.hasFocus() == true) &&
             code in listOf(
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
                 KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
@@ -105,7 +142,6 @@ class CursorController @Inject constructor() {
             return handleCenterKey(event)
         }
 
-        val view = targetView
         val webScroll = webDpadScrollDelta(
             code,
             view?.height ?: 0,
@@ -115,8 +151,8 @@ class CursorController @Inject constructor() {
         if (webScroll != 0) {
             if (action == KeyEvent.ACTION_DOWN) {
                 if (view?.canScrollVertically(webScroll.sign()) == true) {
-                    animateWebScroll(view, webScroll)
-                } else {
+                    animateWebScroll(view, deltaY = webScroll)
+                } else if (webScroll < 0) {
                     focusControls?.invoke()
                 }
             }
@@ -132,11 +168,11 @@ class CursorController @Inject constructor() {
                 true
             }
             KeyEvent.KEYCODE_CHANNEL_UP -> {
-                if (action == KeyEvent.ACTION_DOWN) targetView?.scrollBy(0, -200)
+                if (action == KeyEvent.ACTION_DOWN) targetView?.let { animateWebScroll(it, deltaY = -200) }
                 true
             }
             KeyEvent.KEYCODE_CHANNEL_DOWN -> {
-                if (action == KeyEvent.ACTION_DOWN) targetView?.scrollBy(0, 200)
+                if (action == KeyEvent.ACTION_DOWN) targetView?.let { animateWebScroll(it, deltaY = 200) }
                 true
             }
             else -> false
@@ -165,12 +201,13 @@ class CursorController @Inject constructor() {
             }
             KeyEvent.ACTION_UP -> {
                 val held = now - centerDownTime
-                if (_state.value.active) {
-                    if (!centerLongPressed) {
-                        onWebNavigation?.invoke()
-                        dispatchTouch(MotionEvent.ACTION_UP)
-                    }
+                if (centerLongPressed) {
                     centerLongPressed = false
+                    return true
+                }
+                if (_state.value.active) {
+                    onWebNavigation?.invoke()
+                    dispatchTouch(MotionEvent.ACTION_UP)
                     return true
                 }
                 if (cursorAvailable && held >= longPressMs && !centerLongPressed) {
@@ -194,30 +231,69 @@ class CursorController @Inject constructor() {
         val motion = planCursorMotion(_state.value, direction, repeatCount)
         _state.value = _state.value.copy(x = motion.x, y = motion.y)
         if (motion.scrollX != 0 || motion.scrollY != 0) {
-            targetView?.scrollBy(motion.scrollX, motion.scrollY)
+            targetView?.let { view ->
+                val scrollX = motion.scrollX.takeIf { view.canScrollHorizontally(it.sign()) } ?: 0
+                val scrollY = motion.scrollY.takeIf { view.canScrollVertically(it.sign()) } ?: 0
+                if (scrollX != 0 || scrollY != 0) animateWebScroll(view, scrollX, scrollY)
+            }
         }
     }
 
-    private fun animateWebScroll(view: View, deltaY: Int) {
+    private fun animateWebScroll(view: View, deltaX: Int = 0, deltaY: Int = 0) {
+        val startX = view.scrollX
         val startY = view.scrollY
-        val targetY = (if (scrollAnimator?.isRunning == true) scrollTargetY else startY) + deltaY
+        val running = scrollAnimator?.isRunning == true
+        val directionX = deltaX.sign()
+        val directionY = deltaY.sign()
+        val targetX = when {
+            deltaX == 0 -> if (running) scrollTargetX else startX
+            running && lastScrollDirectionX == directionX -> scrollTargetX + deltaX
+            else -> startX + deltaX
+        }
+        val targetY = when {
+            deltaY == 0 -> if (running) scrollTargetY else startY
+            running && lastScrollDirectionY == directionY -> scrollTargetY + deltaY
+            else -> startY + deltaY
+        }
         scrollAnimator?.cancel()
+        scrollTargetX = targetX
         scrollTargetY = targetY
-        scrollAnimator = ValueAnimator.ofInt(startY, targetY).apply {
+        if (deltaX != 0) lastScrollDirectionX = directionX
+        if (deltaY != 0) lastScrollDirectionY = directionY
+        scrollAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 220L
-            addUpdateListener { view.scrollTo(view.scrollX, it.animatedValue as Int) }
+            addUpdateListener {
+                val progress = it.animatedValue as Float
+                view.scrollTo(
+                    startX + ((targetX - startX) * progress).toInt(),
+                    startY + ((targetY - startY) * progress).toInt(),
+                )
+            }
             start()
         }
     }
 
-    private fun Int.sign(): Int = if (this < 0) -1 else 1
+    private fun Int.sign(): Int = when {
+        this < 0 -> -1
+        this > 0 -> 1
+        else -> 0
+    }
 
     private fun dispatchTouch(action: Int) {
-        val v = targetView ?: return
+        val v = targetView
+        if (v == null) {
+            pointerTouchDown = false
+            return
+        }
         val s = _state.value
         val now = SystemClock.uptimeMillis()
-        val ev = MotionEvent.obtain(now, now, action, s.x, s.y, 0)
+        if (action == MotionEvent.ACTION_DOWN) {
+            pointerTouchDownTime = now
+            pointerTouchDown = true
+        } else if (!pointerTouchDown) return
+        val ev = MotionEvent.obtain(pointerTouchDownTime, now, action, s.x, s.y, 0)
         v.dispatchTouchEvent(ev)
         ev.recycle()
+        if (action != MotionEvent.ACTION_DOWN) pointerTouchDown = false
     }
 }

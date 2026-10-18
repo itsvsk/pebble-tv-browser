@@ -132,6 +132,7 @@ fun AppNavHost(cursorState: CursorState, onToggleCursor: () -> Unit) {
                     tabId = tabId,
                     cursorState = cursorState,
                     chromeVisible = browserChromeVisible,
+                    topNavFocusRequester = navFocusRequesters.getValue(NavDestination.Browser),
                     onWebNavigation = { browserChromeVisible = false },
                     onShowChrome = { browserChromeVisible = true },
                     onBackHome = { nav.popBackStack(Routes.HOME, inclusive = false) },

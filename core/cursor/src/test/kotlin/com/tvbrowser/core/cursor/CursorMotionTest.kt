@@ -1,6 +1,8 @@
 package com.tvbrowser.core.cursor
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CursorMotionTest {
@@ -39,6 +41,37 @@ class CursorMotionTest {
         assertEquals(96, planCursorMotion(bottomRight, CursorDirection.Down, 3).scrollY)
         assertEquals(-96, planCursorMotion(topLeft, CursorDirection.Left, 3).scrollX)
         assertEquals(-96, planCursorMotion(topLeft, CursorDirection.Up, 3).scrollY)
-        assertEquals(0, planCursorMotion(bottomRight, CursorDirection.Down, 0).scrollY)
+        assertEquals(24, planCursorMotion(bottomRight, CursorDirection.Down, 0).scrollY)
+    }
+
+    @Test
+    fun separatePressesAtAnEdgeScrollThePage() {
+        val top = CursorState(x = 50f, y = 0f, viewportW = 100, viewportH = 80)
+        val bottom = top.copy(y = 80f)
+
+        assertEquals(-24, planCursorMotion(top, CursorDirection.Up, 0).scrollY)
+        assertEquals(24, planCursorMotion(bottom, CursorDirection.Down, 0).scrollY)
+    }
+
+    @Test
+    fun pointerUpReturnsToControlsOnlyAtTheTopOfThePage() {
+        val pointer = CursorState(active = true, x = 50f, y = 0f, viewportW = 100, viewportH = 80)
+
+        assertTrue(shouldReturnToControlsFromPointer(pointer, canScrollUp = false))
+        assertFalse(shouldReturnToControlsFromPointer(pointer, canScrollUp = true))
+        assertFalse(shouldReturnToControlsFromPointer(pointer.copy(y = 1f), canScrollUp = false))
+        assertFalse(shouldReturnToControlsFromPointer(pointer.copy(active = false), canScrollUp = false))
+    }
+
+    @Test
+    fun viewportResizeKeepsPointerInsideTheWebPage() {
+        val pointer = CursorState(active = true, x = 190f, y = 90f, viewportW = 200, viewportH = 100)
+
+        val resized = pointer.withViewport(120, 60, positionInitialized = true)
+
+        assertEquals(120f, resized.x)
+        assertEquals(60f, resized.y)
+        assertEquals(120, resized.viewportW)
+        assertEquals(60, resized.viewportH)
     }
 }

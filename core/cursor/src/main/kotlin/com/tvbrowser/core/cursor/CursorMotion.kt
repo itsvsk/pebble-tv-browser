@@ -9,6 +9,20 @@ internal data class CursorMotion(
     val scrollY: Int,
 )
 
+internal fun shouldReturnToControlsFromPointer(state: CursorState, canScrollUp: Boolean): Boolean =
+    state.active && state.viewportH > 0 && state.y <= 0f && !canScrollUp
+
+internal fun CursorState.withViewport(width: Int, height: Int, positionInitialized: Boolean): CursorState {
+    val w = width.coerceAtLeast(0)
+    val h = height.coerceAtLeast(0)
+    return copy(
+        viewportW = w,
+        viewportH = h,
+        x = if (positionInitialized) x.coerceIn(0f, w.toFloat()) else w / 2f,
+        y = if (positionInitialized) y.coerceIn(0f, h.toFloat()) else h / 2f,
+    )
+}
+
 internal fun planCursorMotion(
     state: CursorState,
     direction: CursorDirection,
@@ -35,7 +49,7 @@ internal fun planCursorMotion(
     return CursorMotion(
         x = (state.x + dx * step).coerceIn(0f, width),
         y = (state.y + dy * step).coerceIn(0f, height),
-        scrollX = if (repeatCount > 0 && atHorizontalEdge) (dx * step).toInt() else 0,
-        scrollY = if (repeatCount > 0 && atVerticalEdge) (dy * step).toInt() else 0,
+        scrollX = if (atHorizontalEdge) (dx * step).toInt() else 0,
+        scrollY = if (atVerticalEdge) (dy * step).toInt() else 0,
     )
 }

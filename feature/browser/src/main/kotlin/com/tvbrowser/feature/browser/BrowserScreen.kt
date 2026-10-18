@@ -44,6 +44,7 @@ fun BrowserScreen(
     tabId: String,
     cursorState: CursorState,
     chromeVisible: Boolean,
+    topNavFocusRequester: FocusRequester,
     onWebNavigation: () -> Unit,
     onShowChrome: () -> Unit,
     onBackHome: () -> Unit,
@@ -83,6 +84,7 @@ fun BrowserScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         if (chromeVisible) AddressBar(
             controlsFocusRequester = controlsFocusRequester,
+            topNavFocusRequester = topNavFocusRequester,
             url = ui.url,
             isBookmarked = ui.isBookmarked,
             desktopUa = ui.desktopUa,

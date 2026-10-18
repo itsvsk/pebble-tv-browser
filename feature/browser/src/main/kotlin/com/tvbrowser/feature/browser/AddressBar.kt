@@ -72,6 +72,7 @@ import com.tvbrowser.core.design.pebbleFocus
 @Composable
 fun AddressBar(
     controlsFocusRequester: FocusRequester,
+    topNavFocusRequester: FocusRequester,
     url: String,
     isBookmarked: Boolean,
     desktopUa: Boolean,
@@ -108,9 +109,12 @@ fun AddressBar(
                 onClick = onBack,
                 focusRequester = controlsFocusRequester,
                 onLeft = { bookmarkFocusRequester.requestFocus() },
+                onUp = { topNavFocusRequester.requestFocus() },
             )
-            RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward)
-            RoundIcon(Icons.Outlined.Refresh, "Reload", onClick = onReload)
+            RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward,
+                onUp = { topNavFocusRequester.requestFocus() })
+            RoundIcon(Icons.Outlined.Refresh, "Reload", onClick = onReload,
+                onUp = { topNavFocusRequester.requestFocus() })
 
             Spacer(Modifier.width(PebbleDimens.Sp2))
 
@@ -125,6 +129,7 @@ fun AddressBar(
                     editing = false
                     focusManager.moveFocus(FocusDirection.Down)
                 },
+                onUp = { topNavFocusRequester.requestFocus() },
                 modifier = Modifier.weight(1f),
             )
 
@@ -134,6 +139,7 @@ fun AddressBar(
                 imageVector = if (desktopUa) Icons.Outlined.DesktopWindows else Icons.Outlined.PhoneAndroid,
                 contentDescription = if (desktopUa) "Desktop site" else "Mobile site",
                 onClick = onToggleUa,
+                onUp = { topNavFocusRequester.requestFocus() },
             )
             RoundIcon(
                 imageVector = if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder,
@@ -142,6 +148,7 @@ fun AddressBar(
                 tint = if (isBookmarked) PebbleColors.Primary else PebbleColors.OnSurfaceMuted,
                 focusRequester = bookmarkFocusRequester,
                 onRight = { controlsFocusRequester.requestFocus() },
+                onUp = { topNavFocusRequester.requestFocus() },
             )
         }
     }
@@ -160,6 +167,7 @@ private fun RoundIcon(
     focusRequester: FocusRequester? = null,
     onLeft: (() -> Unit)? = null,
     onRight: (() -> Unit)? = null,
+    onUp: (() -> Unit)? = null,
 ) {
     val focusSource = remember { MutableInteractionSource() }
     val focused by focusSource.collectIsFocusedAsState()
@@ -167,11 +175,12 @@ private fun RoundIcon(
         modifier = Modifier
             .size(38.dp)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .then(if (onLeft != null || onRight != null) Modifier.onPreviewKeyEvent { event ->
+            .then(if (onLeft != null || onRight != null || onUp != null) Modifier.onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.key) {
                     Key.DirectionLeft -> if (onLeft != null) { onLeft(); true } else false
                     Key.DirectionRight -> if (onRight != null) { onRight(); true } else false
+                    Key.DirectionUp -> if (onUp != null) { onUp(); true } else false
                     else -> false
                 }
             } else Modifier)
@@ -199,6 +208,7 @@ private fun AddressPill(
     editing: Boolean,
     onEditingChange: (Boolean) -> Unit,
     onSubmit: () -> Unit,
+    onUp: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
@@ -214,7 +224,7 @@ private fun AddressPill(
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (e.key) {
-                    Key.DirectionUp -> { focusManager.moveFocus(FocusDirection.Up); true }
+                    Key.DirectionUp -> { onUp(); true }
                     Key.DirectionDown -> { focusManager.moveFocus(FocusDirection.Down); true }
                     else -> false
                 }
