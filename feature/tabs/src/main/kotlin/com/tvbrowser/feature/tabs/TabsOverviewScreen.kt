@@ -6,15 +6,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,7 +29,6 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,10 +50,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.tv.foundation.lazy.grid.TvGridCells
-import androidx.tv.foundation.lazy.grid.TvLazyVerticalGrid
-import androidx.tv.foundation.lazy.grid.items
-import androidx.tv.foundation.lazy.grid.rememberTvLazyGridState
 import androidx.tv.foundation.lazy.list.TvLazyRow
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
@@ -86,7 +78,6 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -98,6 +89,7 @@ fun TabsOverviewScreen(
     val tabs by vm.tabs.collectAsState()
     val bookmarkedUrls by vm.bookmarkedUrls.collectAsState()
     val menuTab by vm.selectedForMenu.collectAsState()
+    val currentTabId = tabs.maxByOrNull { it.lastActiveAt }?.id
     var showCloseAll by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -120,7 +112,7 @@ fun TabsOverviewScreen(
                     val tab = tabs[index]
                     TabCard(
                         tab = tab,
-                        isCurrent = tab.id == tabs.maxByOrNull { it.lastActiveAt }?.id,
+                        isCurrent = tab.id == currentTabId,
                         onClick = { onOpenTab(tab.id) },
                         onClose = { vm.close(tab) },
                         onLongClick = { vm.showMenu(tab) },
@@ -162,82 +154,6 @@ fun TabsOverviewScreen(
                 snapshot.forEach(vm::close)
             },
             onCancel = { showCloseAll = false },
-        )
-    }
-}
-
-@Composable
-private fun ScrollIndicator(
-    state: androidx.tv.foundation.lazy.grid.TvLazyGridState,
-    modifier: Modifier = Modifier,
-) {
-    val canScroll by remember {
-        derivedStateOf {
-            val info = state.layoutInfo
-            val total = info.totalItemsCount
-            if (total == 0) false
-            else {
-                val first = info.visibleItemsInfo.firstOrNull()?.index ?: 0
-                val last = info.visibleItemsInfo.lastOrNull()?.index ?: 0
-                first > 0 || last < total - 1
-            }
-        }
-    }
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(state.isScrollInProgress, canScroll) {
-        if (!canScroll) {
-            visible = false
-            return@LaunchedEffect
-        }
-        if (state.isScrollInProgress) {
-            visible = true
-        } else {
-            delay(800)
-            visible = false
-        }
-    }
-    val alpha by animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = tween(durationMillis = 220),
-        label = "scrollbar-alpha",
-    )
-    if (alpha <= 0.01f) return
-
-    val progress by remember {
-        derivedStateOf {
-            val info = state.layoutInfo
-            val total = info.totalItemsCount.coerceAtLeast(1)
-            val visibleCount = info.visibleItemsInfo.size.coerceAtLeast(1)
-            val first = info.visibleItemsInfo.firstOrNull()?.index ?: 0
-            val maxFirst = (total - visibleCount).coerceAtLeast(1)
-            val frac = visibleCount.toFloat() / total.toFloat()
-            val pos = first.toFloat() / maxFirst.toFloat()
-            frac.coerceIn(0.08f, 1f) to pos.coerceIn(0f, 1f)
-        }
-    }
-    val (thumbFraction, scrollPos) = progress
-
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxHeight()
-            .width(6.dp),
-    ) {
-        val trackHeight = maxHeight
-        val thumbHeight = trackHeight * thumbFraction
-        val thumbOffset = (trackHeight - thumbHeight) * scrollPos
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(4.dp)
-                .align(Alignment.CenterEnd)
-                .background(PebbleColors.Surface3.copy(alpha = 0.25f * alpha), PebbleShape.Full),
-        )
-        Box(
-            modifier = Modifier
-                .offset(y = thumbOffset)
-                .width(6.dp)
-                .height(thumbHeight)
-                .background(PebbleColors.OnSurfaceMuted.copy(alpha = 0.85f * alpha), PebbleShape.Full),
         )
     }
 }
