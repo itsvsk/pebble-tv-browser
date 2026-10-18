@@ -23,7 +23,6 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,7 +65,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -82,12 +83,13 @@ class DownloadsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val progress: StateFlow<Map<Long, DownloadProgress>> = records
-        .flatMapLatest { list ->
-            val active = list.filter {
+        .map { list ->
+            list.filter {
                 it.status == DownloadRecord.STATUS_RUNNING || it.status == DownloadRecord.STATUS_PAUSED
-            }.map { it.dmId }
-            dmRepo.observeProgress(active)
+            }
         }
+        .distinctUntilChanged()
+        .flatMapLatest(dmRepo::observeProgress)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private val _selectedForMenu = MutableStateFlow<DownloadRecord?>(null)
@@ -96,13 +98,18 @@ class DownloadsViewModel @Inject constructor(
     fun showMenu(r: DownloadRecord) { _selectedForMenu.value = r }
     fun dismissMenu() { _selectedForMenu.value = null }
 
-    fun cancel(record: DownloadRecord) { dmRepo.cancel(record.dmId) }
+    fun cancel(record: DownloadRecord) {
+        viewModelScope.launch { dmRepo.cancel(record.dmId) }
+    }
     fun open(record: DownloadRecord) { dmRepo.openFile(record) }
 
     fun deleteRecord(record: DownloadRecord) {
         viewModelScope.launch {
-            dmRepo.cancel(record.dmId)
-            repo.delete(record.dmId)
+            if (record.status == DownloadRecord.STATUS_RUNNING || record.status == DownloadRecord.STATUS_PAUSED) {
+                dmRepo.cancel(record.dmId)
+            } else {
+                repo.delete(record.dmId)
+            }
         }
     }
 }
@@ -388,7 +395,7 @@ private fun DownloadContextMenu(
     onDismiss: () -> Unit,
 ) {
     val firstFocus = remember { FocusRequester() }
-    val running = record.status == DownloadRecord.STATUS_RUNNING
+    val running = record.status == DownloadRecord.STATUS_RUNNING || record.status == DownloadRecord.STATUS_PAUSED
     val success = record.status == DownloadRecord.STATUS_SUCCESS
     Dialog(
         onDismissRequest = onDismiss,
@@ -424,6 +431,7 @@ private fun DownloadContextMenu(
                         Text(
                             when (record.status) {
                                 DownloadRecord.STATUS_RUNNING -> "In progress"
+                                DownloadRecord.STATUS_PAUSED -> "Paused"
                                 DownloadRecord.STATUS_SUCCESS -> "Done"
                                 DownloadRecord.STATUS_FAILED -> "Failed"
                                 else -> ""
@@ -458,17 +466,11 @@ private fun DownloadContextMenu(
                     )
                 } else {
                     MenuRow(
-                        label = "Retry",
-                        icon = Icons.Outlined.Refresh,
-                        onClick = { /* TODO retry — v2 */ },
-                        modifier = Modifier.focusRequester(firstFocus),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    MenuRow(
                         label = "Remove from list",
                         icon = Icons.Outlined.DeleteOutline,
                         onClick = onDelete,
                         danger = true,
+                        modifier = Modifier.focusRequester(firstFocus),
                     )
                 }
             }

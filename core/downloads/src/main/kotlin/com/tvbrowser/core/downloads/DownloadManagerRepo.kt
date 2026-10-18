@@ -11,13 +11,13 @@ import com.tvbrowser.core.db.entity.DownloadRecord
 import com.tvbrowser.core.db.repo.DownloadRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -61,7 +61,12 @@ class DownloadManagerRepo @Inject constructor(
         return id
     }
 
-    fun cancel(dmId: Long) { dm.remove(dmId) }
+    suspend fun cancel(dmId: Long) {
+        remove(dmId)
+        repo.delete(dmId)
+    }
+
+    suspend fun remove(dmId: Long) = withContext(Dispatchers.IO) { dm.remove(dmId) }
 
     fun openFile(record: DownloadRecord) {
         val file = File(record.localPath)
@@ -76,33 +81,51 @@ class DownloadManagerRepo @Inject constructor(
         runCatching { context.startActivity(intent) }
     }
 
-    fun observeProgress(ids: Collection<Long>): Flow<Map<Long, DownloadProgress>> = callbackFlow {
-        val job = launch(Dispatchers.IO) {
-            while (isActive) {
-                if (ids.isEmpty()) { delay(1_000); continue }
-                val query = DownloadManager.Query().setFilterById(*ids.toLongArray())
-                val map = HashMap<Long, DownloadProgress>()
-                dm.query(query)?.use { c ->
-                    val idIdx = c.getColumnIndexOrThrow(DownloadManager.COLUMN_ID)
-                    val sIdx = c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)
-                    val rIdx = c.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON)
-                    val bIdx = c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
-                    val tIdx = c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
-                    while (c.moveToNext()) {
-                        val id = c.getLong(idIdx)
-                        map[id] = DownloadProgress(
-                            dmId = id,
-                            bytesSoFar = c.getLong(bIdx),
-                            totalBytes = c.getLong(tIdx),
-                            statusCode = c.getInt(sIdx),
-                            reason = c.getInt(rIdx),
-                        )
-                    }
-                }
-                trySend(map)
-                delay(1_000)
-            }
+    fun observeProgress(records: Collection<DownloadRecord>): Flow<Map<Long, DownloadProgress>> = flow {
+        if (records.isEmpty()) {
+            emit(emptyMap())
+            return@flow
         }
-        awaitClose { job.cancel() }
+        val ids = records.map { it.dmId }.toLongArray()
+        while (currentCoroutineContext().isActive) {
+            val query = DownloadManager.Query().setFilterById(*ids)
+            val progress = HashMap<Long, DownloadProgress>()
+            val cursor = dm.query(query)
+            if (cursor == null) {
+                delay(1_000)
+                continue
+            }
+            cursor.use { c ->
+                val idIdx = c.getColumnIndexOrThrow(DownloadManager.COLUMN_ID)
+                val sIdx = c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)
+                val rIdx = c.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON)
+                val bIdx = c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                val tIdx = c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+                while (c.moveToNext()) {
+                    val id = c.getLong(idIdx)
+                    progress[id] = DownloadProgress(
+                        dmId = id,
+                        bytesSoFar = c.getLong(bIdx),
+                        totalBytes = c.getLong(tIdx),
+                        statusCode = c.getInt(sIdx),
+                        reason = c.getInt(rIdx),
+                    )
+                }
+            }
+            emit(progress)
+            for (record in records) {
+                val status = progress[record.dmId]?.statusCode?.let(::recordStatus)
+                    ?: DownloadRecord.STATUS_FAILED
+                if (status != record.status) repo.updateStatus(record.dmId, status)
+            }
+            delay(1_000)
+        }
     }.flowOn(Dispatchers.IO)
+}
+
+internal fun recordStatus(managerStatus: Int): Int = when (managerStatus) {
+    DownloadManager.STATUS_PENDING, DownloadManager.STATUS_RUNNING -> DownloadRecord.STATUS_RUNNING
+    DownloadManager.STATUS_PAUSED -> DownloadRecord.STATUS_PAUSED
+    DownloadManager.STATUS_SUCCESSFUL -> DownloadRecord.STATUS_SUCCESS
+    else -> DownloadRecord.STATUS_FAILED
 }
