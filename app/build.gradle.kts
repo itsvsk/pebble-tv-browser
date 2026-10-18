@@ -67,19 +67,10 @@ dependencies {
     implementation(project(":feature:downloads"))
     implementation(project(":feature:settings"))
 
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
-    implementation(libs.compose.ui.graphics)
-    implementation(libs.compose.ui.tooling.preview)
-    implementation(libs.compose.material3)
-    implementation(libs.compose.material.icons.extended)
-    implementation(libs.compose.foundation)
-    implementation(libs.tv.material)
-    implementation(libs.tv.foundation)
 
     implementation(libs.navigation.compose)
     implementation(libs.hilt.android)

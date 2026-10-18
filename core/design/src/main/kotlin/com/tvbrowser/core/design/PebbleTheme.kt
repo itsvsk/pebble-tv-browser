@@ -1,8 +1,6 @@
 package com.tvbrowser.core.design
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.lightColorScheme
@@ -10,10 +8,7 @@ import androidx.tv.material3.lightColorScheme
 /**
  * Pebble theme — wires the design tokens into TV Material 3.
  *
- * M3 has slots for primary/surface/etc but NO slot for a 6-step surface ramp.
- * Strategy:
- *  - Map what M3 has slots for into [lightColorScheme].
- *  - Expose the rest of the ramp + status colors via [LocalPebbleColors] / [PebbleTheme.colors].
+ * Maps the shared Pebble colors into TV Material 3; additional colors remain in [PebbleColors].
  *
  * Slot mapping (per README §"DESIGN TOKENS → Compose mapping"):
  *   background          = bg
@@ -47,39 +42,13 @@ private val PebbleColorScheme = lightColorScheme(
     scrim = PebbleColors.Scrim,
 )
 
-/** Holder for tokens that don't fit M3's slot scheme (full surface ramp + status). */
-data class PebbleExtendedColors(
-    val bg: androidx.compose.ui.graphics.Color = PebbleColors.Bg,
-    val surface: androidx.compose.ui.graphics.Color = PebbleColors.Surface,
-    val surface1: androidx.compose.ui.graphics.Color = PebbleColors.Surface1,
-    val surface2: androidx.compose.ui.graphics.Color = PebbleColors.Surface2,
-    val surface3: androidx.compose.ui.graphics.Color = PebbleColors.Surface3,
-    val surface4: androidx.compose.ui.graphics.Color = PebbleColors.Surface4,
-    val onSurfaceFaint: androidx.compose.ui.graphics.Color = PebbleColors.OnSurfaceFaint,
-    val outlineFaint: androidx.compose.ui.graphics.Color = PebbleColors.OutlineFaint,
-    val primaryStrong: androidx.compose.ui.graphics.Color = PebbleColors.PrimaryStrong,
-    val primaryDim: androidx.compose.ui.graphics.Color = PebbleColors.PrimaryDim,
-    val good: androidx.compose.ui.graphics.Color = PebbleColors.Good,
-    val warn: androidx.compose.ui.graphics.Color = PebbleColors.Warn,
-    val danger: androidx.compose.ui.graphics.Color = PebbleColors.Danger,
-)
-
-val LocalPebbleColors = staticCompositionLocalOf { PebbleExtendedColors() }
-
-object PebbleTheme {
-    val colors: PebbleExtendedColors
-        @Composable get() = LocalPebbleColors.current
-}
-
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun PebbleTheme(content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalPebbleColors provides PebbleExtendedColors()) {
-        MaterialTheme(
-            colorScheme = PebbleColorScheme,
-            typography = PebbleTypography,
-            shapes = PebbleShapes,
-            content = content,
-        )
-    }
+    MaterialTheme(
+        colorScheme = PebbleColorScheme,
+        typography = PebbleTypography,
+        shapes = PebbleShapes,
+        content = content,
+    )
 }

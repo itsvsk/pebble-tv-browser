@@ -34,10 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -70,12 +68,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.compose.foundation.shape.RoundedCornerShape as RcShape
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
 import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
 
@@ -472,8 +465,8 @@ private fun TabContextMenu(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
-                        .seaGlass(RcShape(10.dp), PebbleColors.GlassLagoon, 1.dp)
-                        .clip(RcShape(10.dp)),
+                        .seaGlass(RoundedCornerShape(10.dp), PebbleColors.GlassLagoon, 1.dp)
+                        .clip(RoundedCornerShape(10.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (isHome) {
@@ -550,7 +543,6 @@ private fun MenuRow(
 
 @Composable
 private fun TabWebViewPreview(url: String, modifier: Modifier = Modifier) {
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
@@ -575,15 +567,4 @@ private fun TabWebViewPreview(url: String, modifier: Modifier = Modifier) {
             wv.destroy()
         },
     )
-    DisposableEffect(lifecycle) {
-        val observer = object : DefaultLifecycleObserver {
-            override fun onPause(owner: LifecycleOwner) {}
-            override fun onResume(owner: LifecycleOwner) {}
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
 }
-
-@Suppress("unused")
-private val unusedRefs = arrayOf(SolidColor(PebbleColors.Primary), 14.sp)

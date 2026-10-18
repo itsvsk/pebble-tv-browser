@@ -36,10 +36,8 @@ import androidx.compose.material.icons.outlined.BookmarkRemove
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -66,13 +64,10 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -100,11 +95,6 @@ fun HomeScreen(
     homeNavFocus: FocusRequester,
     onOpenUrl: (tabId: String) -> Unit,
     onOpenBrowse: () -> Unit,
-    onOpenTabs: () -> Unit,
-    onOpenBookmarks: () -> Unit,
-    onOpenHistory: () -> Unit,
-    onOpenDownloads: () -> Unit,
-    onOpenSettings: () -> Unit,
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val mostVisited by vm.mostVisited.collectAsState()
@@ -549,7 +539,6 @@ private fun MenuRow(
 
 @Composable
 private fun WebViewPreview(url: String, modifier: Modifier = Modifier) {
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
@@ -574,15 +563,4 @@ private fun WebViewPreview(url: String, modifier: Modifier = Modifier) {
             wv.destroy()
         },
     )
-    DisposableEffect(lifecycle) {
-        val observer = object : DefaultLifecycleObserver {
-            override fun onPause(owner: LifecycleOwner) {}
-            override fun onResume(owner: LifecycleOwner) {}
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
 }
-
-@Suppress("unused")
-private val _unusedFallback = Icons.Outlined.Public
