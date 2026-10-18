@@ -1,5 +1,6 @@
 package com.tvbrowser.core.cursor
 
+import android.animation.ValueAnimator
 import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -37,8 +38,12 @@ class CursorController @Inject constructor() {
     private var centerDownTime: Long = 0L
     private var centerLongPressed: Boolean = false
     private val longPressMs = 500L
+    private var scrollAnimator: ValueAnimator? = null
+    private var scrollTargetY = 0
 
     fun attachTarget(view: View?) {
+        scrollAnimator?.cancel()
+        scrollAnimator = null
         targetView = view
         view?.let { v ->
             v.post {
@@ -54,7 +59,11 @@ class CursorController @Inject constructor() {
     }
 
     fun detachTarget(view: View) {
-        if (targetView === view) targetView = null
+        if (targetView === view) {
+            scrollAnimator?.cancel()
+            scrollAnimator = null
+            targetView = null
+        }
     }
 
     fun setActive(active: Boolean) {
@@ -96,11 +105,21 @@ class CursorController @Inject constructor() {
             return handleCenterKey(event)
         }
 
-        if (!_state.value.active && code == KeyEvent.KEYCODE_DPAD_DOWN &&
-            action == KeyEvent.ACTION_DOWN && targetView?.hasFocus() == true &&
-            targetView?.canScrollVertically(1) == false && focusControls != null
-        ) {
-            focusControls?.invoke()
+        val view = targetView
+        val webScroll = webDpadScrollDelta(
+            code,
+            view?.height ?: 0,
+            _state.value.active,
+            view?.hasFocus() == true,
+        )
+        if (webScroll != 0) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                if (view?.canScrollVertically(webScroll.sign()) == true) {
+                    animateWebScroll(view, webScroll)
+                } else {
+                    focusControls?.invoke()
+                }
+            }
             return true
         }
 
@@ -178,6 +197,20 @@ class CursorController @Inject constructor() {
             targetView?.scrollBy(motion.scrollX, motion.scrollY)
         }
     }
+
+    private fun animateWebScroll(view: View, deltaY: Int) {
+        val startY = view.scrollY
+        val targetY = (if (scrollAnimator?.isRunning == true) scrollTargetY else startY) + deltaY
+        scrollAnimator?.cancel()
+        scrollTargetY = targetY
+        scrollAnimator = ValueAnimator.ofInt(startY, targetY).apply {
+            duration = 220L
+            addUpdateListener { view.scrollTo(view.scrollX, it.animatedValue as Int) }
+            start()
+        }
+    }
+
+    private fun Int.sign(): Int = if (this < 0) -1 else 1
 
     private fun dispatchTouch(action: Int) {
         val v = targetView ?: return
