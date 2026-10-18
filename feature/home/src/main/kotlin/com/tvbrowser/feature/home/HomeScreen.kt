@@ -383,16 +383,16 @@ private fun Tile(
         animationSpec = tween(durationMillis = PebbleMotion.DurationMs),
         label = "speed-dial-glow",
     )
-    Box(modifier = modifier.speedDialBloom(glowAlpha).padding(10.dp)) {
+    Box(modifier = modifier.speedDialBloom(glowAlpha).padding(6.dp)) {
         if (focused) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .shadow(
-                        PebbleElevation.E3,
+                        PebbleElevation.E2,
                         PebbleShape.Md,
-                        ambientColor = PebbleColors.Primary.copy(alpha = 0.85f),
-                        spotColor = PebbleColors.Primary.copy(alpha = 0.85f),
+                        ambientColor = PebbleColors.Primary.copy(alpha = 0.45f),
+                        spotColor = PebbleColors.Primary.copy(alpha = 0.45f),
                     )
                     .background(PebbleColors.Bg, PebbleShape.Md),
             )
@@ -435,13 +435,13 @@ private fun Tile(
 
 private fun Modifier.speedDialBloom(alpha: Float): Modifier = drawBehind {
     if (alpha > 0f) {
-        listOf(0.dp to 0.04f, 4.dp to 0.08f, 7.dp to 0.12f).forEach { (inset, strength) ->
+        listOf(0.dp to 0.025f, 2.dp to 0.04f, 4.dp to 0.06f).forEach { (inset, strength) ->
             val px = inset.toPx()
             drawRoundRect(
                 color = PebbleColors.Primary.copy(alpha = strength * alpha),
                 topLeft = Offset(px, px),
                 size = Size(size.width - 2 * px, size.height - 2 * px),
-                cornerRadius = CornerRadius((26.dp - inset).toPx()),
+                cornerRadius = CornerRadius((22.dp - inset).toPx()),
             )
         }
     }
