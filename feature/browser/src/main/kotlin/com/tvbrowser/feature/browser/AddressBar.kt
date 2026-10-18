@@ -81,6 +81,7 @@ fun AddressBar(
     var text by remember(url) { mutableStateOf(url) }
     var editing by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    val bookmarkFocusRequester = remember { FocusRequester() }
 
     Box(
         modifier = Modifier
@@ -95,7 +96,13 @@ fun AddressBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
         ) {
-            RoundIcon(Icons.Outlined.ArrowBack, "Back", onClick = onBack, focusRequester = controlsFocusRequester)
+            RoundIcon(
+                Icons.Outlined.ArrowBack,
+                "Back",
+                onClick = onBack,
+                focusRequester = controlsFocusRequester,
+                onLeft = { bookmarkFocusRequester.requestFocus() },
+            )
             RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward)
             RoundIcon(Icons.Outlined.Refresh, "Reload", onClick = onReload)
 
@@ -127,6 +134,8 @@ fun AddressBar(
                 contentDescription = "Bookmark",
                 onClick = onBookmark,
                 tint = if (isBookmarked) PebbleColors.PrimaryStrong else PebbleColors.OnSurfaceMuted,
+                focusRequester = bookmarkFocusRequester,
+                onRight = { controlsFocusRequester.requestFocus() },
             )
         }
     }
@@ -143,11 +152,21 @@ private fun RoundIcon(
     enabled: Boolean = true,
     tint: androidx.compose.ui.graphics.Color = PebbleColors.OnSurfaceMuted,
     focusRequester: FocusRequester? = null,
+    onLeft: (() -> Unit)? = null,
+    onRight: (() -> Unit)? = null,
 ) {
     Box(
         modifier = Modifier
             .size(38.dp)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .then(if (onLeft != null || onRight != null) Modifier.onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.DirectionLeft -> if (onLeft != null) { onLeft(); true } else false
+                    Key.DirectionRight -> if (onRight != null) { onRight(); true } else false
+                    else -> false
+                }
+            } else Modifier)
             .pebbleFocus(shape = CircleShape, lift = false, tight = true)
             .background(androidx.compose.ui.graphics.Color.Transparent, CircleShape)
             .let { if (enabled) it.pebbleClickable(onClick) else it },
