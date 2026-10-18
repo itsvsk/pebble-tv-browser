@@ -28,11 +28,16 @@ import com.tvbrowser.feature.settings.SettingsScreen
 import com.tvbrowser.feature.tabs.TabsOverviewScreen
 
 @Composable
-fun AppNavHost(cursorState: CursorState, onToggleCursor: () -> Unit) {
+fun AppNavHost(cursorState: CursorState, onSetCursorActive: (Boolean) -> Unit) {
     val nav = rememberNavController()
     val shellVm: ShellViewModel = hiltViewModel()
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    val onToggleCursor = { onSetCursorActive(!cursorState.active) }
+    fun openBrowser(tabId: String) {
+        onSetCursorActive(true)
+        nav.navigate(Routes.browser(tabId))
+    }
     val navFocusRequesters = remember { NavDestination.entries.associateWith { FocusRequester() } }
     val homeNavFocus = navFocusRequesters.getValue(NavDestination.Home)
     var focusedNav by remember { mutableStateOf<NavDestination?>(null) }
@@ -52,6 +57,11 @@ fun AppNavHost(cursorState: CursorState, onToggleCursor: () -> Unit) {
         else -> NavDestination.Home
     }
 
+    // Each Browse entry starts in pointer mode; changing modes within that entry remains manual.
+    LaunchedEffect(backStackEntry?.id) {
+        if (currentRoute != null) onSetCursorActive(currentRoute == Routes.BROWSER)
+    }
+
     LaunchedEffect(browserChromeVisible, focusTopBarWhenShown, active) {
         if (browserChromeVisible && focusTopBarWhenShown) {
             navFocusRequesters.getValue(active).requestFocus()
@@ -63,7 +73,7 @@ fun AppNavHost(cursorState: CursorState, onToggleCursor: () -> Unit) {
             enabled = (currentRoute == Routes.BROWSER && !browserChromeVisible) ||
                 cursorState.active || focusedNav != active,
         ) {
-            if (cursorState.active) onToggleCursor()
+            if (cursorState.active) onSetCursorActive(false)
             if (currentRoute == Routes.BROWSER && !browserChromeVisible) {
                 browserChromeVisible = true
                 focusTopBarWhenShown = true
@@ -92,7 +102,7 @@ fun AppNavHost(cursorState: CursorState, onToggleCursor: () -> Unit) {
         onSelect = { dest ->
             if (dest == NavDestination.Browser) {
                 if (currentRoute != Routes.BROWSER) {
-                    shellVm.openBrowser { tabId -> nav.navigate(Routes.browser(tabId)) }
+                    shellVm.openBrowser(::openBrowser)
                 }
                 return@RootShell
             }
@@ -118,8 +128,8 @@ fun AppNavHost(cursorState: CursorState, onToggleCursor: () -> Unit) {
                 handleBack()
                 HomeScreen(
                     homeNavFocus = homeNavFocus,
-                    onOpenUrl = { tabId -> nav.navigate(Routes.browser(tabId)) },
-                    onOpenBrowse = { shellVm.openBrowser { tabId -> nav.navigate(Routes.browser(tabId)) } },
+                    onOpenUrl = ::openBrowser,
+                    onOpenBrowse = { shellVm.openBrowser(::openBrowser) },
                 )
             }
             composable(
@@ -141,20 +151,20 @@ fun AppNavHost(cursorState: CursorState, onToggleCursor: () -> Unit) {
             composable(Routes.TABS) {
                 handleBack()
                 TabsOverviewScreen(
-                    onOpenTab = { tabId -> nav.navigate(Routes.browser(tabId)) },
-                    onNewTab = { tabId -> nav.navigate(Routes.browser(tabId)) },
+                    onOpenTab = ::openBrowser,
+                    onNewTab = ::openBrowser,
                 )
             }
             composable(Routes.BOOKMARKS) {
                 handleBack()
                 BookmarksScreen(
-                    onOpenUrl = { tabId -> nav.navigate(Routes.browser(tabId)) },
+                    onOpenUrl = ::openBrowser,
                     onOpenHistory = { nav.navigate(Routes.HISTORY) },
                 )
             }
             composable(Routes.HISTORY) {
                 handleBack()
-                HistoryScreen(onOpenUrl = { tabId -> nav.navigate(Routes.browser(tabId)) })
+                HistoryScreen(onOpenUrl = ::openBrowser)
             }
             composable(Routes.DOWNLOADS) {
                 handleBack()
