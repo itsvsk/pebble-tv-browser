@@ -80,6 +80,9 @@ class TabWebViewClient(
     }
 
     override fun onPageFinished(view: WebView, url: String) {
+        if (GoogleResultsFocusGuard.appliesTo(url)) {
+            view.evaluateJavascript(GoogleResultsFocusGuard.script, null)
+        }
         callbacks.pageFinished(url, view.title)
     }
 
