@@ -1,7 +1,6 @@
 package com.tvbrowser.core.design
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -35,6 +33,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
@@ -57,6 +57,8 @@ fun TopNav(
     var now by remember { mutableStateOf(LocalTime.now()) }
     val settingsFocusSource = remember { MutableInteractionSource() }
     val settingsFocused by settingsFocusSource.collectIsFocusedAsState()
+    val cursorFocusSource = remember { MutableInteractionSource() }
+    val cursorFocused by cursorFocusSource.collectIsFocusedAsState()
     LaunchedEffect(Unit) {
         while (true) {
             now = LocalTime.now()
@@ -67,8 +69,7 @@ fun TopNav(
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp)
-            .background(PebbleColors.GlassHigh)
-            .border(0.5.dp, PebbleColors.OutlineFaint)
+            .background(PebbleColors.Surface1.copy(alpha = 0.75f))
             .padding(horizontal = PebbleDimens.Gutter),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -78,9 +79,9 @@ fun TopNav(
         Spacer(Modifier.width(30.dp))
         Row(
             modifier = Modifier
-                .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 3.dp)
+                .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 5.dp)
                 .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             listOf(
                 NavDestination.Home, NavDestination.Browser, NavDestination.Tabs,
@@ -102,8 +103,15 @@ fun TopNav(
         if (cursorModeActive != null) {
             Row(
                 modifier = Modifier
-                    .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-                    .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 2.dp)
+                    .pebbleFocus(
+                        shape = PebbleShape.Full, lift = false, tight = true,
+                        interactionSource = cursorFocusSource,
+                        ringColorOverride = Color.Transparent,
+                        gapColorOverride = Color.Transparent,
+                    )
+                    .then(if (cursorFocused) Modifier.seaGlass(
+                        PebbleShape.Full, PebbleColors.GlassFocus, 10.dp, emphasized = true,
+                    ) else Modifier)
                     .pebbleClickable(onClick = onToggleCursor)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -135,17 +143,19 @@ fun TopNav(
                         true
                     } else false
                 }
-                .then(if (settingsFocused) Modifier.shadow(
-                    16.dp, CircleShape,
-                    ambientColor = PebbleColors.Primary.copy(alpha = 0.32f),
-                    spotColor = PebbleColors.Primary.copy(alpha = 0.32f),
+                .pebbleFocus(
+                    shape = CircleShape, lift = false, tight = true,
+                    interactionSource = settingsFocusSource,
+                    ringColorOverride = Color.Transparent,
+                    gapColorOverride = Color.Transparent,
+                )
+                .then(if (settingsFocused) Modifier.seaGlass(
+                    CircleShape, PebbleColors.GlassFocus, 10.dp, emphasized = true,
                 ) else Modifier)
-                .pebbleFocus(shape = CircleShape, lift = false, tight = true, interactionSource = settingsFocusSource)
-                .seaGlass(CircleShape, if (settingsFocused) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 3.dp)
                 .pebbleClickable(onClick = { onSelect(NavDestination.Settings) }),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = PebbleColors.Primary, modifier = Modifier.size(18.dp))
+            Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = if (settingsFocused) PebbleColors.Primary else PebbleColors.PrimaryDim, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -160,6 +170,8 @@ private fun NavPill(
     onLeft: (() -> Unit)?,
     onClick: () -> Unit,
 ) {
+    val focusSource = remember { MutableInteractionSource() }
+    val focused by focusSource.collectIsFocusedAsState()
     Box(
         modifier = Modifier.height(36.dp)
             .focusRequester(focusRequester)
@@ -170,17 +182,31 @@ private fun NavPill(
                     true
                 } else false
             } else Modifier)
-            .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-            .then(if (selected) Modifier.seaGlass(PebbleShape.Full, PebbleColors.GlassMint, 3.dp)
-                else Modifier.background(PebbleColors.GlassHigh, PebbleShape.Full))
+            .pebbleFocus(
+                shape = PebbleShape.Full, lift = false, tight = true,
+                interactionSource = focusSource,
+                ringColorOverride = Color.Transparent,
+                gapColorOverride = Color.Transparent,
+            )
+            .then(when {
+                focused -> Modifier.seaGlass(PebbleShape.Full, PebbleColors.GlassFocus, 11.dp, emphasized = true)
+                selected -> Modifier.background(
+                    Brush.verticalGradient(listOf(
+                        PebbleColors.GlassMint.copy(alpha = 0.80f),
+                        PebbleColors.PrimaryContainer.copy(alpha = 0.58f),
+                    )),
+                    PebbleShape.Full,
+                )
+                else -> Modifier
+            })
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             destination.label,
-            style = PebbleType.Label.copy(fontWeight = if (selected) FontWeight.W700 else FontWeight.W500),
-            color = if (selected) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurfaceMuted,
+            style = PebbleType.Label.copy(fontWeight = if (selected || focused) FontWeight.W700 else FontWeight.W500),
+            color = if (selected || focused) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurfaceMuted,
         )
     }
 }

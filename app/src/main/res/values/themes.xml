@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.TvBrowser" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">#F3F5EF</item>
-        <item name="android:statusBarColor">#F3F5EF</item>
+        <item name="android:windowBackground">#F0E5D2</item>
+        <item name="android:statusBarColor">#F0E5D2</item>
     </style>
 </resources>

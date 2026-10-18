@@ -43,14 +43,16 @@ fun Modifier.pebbleFocus(
     lift: Boolean = true,
     tight: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
+    ringColorOverride: Color? = null,
+    gapColorOverride: Color? = null,
 ): Modifier = composed {
     val gap = if (tight) PebbleDimens.FocusGapTight else PebbleDimens.FocusGap
     val ring = if (tight) PebbleDimens.FocusRingTight else PebbleDimens.FocusRing
     val src = interactionSource ?: remember { MutableInteractionSource() }
     val focused by src.collectIsFocusedAsState()
 
-    val ringColor = if (focused) PebbleColors.Primary else Color.Transparent
-    val gapColor = if (focused) PebbleColors.Bg else Color.Transparent
+    val ringColor = if (focused) ringColorOverride ?: PebbleColors.Primary else Color.Transparent
+    val gapColor = if (focused) gapColorOverride ?: PebbleColors.Bg else Color.Transparent
 
     val scale by animateFloatAsState(
         if (focused && lift) PebbleDimens.FocusLiftScale else 1f,

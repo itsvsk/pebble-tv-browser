@@ -4,12 +4,12 @@ import androidx.compose.ui.graphics.Color
 
 /** Warm, sea-washed colors inspired by Sea Glass. Dark green keeps TV text legible. */
 object PebbleColors {
-    val Bg        = Color(0xFFF3F5EF)
-    val Surface   = Color(0xFFF8FAF6)
-    val Surface1  = Color(0xFFF9FBF8)
-    val Surface2  = Color(0xFFEAF2ED)
-    val Surface3  = Color(0xFFDDEBE3)
-    val Surface4  = Color(0xFFC9DED3)
+    val Bg        = Color(0xFFF0E5D2)
+    val Surface   = Color(0xFFFAF7EE)
+    val Surface1  = Color(0xFFFCF9F1)
+    val Surface2  = Color(0xFFF0EDE1)
+    val Surface3  = Color(0xFFE4E9DD)
+    val Surface4  = Color(0xFFCEDDD2)
     val Scrim     = Color(0x99132924)
     val Glass     = Color(0xCFF7FCF9)
     val GlassHigh = Color(0xEDFFFFFF)
@@ -32,6 +32,7 @@ object PebbleColors {
     val GlassMint           = Color(0xFFD5F1E2)
     val GlassLagoon         = Color(0xFFD9EBF1)
     val GlassRose           = Color(0xFFF3E5E4)
+    val GlassFocus          = Color(0xFF78D8B4)
 
     val Good   = Color(0xFF287E65)
     val Warn   = Color(0xFF98652F)
