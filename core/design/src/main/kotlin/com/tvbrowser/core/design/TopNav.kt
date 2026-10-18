@@ -67,6 +67,7 @@ fun TopNav(
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp)
+            .background(PebbleColors.Bg)
             .background(PebbleColors.Glass)
             .border(0.5.dp, PebbleColors.GlassEdge)
             .padding(horizontal = PebbleDimens.Gutter),

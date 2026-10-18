@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -59,14 +60,17 @@ fun RootShell(
                 }
             },
     ) {
-        if (showRail) TopNav(
-            active = active,
-            onSelect = onSelect,
-            focusRequesters = focusRequesters,
-            onFocusedDestinationChanged = onFocusedDestinationChanged,
-            cursorModeActive = cursorModeActive,
-            onToggleCursor = onToggleCursor,
-        )
+        // Keep navigation above the WebView's first paint during browser transitions.
+        if (showRail) Box(modifier = Modifier.zIndex(1f)) {
+            TopNav(
+                active = active,
+                onSelect = onSelect,
+                focusRequesters = focusRequesters,
+                onFocusedDestinationChanged = onFocusedDestinationChanged,
+                cursorModeActive = cursorModeActive,
+                onToggleCursor = onToggleCursor,
+            )
+        }
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             content()
             if (showHints) KeyHintBar(hints = hints, modifier = Modifier.align(Alignment.BottomCenter))

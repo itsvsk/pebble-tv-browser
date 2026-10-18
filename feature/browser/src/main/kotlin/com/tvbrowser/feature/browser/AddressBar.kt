@@ -51,6 +51,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -87,6 +88,9 @@ fun AddressBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(58.dp)
+            // The WebView is a later sibling; its initial white frame must stay below the controls.
+            .zIndex(1f)
+            .background(PebbleColors.Bg)
             .background(PebbleColors.GlassHigh),
     ) {
         Row(
