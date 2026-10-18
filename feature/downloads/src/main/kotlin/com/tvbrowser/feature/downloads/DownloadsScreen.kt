@@ -2,7 +2,6 @@ package com.tvbrowser.feature.downloads
 
 import android.app.DownloadManager
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -132,8 +130,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
         Row(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)) {
             Box(
                 modifier = Modifier.weight(1f).fillMaxHeight()
-                    .background(Brush.linearGradient(listOf(PebbleColors.PrimaryContainer, PebbleColors.Surface2, PebbleColors.Bg)), PebbleShape.Md)
-                    .border(1.dp, PebbleColors.GlassEdge, PebbleShape.Md),
+                    .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon),
                 contentAlignment = Alignment.BottomStart,
             ) {
                 Column(modifier = Modifier.padding(28.dp)) {
@@ -236,12 +233,12 @@ private fun Header(active: Int, done: Int) {
 private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier.pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-            .background(if (selected) PebbleColors.Primary else PebbleColors.Surface3, PebbleShape.Full)
+            .seaGlass(PebbleShape.Full, if (selected) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 2.dp, emphasized = selected)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Text(label, style = PebbleType.LabelSm,
-            color = if (selected) PebbleColors.OnPrimary else PebbleColors.OnSurfaceMuted)
+            color = if (selected) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurfaceMuted)
     }
 }
 
@@ -252,7 +249,7 @@ private fun Pill(label: String, icon: androidx.compose.ui.graphics.vector.ImageV
         modifier = Modifier
             .height(40.dp)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Full)
+            .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 2.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -289,7 +286,7 @@ private fun IconWell(icon: androidx.compose.ui.graphics.vector.ImageVector, tint
     Box(
         modifier = Modifier
             .size(48.dp)
-            .background(PebbleColors.Surface3, PebbleShape.Sm),
+            .seaGlass(PebbleShape.Sm, PebbleColors.GlassMint, 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
@@ -407,8 +404,7 @@ private fun DownloadContextMenu(
                 modifier = Modifier
                     .width(540.dp)
                     .padding(end = PebbleDimens.Sp4)
-                    .background(PebbleColors.Surface1, PebbleShape.Lg)
-                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(18.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -490,7 +486,7 @@ private fun MenuRow(
             .fillMaxWidth()
             .height(56.dp)
             .pebbleFocus(shape = PebbleShape.Md, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, if (danger) PebbleColors.GlassRose else PebbleColors.GlassLagoon, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,

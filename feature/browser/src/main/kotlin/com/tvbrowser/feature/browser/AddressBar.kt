@@ -1,6 +1,8 @@
 package com.tvbrowser.feature.browser
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -159,6 +161,8 @@ private fun RoundIcon(
     onLeft: (() -> Unit)? = null,
     onRight: (() -> Unit)? = null,
 ) {
+    val focusSource = remember { MutableInteractionSource() }
+    val focused by focusSource.collectIsFocusedAsState()
     Box(
         modifier = Modifier
             .size(38.dp)
@@ -171,8 +175,9 @@ private fun RoundIcon(
                     else -> false
                 }
             } else Modifier)
-            .pebbleFocus(shape = CircleShape, lift = false, tight = true)
-            .background(androidx.compose.ui.graphics.Color.Transparent, CircleShape)
+            .pebbleFocus(shape = CircleShape, lift = false, tight = true, interactionSource = focusSource)
+            .seaGlass(CircleShape, if (focused) PebbleColors.GlassFocus else PebbleColors.GlassLagoon,
+                if (focused) 6.dp else 1.dp, emphasized = focused)
             .let { if (enabled) it.pebbleClickable(onClick) else it },
         contentAlignment = Alignment.Center,
     ) {

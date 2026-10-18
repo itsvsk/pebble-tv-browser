@@ -111,7 +111,7 @@ fun TopNav(
                     )
                     .then(if (cursorFocused) Modifier.seaGlass(
                         PebbleShape.Full, PebbleColors.GlassFocus, 10.dp, emphasized = true,
-                    ) else Modifier)
+                    ) else Modifier.seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 1.dp))
                     .pebbleClickable(onClick = onToggleCursor)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,

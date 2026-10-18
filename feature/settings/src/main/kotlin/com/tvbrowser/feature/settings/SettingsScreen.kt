@@ -3,7 +3,6 @@ package com.tvbrowser.feature.settings
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -268,7 +267,7 @@ private fun SetRow(
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .background(PebbleColors.Surface3, PebbleShape.Sm),
+                .seaGlass(PebbleShape.Sm, PebbleColors.GlassLagoon, 2.dp),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription = null, tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(24.dp))
@@ -286,8 +285,6 @@ private fun SetRow(
 
 @Composable
 private fun PebbleSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
-    val trackColor = if (checked) PebbleColors.PrimaryContainer else PebbleColors.Surface4
-    val knobColor = if (checked) PebbleColors.PrimaryStrong else PebbleColors.OnSurfaceFaint
     val knobX by animateDpAsState(
         targetValue = if (checked) 26.dp else 2.dp,
         animationSpec = tween(durationMillis = 180),
@@ -296,14 +293,14 @@ private fun PebbleSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
     Box(
         modifier = Modifier
             .size(width = 58.dp, height = 34.dp)
-            .background(trackColor, CircleShape),
+            .seaGlass(CircleShape, if (checked) PebbleColors.GlassFocus else PebbleColors.GlassLagoon, 2.dp, emphasized = checked),
         contentAlignment = Alignment.CenterStart,
     ) {
         Box(
             modifier = Modifier
                 .offset(x = knobX)
                 .size(30.dp)
-                .background(knobColor, CircleShape),
+                .seaGlass(CircleShape, PebbleColors.GlassHigh, 2.dp),
         )
     }
 }
@@ -330,8 +327,7 @@ private fun ConfirmDialog(
             Column(
                 modifier = Modifier
                     .width(480.dp)
-                    .background(PebbleColors.Surface1, PebbleShape.Lg)
-                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(24.dp),
             ) {
                 Text(title, style = PebbleType.TitleLg, color = PebbleColors.OnSurface)
@@ -363,13 +359,12 @@ private fun DialogButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val bg = if (danger) PebbleColors.Danger.copy(alpha = 0.18f) else PebbleColors.Surface2
     val fg = if (danger) PebbleColors.Danger else PebbleColors.OnSurface
     Box(
         modifier = modifier
             .height(48.dp)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-            .background(bg, PebbleShape.Full)
+            .seaGlass(PebbleShape.Full, if (danger) PebbleColors.GlassRose else PebbleColors.GlassLagoon, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 24.dp),
         contentAlignment = Alignment.Center,

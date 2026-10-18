@@ -3,7 +3,6 @@ package com.tvbrowser.feature.history
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -191,7 +190,7 @@ private fun ClearPill(onClick: () -> Unit) {
         modifier = Modifier
             .height(40.dp)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Full)
+            .seaGlass(PebbleShape.Full, PebbleColors.GlassRose, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -265,8 +264,7 @@ private fun HistoryContextMenu(
                 modifier = Modifier
                     .width(540.dp)
                     .padding(end = PebbleDimens.Sp4)
-                    .background(PebbleColors.Surface1, PebbleShape.Lg)
-                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(18.dp),
             ) {
                 HistoryWebViewPreview(
@@ -274,7 +272,7 @@ private fun HistoryContextMenu(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
-                        .background(PebbleColors.Surface3, RoundedCornerShape(10.dp))
+                        .seaGlass(RoundedCornerShape(10.dp), PebbleColors.GlassLagoon, 1.dp)
                         .clip(RoundedCornerShape(10.dp)),
                 )
                 Spacer(Modifier.height(14.dp))
@@ -327,7 +325,7 @@ private fun MenuRow(
             .fillMaxWidth()
             .height(56.dp)
             .pebbleFocus(shape = PebbleShape.Md, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, if (danger) PebbleColors.GlassRose else PebbleColors.GlassLagoon, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,

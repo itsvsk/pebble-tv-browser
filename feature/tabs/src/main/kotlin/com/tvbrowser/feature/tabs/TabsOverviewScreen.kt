@@ -3,7 +3,6 @@ package com.tvbrowser.feature.tabs
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -182,8 +181,7 @@ private fun ConfirmDialog(
             Column(
                 modifier = Modifier
                     .width(480.dp)
-                    .background(PebbleColors.Surface1, PebbleShape.Lg)
-                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(24.dp),
             ) {
                 Text(title, style = PebbleType.TitleLg, color = PebbleColors.OnSurface)
@@ -216,13 +214,12 @@ private fun DialogButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val bg = if (danger) PebbleColors.Danger.copy(alpha = 0.18f) else PebbleColors.Surface2
     val fg = if (danger) PebbleColors.Danger else PebbleColors.OnSurface
     Box(
         modifier = modifier
             .height(48.dp)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-            .background(bg, PebbleShape.Full)
+            .seaGlass(PebbleShape.Full, if (danger) PebbleColors.GlassRose else PebbleColors.GlassLagoon, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 24.dp),
         contentAlignment = Alignment.Center,
@@ -237,8 +234,8 @@ private fun Header(count: Int, onNewTab: () -> Unit, onCloseAll: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Active Tabs", style = PebbleType.Display, color = PebbleColors.OnSurface)
         Spacer(Modifier.width(PebbleDimens.Sp3))
-        Text("$count", style = PebbleType.Label, color = PebbleColors.OnPrimary,
-            modifier = Modifier.background(PebbleColors.Primary, PebbleShape.Full).padding(horizontal = 10.dp, vertical = 3.dp))
+        Text("$count", style = PebbleType.Label, color = PebbleColors.OnPrimaryContainer,
+            modifier = Modifier.seaGlass(PebbleShape.Full, PebbleColors.GlassMint, 2.dp, emphasized = true).padding(horizontal = 10.dp, vertical = 3.dp))
         Spacer(Modifier.weight(1f))
         Pill(label = "New tab", icon = Icons.Outlined.Add, primary = true, onClick = onNewTab)
         Spacer(Modifier.width(PebbleDimens.Sp3))
@@ -249,13 +246,12 @@ private fun Header(count: Int, onNewTab: () -> Unit, onCloseAll: () -> Unit) {
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun Pill(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, primary: Boolean, onClick: () -> Unit) {
-    val bg = if (primary) PebbleColors.PrimaryContainer else PebbleColors.Surface2
     val fg = if (primary) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurface
     Row(
         modifier = Modifier
             .height(48.dp)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-            .background(bg, PebbleShape.Full)
+            .seaGlass(PebbleShape.Full, if (primary) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 3.dp, emphasized = primary)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -305,7 +301,6 @@ private fun TabCard(
             modifier = Modifier
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
                 .seaGlass(PebbleShape.Md, if (isCurrent) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 4.dp)
-                .then(if (isCurrent) Modifier.border(2.dp, PebbleColors.Primary, PebbleShape.Md) else Modifier)
                 .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(PebbleDimens.Sp3)
                 .width(178.dp),
@@ -324,6 +319,7 @@ private fun TabCard(
                     modifier = Modifier
                         .size(28.dp)
                         .pebbleFocus(shape = CircleShape, lift = false, tight = true)
+                        .seaGlass(CircleShape, PebbleColors.GlassRose, 1.dp)
                         .pebbleClickable(onClick = onClose),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -335,9 +331,7 @@ private fun TabCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
-                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(
-                        listOf(PebbleColors.PrimaryContainer, PebbleColors.Surface3, PebbleColors.Surface2)
-                    ), PebbleShape.Sm)
+                    .seaGlass(PebbleShape.Sm, PebbleColors.GlassMint, 2.dp)
                     .padding(horizontal = 14.dp, vertical = 16.dp),
                 contentAlignment = Alignment.TopStart,
             ) {
@@ -364,7 +358,7 @@ private fun TabCard(
 private fun TabFavicon(host: String, isHome: Boolean, size: androidx.compose.ui.unit.Dp) {
     if (isHome) {
         Box(
-            modifier = Modifier.size(size).background(PebbleColors.Surface3, PebbleShape.Sm),
+            modifier = Modifier.size(size).seaGlass(PebbleShape.Sm, PebbleColors.GlassLagoon, 1.dp),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -471,15 +465,14 @@ private fun TabContextMenu(
                 modifier = Modifier
                     .width(540.dp)
                     .padding(end = PebbleDimens.Sp4)
-                    .background(PebbleColors.Surface1, PebbleShape.Lg)
-                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(18.dp),
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
-                        .background(PebbleColors.Surface3, RcShape(10.dp))
+                        .seaGlass(RcShape(10.dp), PebbleColors.GlassLagoon, 1.dp)
                         .clip(RcShape(10.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -544,7 +537,7 @@ private fun MenuRow(
             .fillMaxWidth()
             .height(56.dp)
             .pebbleFocus(shape = PebbleShape.Md, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, if (danger) PebbleColors.GlassRose else PebbleColors.GlassLagoon, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,

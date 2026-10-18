@@ -64,7 +64,7 @@ fun KeyHintBar(
                 hints.forEachIndexed { i, h ->
                     if (i > 0) Spacer(Modifier.width(18.dp))
                     Text(h.keys, style = PebbleType.LabelSm.copy(fontSize = 11.sp), color = PebbleColors.Primary,
-                        modifier = Modifier.background(PebbleColors.Surface3, PebbleShape.Xs)
+                        modifier = Modifier.seaGlass(PebbleShape.Xs, PebbleColors.GlassLagoon, 1.dp)
                             .padding(horizontal = 5.dp, vertical = 2.dp))
                     Spacer(Modifier.width(5.dp))
                     Text(h.label, style = PebbleType.LabelSm.copy(fontSize = 11.sp), color = PebbleColors.OnSurfaceMuted)

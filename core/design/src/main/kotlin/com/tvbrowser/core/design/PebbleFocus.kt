@@ -28,6 +28,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -45,8 +46,9 @@ fun Modifier.pebbleFocus(
     interactionSource: MutableInteractionSource? = null,
     ringColorOverride: Color? = null,
     gapColorOverride: Color? = null,
+    gapWidth: Dp? = null,
 ): Modifier = composed {
-    val gap = if (tight) PebbleDimens.FocusGapTight else PebbleDimens.FocusGap
+    val gap = gapWidth ?: if (tight) PebbleDimens.FocusGapTight else PebbleDimens.FocusGap
     val ring = if (tight) PebbleDimens.FocusRingTight else PebbleDimens.FocusRing
     val src = interactionSource ?: remember { MutableInteractionSource() }
     val focused by src.collectIsFocusedAsState()

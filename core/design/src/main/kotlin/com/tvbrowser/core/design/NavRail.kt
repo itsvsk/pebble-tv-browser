@@ -29,7 +29,6 @@ import androidx.compose.material.icons.outlined.Tab
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -108,13 +107,12 @@ fun NavRail(
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun RailItem(dest: NavDestination, active: Boolean, onClick: () -> Unit) {
-    val bg = if (active) PebbleColors.PrimaryContainer else Color.Transparent
     val tint = if (active) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurfaceMuted
     Box(
         modifier = Modifier
             .size(width = 76.dp, height = 60.dp)
             .pebbleFocus(shape = RoundedCornerShape(18.dp), lift = false, tight = true)
-            .background(bg, RoundedCornerShape(18.dp))
+            .seaGlass(RoundedCornerShape(18.dp), if (active) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 2.dp)
             .pebbleClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

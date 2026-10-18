@@ -9,7 +9,6 @@ import android.webkit.WebViewClient
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.rememberScrollState
@@ -282,7 +281,7 @@ private fun MicButton(
         modifier = Modifier
             .size(54.dp)
             .pebbleFocus(shape = CircleShape, lift = false)
-            .background(PebbleColors.Primary, CircleShape)
+            .seaGlass(CircleShape, PebbleColors.GlassFocus, 5.dp, emphasized = true)
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (e.key) {
@@ -297,7 +296,7 @@ private fun MicButton(
         Icon(
             Icons.Outlined.Mic,
             contentDescription = "Voice search",
-            tint = PebbleColors.OnPrimary,
+            tint = PebbleColors.Primary,
             modifier = Modifier.size(24.dp),
         )
     }
@@ -329,7 +328,7 @@ private fun MostVisitedSection(
                     modifier = Modifier
                         .focusRequester(firstTileFocus)
                         .pebbleFocus(shape = PebbleShape.Full, lift = false)
-                        .background(PebbleColors.PrimaryContainer, PebbleShape.Full)
+                        .seaGlass(PebbleShape.Full, PebbleColors.GlassMint, 3.dp, emphasized = true)
                         .pebbleClickable(onClick = onOpenBrowse)
                         .padding(horizontal = PebbleDimens.Sp4, vertical = PebbleDimens.Sp2),
                 ) {
@@ -398,7 +397,7 @@ private fun Tile(
         }
         Box(
             modifier = Modifier
-                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
+                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource, gapWidth = 0.dp)
                 .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)
                 .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(PebbleDimens.Sp3)
@@ -411,8 +410,7 @@ private fun Tile(
                 Box(
                     modifier = Modifier
                         .size(34.dp)
-                        .clip(PebbleShape.Xs)
-                        .background(PebbleColors.Surface3, PebbleShape.Xs),
+                        .seaGlass(PebbleShape.Xs, PebbleColors.GlassLagoon, 1.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     AsyncImage(
@@ -470,8 +468,7 @@ private fun TileContextMenu(
                 modifier = Modifier
                     .width(540.dp)
                     .padding(end = PebbleDimens.Sp4)
-                    .background(PebbleColors.Surface1, PebbleShape.Lg)
-                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(18.dp),
             ) {
                 WebViewPreview(
@@ -479,7 +476,7 @@ private fun TileContextMenu(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
-                        .background(PebbleColors.Surface3, RoundedCornerShape(10.dp))
+                        .seaGlass(RoundedCornerShape(10.dp), PebbleColors.GlassLagoon, 1.dp)
                         .clip(RoundedCornerShape(10.dp)),
                 )
                 Spacer(Modifier.height(14.dp))
@@ -539,7 +536,7 @@ private fun MenuRow(
             .fillMaxWidth()
             .height(56.dp)
             .pebbleFocus(shape = PebbleShape.Md, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, if (danger) PebbleColors.GlassRose else PebbleColors.GlassLagoon, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,

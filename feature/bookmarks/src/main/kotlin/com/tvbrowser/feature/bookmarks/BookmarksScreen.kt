@@ -5,7 +5,6 @@ import android.webkit.WebViewClient
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -44,7 +43,6 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -190,7 +188,7 @@ private fun LibrarySideItem(label: String, detail: String, selected: Boolean, on
     Column(
         modifier = Modifier.fillMaxWidth()
             .pebbleFocus(shape = PebbleShape.Sm, lift = false, tight = true)
-            .background(if (selected) PebbleColors.PrimaryContainer else PebbleColors.Surface2, PebbleShape.Sm)
+            .seaGlass(PebbleShape.Sm, if (selected) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 3.dp, emphasized = selected)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
@@ -244,7 +242,7 @@ private fun BookmarkRow(bm: Bookmark, onOpen: () -> Unit, onLongClick: () -> Uni
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth().height(116.dp)
-                    .background(Brush.linearGradient(listOf(PebbleColors.PrimaryContainer, PebbleColors.Surface3, PebbleColors.Surface1)), PebbleShape.Sm),
+                    .seaGlass(PebbleShape.Sm, PebbleColors.GlassMint, 2.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 AsyncImage(
@@ -299,8 +297,7 @@ private fun BookmarkContextMenu(
                 modifier = Modifier
                     .width(540.dp)
                     .padding(end = PebbleDimens.Sp4)
-                    .background(PebbleColors.Surface1, PebbleShape.Lg)
-                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(18.dp),
             ) {
                 BookmarkWebViewPreview(
@@ -308,7 +305,7 @@ private fun BookmarkContextMenu(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
-                        .background(PebbleColors.Surface3, RoundedCornerShape(10.dp))
+                        .seaGlass(RoundedCornerShape(10.dp), PebbleColors.GlassLagoon, 1.dp)
                         .clip(RoundedCornerShape(10.dp)),
                 )
                 Spacer(Modifier.height(14.dp))
@@ -355,7 +352,7 @@ private fun MenuRow(
             .fillMaxWidth()
             .height(56.dp)
             .pebbleFocus(shape = PebbleShape.Md, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, if (danger) PebbleColors.GlassRose else PebbleColors.GlassLagoon, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
