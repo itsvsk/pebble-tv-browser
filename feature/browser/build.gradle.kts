@@ -23,7 +23,6 @@ dependencies {
     implementation(project(":core:design"))
     implementation(project(":core:db"))
     implementation(project(":core:webview"))
-    implementation(project(":core:adblock"))
     implementation(project(":core:cursor"))
     implementation(project(":core:downloads"))
 

@@ -42,6 +42,7 @@ class CursorController @Inject constructor() {
         targetView = view
         view?.let { v ->
             v.post {
+                if (targetView !== v) return@post
                 _state.value = _state.value.copy(
                     viewportW = v.width,
                     viewportH = v.height,
@@ -50,6 +51,10 @@ class CursorController @Inject constructor() {
                 )
             }
         }
+    }
+
+    fun detachTarget(view: View) {
+        if (targetView === view) targetView = null
     }
 
     fun setActive(active: Boolean) {

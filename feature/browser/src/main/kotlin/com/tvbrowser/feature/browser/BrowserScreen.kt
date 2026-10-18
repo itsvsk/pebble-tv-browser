@@ -21,7 +21,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.tvbrowser.core.adblock.AdBlockInterceptor
 import com.tvbrowser.core.cursor.CursorController
 import com.tvbrowser.core.cursor.CursorOverlay
 import com.tvbrowser.core.cursor.CursorState
@@ -36,7 +35,6 @@ import kotlinx.coroutines.launch
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 interface BrowserEntryPoint {
-    fun adBlock(): AdBlockInterceptor
     fun cursorController(): CursorController
     fun downloads(): DownloadManagerRepo
 }
@@ -119,7 +117,6 @@ fun BrowserScreen(
                     initialUrl = ui.url,
                     config = vm.makeConfig(),
                     tabManager = vm.tabManager,
-                    adBlock = entry.adBlock(),
                     cursorController = entry.cursorController(),
                     onPageStarted = { vm.onPageStarted(it) },
                     onPageFinished = { url, title -> vm.onPageFinished(url, title) },
