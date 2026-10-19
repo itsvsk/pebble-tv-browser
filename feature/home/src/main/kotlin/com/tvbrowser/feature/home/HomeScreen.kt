@@ -158,7 +158,7 @@ fun HomeScreen(
                 onLongClick = { item -> vm.showMenu(item) },
                 onOpenBrowse = onOpenBrowse,
                 firstTileFocus = firstSpeedDialFocus,
-                homeNavFocus = homeNavFocus,
+                searchFocus = omniboxFocus,
             )
         }
         menuItem?.let { item ->
@@ -301,7 +301,7 @@ private fun MostVisitedSection(
     onLongClick: (MostVisitedView) -> Unit,
     onOpenBrowse: () -> Unit,
     firstTileFocus: FocusRequester,
-    homeNavFocus: FocusRequester,
+    searchFocus: FocusRequester,
 ) {
     val rowFocusRequesters = remember(items.size, firstTileFocus) {
         List((items.size + 3) / 4) { row ->
@@ -341,7 +341,7 @@ private fun MostVisitedSection(
                             onClick = { onClick(item) },
                             onLongClick = { onLongClick(item) },
                             onRight = if (index == rowItems.lastIndex) {
-                                { (rowFocusRequesters.getOrNull(rowIndex + 1) ?: homeNavFocus).requestFocus() }
+                                { (rowFocusRequesters.getOrNull(rowIndex + 1) ?: searchFocus).requestFocus() }
                             } else null,
                             modifier = Modifier.weight(1f)
                                 .then(if (index == 0) Modifier.focusRequester(rowFocusRequesters[rowIndex]) else Modifier),
