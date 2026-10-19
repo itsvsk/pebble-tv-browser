@@ -3,13 +3,14 @@ package com.tvbrowser.core.design
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateIntOffsetAsState
-import androidx.compose.animation.core.animateIntSizeAsState
+import androidx.compose.animation.core.animateRectAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,8 +40,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -49,15 +47,14 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -107,29 +104,22 @@ fun TopNav(
         label = "settings-focus-elevation",
     )
     var focusedPill by remember { mutableStateOf<NavDestination?>(null) }
-    var navOrigin by remember { mutableStateOf(Offset.Zero) }
+    var navOrigin by remember { mutableStateOf<Offset?>(null) }
     var pillBounds by remember { mutableStateOf<Map<NavDestination, Rect>>(emptyMap()) }
     val highlightBounds = pillBounds[focusedPill] ?: pillBounds[active]
-    val highlightOffset by animateIntOffsetAsState(
-        targetValue = highlightBounds?.let {
-            IntOffset((it.left - navOrigin.x).roundToInt(), (it.top - navOrigin.y).roundToInt())
-        } ?: IntOffset.Zero,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
-        label = "nav-highlight-position",
-    )
-    val highlightSize by animateIntSizeAsState(
-        targetValue = highlightBounds?.let {
-            IntSize(it.width.roundToInt(), it.height.roundToInt())
-        } ?: IntSize.Zero,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
-        label = "nav-highlight-size",
-    )
+    val highlightTarget = highlightBounds?.let { bounds ->
+        navOrigin?.let { origin ->
+            Rect(
+                bounds.left - origin.x, bounds.top - origin.y,
+                bounds.right - origin.x, bounds.bottom - origin.y,
+            )
+        }
+    }
     val highlightAlpha by animateFloatAsState(
         targetValue = if (focusedPill != null) 1f else 0f,
         animationSpec = tween(PebbleMotion.DurationFastMs),
         label = "nav-highlight-alpha",
     )
-    val density = LocalDensity.current
     LaunchedEffect(Unit) {
         while (true) {
             now = LocalTime.now()
@@ -151,17 +141,29 @@ fun TopNav(
         Box(
             modifier = Modifier
                 .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 5.dp)
-                .onGloballyPositioned { navOrigin = it.boundsInRoot().topLeft },
+                .onGloballyPositioned { navOrigin = it.boundsInRoot().topLeft }
+                .onFocusChanged { if (!it.hasFocus) focusedPill = null }
+                .focusGroup(),
         ) {
-            if (highlightBounds != null && highlightSize.width > 0) {
+            if (highlightTarget != null) {
+                val highlightRect by animateRectAsState(
+                    targetValue = highlightTarget,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                    label = "nav-highlight-rect",
+                )
                 Box(
                     Modifier
-                        .offset { highlightOffset }
-                        .size(
-                            with(density) { highlightSize.width.toDp() },
-                            with(density) { highlightSize.height.toDp() },
-                        )
+                        .size(100.dp, 36.dp)
                         .graphicsLayer {
+                            val rect = highlightRect
+                            transformOrigin = TransformOrigin(0f, 0f)
+                            translationX = rect.left
+                            translationY = rect.top
+                            scaleX = if (size.width > 0f) rect.width / size.width else 0f
+                            scaleY = if (size.height > 0f) rect.height / size.height else 0f
                             alpha = highlightAlpha
                             compositingStrategy = CompositingStrategy.ModulateAlpha
                         }
@@ -182,7 +184,6 @@ fun TopNav(
                         focusRequester = focusRequesters.getValue(destination),
                         onFocusChanged = { focused ->
                             if (focused) focusedPill = destination
-                            else if (focusedPill == destination) focusedPill = null
                             onFocusedDestinationChanged(destination, focused)
                         },
                         onPositioned = { bounds ->
@@ -280,15 +281,11 @@ private fun NavPill(
     val focusSource = remember { MutableInteractionSource() }
     val focused by focusSource.collectIsFocusedAsState()
     val dark = PebbleColors.IsDark
-    val textColor by animateColorAsState(
-        when {
-            selected && dark -> PebbleColors.PrimaryStrong
-            selected || focused -> PebbleColors.OnPrimaryContainer
-            else -> PebbleColors.OnSurfaceMuted
-        },
-        tween(PebbleMotion.DurationFastMs, easing = PebbleMotion.Standard),
-        label = "nav-pill-text-color",
-    )
+    val textColor = when {
+        selected && dark -> PebbleColors.PrimaryStrong
+        selected || focused -> PebbleColors.OnPrimaryContainer
+        else -> PebbleColors.OnSurfaceMuted
+    }
     Box(
         modifier = Modifier.height(36.dp)
             .focusRequester(focusRequester)
@@ -302,12 +299,8 @@ private fun NavPill(
                     else -> false
                 }
             } else Modifier)
-            .pebbleFocus(
-                shape = PebbleShape.Full, lift = false, tight = true,
-                interactionSource = focusSource,
-                ringColorOverride = Color.Transparent,
-                gapColorOverride = Color.Transparent,
-            )
+            .padding(PebbleDimens.FocusRingTight + PebbleDimens.FocusGapTight)
+            .focusable(interactionSource = focusSource)
             .then(if (selected && dark) Modifier.shadow(
                 8.dp, PebbleShape.Full,
                 ambientColor = PebbleColors.Primary.copy(alpha = 0.48f),
