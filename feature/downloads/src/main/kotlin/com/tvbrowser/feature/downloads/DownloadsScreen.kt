@@ -128,7 +128,9 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
     val failed = visibleRecords.filter { it.status == DownloadRecord.STATUS_FAILED }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Row(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)) {
+        if (records.isEmpty()) {
+            EmptyDownloads()
+        } else Row(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)) {
             Box(
                 modifier = Modifier.weight(1f).fillMaxHeight()
                     .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon),
@@ -160,7 +162,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
                 }
                 Spacer(Modifier.height(PebbleDimens.Sp4))
                 if (visibleRecords.isEmpty()) {
-                    Text(if (records.isEmpty()) "No downloads yet." else "No $filter downloads.",
+                    Text("No $filter downloads.",
                         style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
                 }
                 TvLazyColumn(
@@ -218,6 +220,41 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
             },
             onDismiss = { vm.dismissMenu() },
         )
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun EmptyDownloads() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassMint)
+            .padding(28.dp),
+    ) {
+        Header(active = 0, done = 0)
+        Spacer(Modifier.height(PebbleDimens.Sp5))
+        Box(Modifier.width(480.dp)) {
+            DefaultLocationCard(path = "/storage/emulated/0/Download")
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                Icons.Outlined.FolderOpen,
+                contentDescription = null,
+                tint = PebbleColors.OnSurfaceMuted,
+                modifier = Modifier.size(64.dp),
+            )
+            Spacer(Modifier.height(PebbleDimens.Sp4))
+            Text("No downloads yet", style = PebbleType.Title, color = PebbleColors.OnSurface)
+            Spacer(Modifier.height(PebbleDimens.Sp2))
+            Text("Files saved from the browser will appear here.",
+                style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+        }
     }
 }
 

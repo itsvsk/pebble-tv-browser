@@ -108,9 +108,9 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                 .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8),
         ) {
             Header()
-            Spacer(Modifier.height(PebbleDimens.Sp6))
+            Spacer(Modifier.height(PebbleDimens.Sp4))
             TvLazyColumn(
-                verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp5),
+                verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
                 contentPadding = PaddingValues(horizontal = PebbleDimens.Sp2, vertical = PebbleDimens.Sp2),
                 modifier = Modifier
                     .width(880.dp)
@@ -263,7 +263,7 @@ private fun SetRow(
             .fillMaxWidth()
             .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)
             .pebbleClickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 18.dp),
+            .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(

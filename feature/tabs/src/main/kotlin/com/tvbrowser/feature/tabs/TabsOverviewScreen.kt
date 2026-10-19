@@ -123,7 +123,7 @@ fun TabsOverviewScreen(
                     onCloseAll = { if (tabs.isNotEmpty()) showCloseAll = true },
                 )
             }
-            Spacer(Modifier.height(PebbleDimens.Sp10))
+            Spacer(Modifier.height(PebbleDimens.Sp6))
             TvLazyRow(
                 state = tabListState,
                 horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp1),

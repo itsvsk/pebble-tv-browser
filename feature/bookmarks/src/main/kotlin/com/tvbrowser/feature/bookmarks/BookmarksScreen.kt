@@ -133,7 +133,7 @@ fun BookmarksScreen(
                     .padding(20.dp),
             ) {
                 Header(count = bookmarks.size)
-                Spacer(Modifier.height(PebbleDimens.Sp6))
+                Spacer(Modifier.height(PebbleDimens.Sp2))
                 if (bookmarks.isEmpty()) {
                     Text("No bookmarks yet. Save a page from the browser to see it here.",
                         style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
