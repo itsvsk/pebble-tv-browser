@@ -384,19 +384,17 @@ private fun Tile(
         label = "speed-dial-glow",
     )
     Box(modifier = modifier.speedDialBloom(glowAlpha).padding(6.dp)) {
-        if (focused) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .shadow(
-                        PebbleElevation.E2,
-                        PebbleShape.Md,
-                        ambientColor = PebbleColors.Primary.copy(alpha = 0.45f),
-                        spotColor = PebbleColors.Primary.copy(alpha = 0.45f),
-                    )
-                    .background(PebbleColors.Bg, PebbleShape.Md),
-            )
-        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .shadow(
+                    PebbleElevation.E2,
+                    PebbleShape.Md,
+                    ambientColor = PebbleColors.Primary.copy(alpha = 0.45f * glowAlpha),
+                    spotColor = PebbleColors.Primary.copy(alpha = 0.45f * glowAlpha),
+                )
+                .background(PebbleColors.Bg.copy(alpha = glowAlpha), PebbleShape.Md),
+        )
         Box(
             modifier = Modifier
                 .onPreviewKeyEvent { event ->

@@ -51,9 +51,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.tv.foundation.lazy.grid.TvGridCells
-import androidx.tv.foundation.lazy.grid.TvLazyVerticalGrid
-import androidx.tv.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -138,8 +138,8 @@ fun BookmarksScreen(
                     Text("No bookmarks yet. Save a page from the browser to see it here.",
                         style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
                 } else {
-                    TvLazyVerticalGrid(
-                        columns = TvGridCells.Fixed(2),
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
                         horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
                         verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
                         contentPadding = PaddingValues(horizontal = PebbleDimens.Sp4, vertical = PebbleDimens.Sp5),
@@ -217,18 +217,16 @@ private fun BookmarkRow(bm: Bookmark, onOpen: () -> Unit, onLongClick: () -> Uni
         label = "bookmark-glow",
     )
     Box(modifier = Modifier.fillMaxWidth().bookmarkBloom(glowAlpha).padding(6.dp)) {
-        if (focused) {
-            Box(
-                modifier = Modifier.matchParentSize()
-                    .shadow(
-                        PebbleElevation.E2,
-                        PebbleShape.Md,
-                        ambientColor = PebbleColors.Primary.copy(alpha = 0.45f),
-                        spotColor = PebbleColors.Primary.copy(alpha = 0.45f),
-                    )
-                    .background(PebbleColors.Bg, PebbleShape.Md),
-            )
-        }
+        Box(
+            modifier = Modifier.matchParentSize()
+                .shadow(
+                    PebbleElevation.E2,
+                    PebbleShape.Md,
+                    ambientColor = PebbleColors.Primary.copy(alpha = 0.45f * glowAlpha),
+                    spotColor = PebbleColors.Primary.copy(alpha = 0.45f * glowAlpha),
+                )
+                .background(PebbleColors.Bg.copy(alpha = glowAlpha), PebbleShape.Md),
+        )
         Row(
             modifier = Modifier
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)

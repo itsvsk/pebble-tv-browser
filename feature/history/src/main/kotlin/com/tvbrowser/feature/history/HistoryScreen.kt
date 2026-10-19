@@ -39,8 +39,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.tv.foundation.lazy.list.TvLazyColumn
-import androidx.tv.foundation.lazy.list.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -137,7 +137,7 @@ fun HistoryScreen(
                 return@Column
             }
             val groups = remember(entries) { groupByDay(entries) }
-            TvLazyColumn(
+            LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
                 contentPadding = PaddingValues(
                     start = PebbleDimens.Gutter, end = PebbleDimens.Gutter,

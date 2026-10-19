@@ -1,6 +1,10 @@
 package com.tvbrowser.app.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,6 +20,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.tvbrowser.core.design.NavDestination
+import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.RootShell
 import com.tvbrowser.core.cursor.CursorState
 import com.tvbrowser.feature.bookmarks.BookmarksScreen
@@ -122,7 +127,26 @@ fun AppNavHost(
             }
         },
     ) {
-        NavHost(navController = nav, startDestination = Routes.HOME) {
+        NavHost(
+            navController = nav,
+            startDestination = Routes.HOME,
+            enterTransition = {
+                fadeIn(tween(PebbleMotion.ScreenEnterMs, easing = PebbleMotion.Standard)) +
+                    slideInHorizontally(
+                        initialOffsetX = { it / 40 },
+                        animationSpec = tween(PebbleMotion.ScreenEnterMs, easing = PebbleMotion.Standard),
+                    )
+            },
+            exitTransition = { fadeOut(tween(PebbleMotion.ScreenExitMs)) },
+            popEnterTransition = {
+                fadeIn(tween(PebbleMotion.ScreenEnterMs, easing = PebbleMotion.Standard)) +
+                    slideInHorizontally(
+                        initialOffsetX = { -it / 40 },
+                        animationSpec = tween(PebbleMotion.ScreenEnterMs, easing = PebbleMotion.Standard),
+                    )
+            },
+            popExitTransition = { fadeOut(tween(PebbleMotion.ScreenExitMs)) },
+        ) {
             composable(Routes.HOME) {
                 handleBack()
                 HomeScreen(

@@ -3,6 +3,9 @@ package com.tvbrowser.core.design
 import android.os.SystemClock
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -53,18 +56,31 @@ fun Modifier.pebbleFocus(
     val src = interactionSource ?: remember { MutableInteractionSource() }
     val focused by src.collectIsFocusedAsState()
 
-    val ringColor = if (focused) ringColorOverride ?: PebbleColors.Primary else Color.Transparent
-    val gapColor = if (focused) gapColorOverride ?: PebbleColors.Bg else Color.Transparent
+    val ringColor by animateColorAsState(
+        if (focused) ringColorOverride ?: PebbleColors.Primary else Color.Transparent,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "pebble-focus-ring",
+    )
+    val gapColor by animateColorAsState(
+        if (focused) gapColorOverride ?: PebbleColors.Bg else Color.Transparent,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "pebble-focus-gap",
+    )
 
     val scale by animateFloatAsState(
         if (focused && lift) PebbleDimens.FocusLiftScale else 1f,
-        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "pebble-focus-scale",
     )
     val ty by animateDpAsState(
         if (focused && lift) PebbleDimens.FocusLiftY else 0.dp,
-        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "pebble-focus-ty",
+    )
+    val elevation by animateDpAsState(
+        if (focused && lift) PebbleElevation.E2 else 0.dp,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "pebble-focus-elevation",
     )
 
     this
@@ -73,13 +89,11 @@ fun Modifier.pebbleFocus(
             scaleY = scale
             translationY = ty.toPx()
         }
-        .then(
-            if (focused && lift) Modifier.shadow(
-                PebbleElevation.E2,
-                shape,
-                ambientColor = PebbleColors.Primary.copy(alpha = 0.30f),
-                spotColor = PebbleColors.Primary.copy(alpha = 0.30f),
-            ) else Modifier
+        .shadow(
+            elevation,
+            shape,
+            ambientColor = PebbleColors.Primary.copy(alpha = 0.30f),
+            spotColor = PebbleColors.Primary.copy(alpha = 0.30f),
         )
         .border(ring, ringColor, shape)
         .padding(ring)

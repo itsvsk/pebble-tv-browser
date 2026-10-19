@@ -1,6 +1,15 @@
 package com.tvbrowser.core.design
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntOffsetAsState
+import androidx.compose.animation.core.animateIntSizeAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,9 +35,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -35,8 +49,15 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -60,6 +81,55 @@ fun TopNav(
     val settingsFocused by settingsFocusSource.collectIsFocusedAsState()
     val cursorFocusSource = remember { MutableInteractionSource() }
     val cursorFocused by cursorFocusSource.collectIsFocusedAsState()
+    val cursorTint by animateColorAsState(
+        if (cursorFocused) PebbleColors.GlassFocus else PebbleColors.GlassLagoon,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "cursor-control-tint",
+    )
+    val cursorElevation by animateDpAsState(
+        if (cursorFocused) 10.dp else 1.dp,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "cursor-control-elevation",
+    )
+    val settingsGlow by animateFloatAsState(
+        if (settingsFocused) 1f else 0f,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "settings-focus-glow",
+    )
+    val settingsTint by animateColorAsState(
+        if (settingsFocused) PebbleColors.Primary else PebbleColors.PrimaryDim,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "settings-icon-tint",
+    )
+    val settingsElevation by animateDpAsState(
+        if (settingsFocused) 10.dp else 0.dp,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "settings-focus-elevation",
+    )
+    var focusedPill by remember { mutableStateOf<NavDestination?>(null) }
+    var navOrigin by remember { mutableStateOf(Offset.Zero) }
+    var pillBounds by remember { mutableStateOf<Map<NavDestination, Rect>>(emptyMap()) }
+    val highlightBounds = pillBounds[focusedPill] ?: pillBounds[active]
+    val highlightOffset by animateIntOffsetAsState(
+        targetValue = highlightBounds?.let {
+            IntOffset((it.left - navOrigin.x).roundToInt(), (it.top - navOrigin.y).roundToInt())
+        } ?: IntOffset.Zero,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "nav-highlight-position",
+    )
+    val highlightSize by animateIntSizeAsState(
+        targetValue = highlightBounds?.let {
+            IntSize(it.width.roundToInt(), it.height.roundToInt())
+        } ?: IntSize.Zero,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "nav-highlight-size",
+    )
+    val highlightAlpha by animateFloatAsState(
+        targetValue = if (focusedPill != null) 1f else 0f,
+        animationSpec = tween(PebbleMotion.DurationFastMs),
+        label = "nav-highlight-alpha",
+    )
+    val density = LocalDensity.current
     LaunchedEffect(Unit) {
         while (true) {
             now = LocalTime.now()
@@ -78,29 +148,57 @@ fun TopNav(
         Spacer(Modifier.width(10.dp))
         Text("Pebble", style = PebbleType.Title.copy(fontWeight = FontWeight.W700), color = PebbleColors.OnSurface)
         Spacer(Modifier.width(30.dp))
-        Row(
+        Box(
             modifier = Modifier
                 .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 5.dp)
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                .onGloballyPositioned { navOrigin = it.boundsInRoot().topLeft },
         ) {
-            listOf(
-                NavDestination.Home, NavDestination.Browser, NavDestination.Tabs,
-                NavDestination.Saved, NavDestination.Files,
-            ).forEach { destination ->
-                NavPill(
-                    destination = destination,
-                    selected = active == destination,
-                    focusRequester = focusRequesters.getValue(destination),
-                    onFocusChanged = { focused -> onFocusedDestinationChanged(destination, focused) },
-                    onLeft = if (destination == NavDestination.Home) {
-                        { focusRequesters.getValue(NavDestination.Settings).requestFocus() }
-                    } else null,
-                    onDown = if (destination == active && activeDownFocusRequester != null) {
-                        { activeDownFocusRequester.requestFocus() }
-                    } else null,
-                    onClick = { onSelect(destination) },
+            if (highlightBounds != null && highlightSize.width > 0) {
+                Box(
+                    Modifier
+                        .offset { highlightOffset }
+                        .size(
+                            with(density) { highlightSize.width.toDp() },
+                            with(density) { highlightSize.height.toDp() },
+                        )
+                        .graphicsLayer {
+                            alpha = highlightAlpha
+                            compositingStrategy = CompositingStrategy.ModulateAlpha
+                        }
+                        .seaGlass(PebbleShape.Full, PebbleColors.GlassFocus, 10.dp, emphasized = true),
                 )
+            }
+            Row(
+                modifier = Modifier.padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                listOf(
+                    NavDestination.Home, NavDestination.Browser, NavDestination.Tabs,
+                    NavDestination.Saved, NavDestination.Files,
+                ).forEach { destination ->
+                    NavPill(
+                        destination = destination,
+                        selected = active == destination,
+                        focusRequester = focusRequesters.getValue(destination),
+                        onFocusChanged = { focused ->
+                            if (focused) focusedPill = destination
+                            else if (focusedPill == destination) focusedPill = null
+                            onFocusedDestinationChanged(destination, focused)
+                        },
+                        onPositioned = { bounds ->
+                            if (pillBounds[destination] != bounds) {
+                                pillBounds = pillBounds + (destination to bounds)
+                            }
+                        },
+                        onLeft = if (destination == NavDestination.Home) {
+                            { focusRequesters.getValue(NavDestination.Settings).requestFocus() }
+                        } else null,
+                        onDown = if (destination == active && activeDownFocusRequester != null) {
+                            { activeDownFocusRequester.requestFocus() }
+                        } else null,
+                        onClick = { onSelect(destination) },
+                    )
+                }
             }
         }
         Spacer(Modifier.weight(1f))
@@ -113,9 +211,7 @@ fun TopNav(
                         ringColorOverride = Color.Transparent,
                         gapColorOverride = Color.Transparent,
                     )
-                    .then(if (cursorFocused) Modifier.seaGlass(
-                        PebbleShape.Full, PebbleColors.GlassFocus, 10.dp, emphasized = true,
-                    ) else Modifier.seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 1.dp))
+                    .seaGlass(PebbleShape.Full, cursorTint, cursorElevation)
                     .pebbleClickable(onClick = onToggleCursor)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -153,13 +249,18 @@ fun TopNav(
                     ringColorOverride = Color.Transparent,
                     gapColorOverride = Color.Transparent,
                 )
-                .then(if (settingsFocused) Modifier.seaGlass(
-                    CircleShape, PebbleColors.GlassFocus, 10.dp, emphasized = true,
-                ) else Modifier)
+                .shadow(
+                    settingsElevation,
+                    CircleShape,
+                    ambientColor = PebbleColors.Primary.copy(alpha = 0.55f * settingsGlow),
+                    spotColor = PebbleColors.Primary.copy(alpha = 0.35f * settingsGlow),
+                )
+                .background(PebbleColors.GlassFocus.copy(alpha = 0.7f * settingsGlow), CircleShape)
+                .border(1.dp, Color.White.copy(alpha = settingsGlow), CircleShape)
                 .pebbleClickable(onClick = { onSelect(NavDestination.Settings) }),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = if (settingsFocused) PebbleColors.Primary else PebbleColors.PrimaryDim, modifier = Modifier.size(18.dp))
+            Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = settingsTint, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -171,15 +272,22 @@ private fun NavPill(
     selected: Boolean,
     focusRequester: FocusRequester,
     onFocusChanged: (Boolean) -> Unit,
+    onPositioned: (Rect) -> Unit,
     onLeft: (() -> Unit)?,
     onDown: (() -> Unit)?,
     onClick: () -> Unit,
 ) {
     val focusSource = remember { MutableInteractionSource() }
     val focused by focusSource.collectIsFocusedAsState()
+    val textColor by animateColorAsState(
+        if (selected || focused) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurfaceMuted,
+        tween(PebbleMotion.DurationFastMs, easing = PebbleMotion.Standard),
+        label = "nav-pill-text-color",
+    )
     Box(
         modifier = Modifier.height(36.dp)
             .focusRequester(focusRequester)
+            .onGloballyPositioned { onPositioned(it.boundsInRoot()) }
             .onFocusChanged { onFocusChanged(it.isFocused) }
             .then(if (onLeft != null || onDown != null) Modifier.onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -196,7 +304,6 @@ private fun NavPill(
                 gapColorOverride = Color.Transparent,
             )
             .then(when {
-                focused -> Modifier.seaGlass(PebbleShape.Full, PebbleColors.GlassFocus, 11.dp, emphasized = true)
                 selected -> Modifier.background(
                     Brush.verticalGradient(listOf(
                         PebbleColors.GlassMint.copy(alpha = 0.80f),
@@ -212,8 +319,8 @@ private fun NavPill(
     ) {
         Text(
             destination.label,
-            style = PebbleType.Label.copy(fontWeight = if (selected || focused) FontWeight.W700 else FontWeight.W500),
-            color = if (selected || focused) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurfaceMuted,
+            style = PebbleType.Label.copy(fontWeight = if (selected) FontWeight.W700 else FontWeight.W500),
+            color = textColor,
         )
     }
 }

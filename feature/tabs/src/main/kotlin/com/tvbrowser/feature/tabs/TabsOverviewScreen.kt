@@ -50,8 +50,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.tv.foundation.lazy.list.TvLazyRow
-import androidx.tv.foundation.lazy.list.rememberTvLazyListState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -67,6 +67,7 @@ import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -81,6 +82,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -97,13 +99,22 @@ fun TabsOverviewScreen(
     val currentTabId = tabs.maxByOrNull { it.lastActiveAt }?.id
     var showCloseAll by remember { mutableStateOf(false) }
     val firstTabFocusRequester = remember { FocusRequester() }
-    val tabListState = rememberTvLazyListState()
+    val tabListState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    var newTabFocused by remember { mutableStateOf(false) }
+    val firstTabScrollJob = remember { mutableStateOf<Job?>(null) }
+    LaunchedEffect(newTabFocused) {
+        if (!newTabFocused) firstTabScrollJob.value?.cancel()
+    }
     val focusFirstTab: () -> Unit = {
-        scope.launch {
-            tabListState.scrollToItem(0)
-            withFrameNanos { }
-            firstTabFocusRequester.requestFocus()
+        if (firstTabScrollJob.value?.isActive != true) {
+            firstTabScrollJob.value = scope.launch {
+                if (tabListState.firstVisibleItemIndex != 0 || tabListState.firstVisibleItemScrollOffset != 0) {
+                    tabListState.animateScrollToItem(0)
+                }
+                withFrameNanos { }
+                if (newTabFocused) firstTabFocusRequester.requestFocus()
+            }
         }
     }
 
@@ -117,6 +128,7 @@ fun TabsOverviewScreen(
                 Header(
                     count = tabs.size,
                     newTabFocusRequester = newTabFocusRequester,
+                    onNewTabFocusedChanged = { newTabFocused = it },
                     onUp = { topNavFocusRequester.requestFocus() },
                     onDown = focusFirstTab,
                     onNewTab = { vm.newTab(onNewTab) },
@@ -124,7 +136,7 @@ fun TabsOverviewScreen(
                 )
             }
             Spacer(Modifier.height(PebbleDimens.Sp4))
-            TvLazyRow(
+            LazyRow(
                 state = tabListState,
                 horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp1),
                 contentPadding = PaddingValues(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5),
@@ -261,6 +273,7 @@ private fun DialogButton(
 private fun Header(
     count: Int,
     newTabFocusRequester: FocusRequester,
+    onNewTabFocusedChanged: (Boolean) -> Unit,
     onUp: () -> Unit,
     onDown: () -> Unit,
     onNewTab: () -> Unit,
@@ -275,6 +288,7 @@ private fun Header(
         Pill(
             label = "New tab", icon = Icons.Outlined.Add, primary = true,
             focusRequester = newTabFocusRequester, onUp = onUp, onDown = onDown,
+            onFocusChanged = onNewTabFocusedChanged,
             onClick = onNewTab,
         )
         Spacer(Modifier.width(PebbleDimens.Sp3))
@@ -290,6 +304,7 @@ private fun Pill(
     primary: Boolean,
     onClick: () -> Unit,
     focusRequester: FocusRequester? = null,
+    onFocusChanged: (Boolean) -> Unit = {},
     onUp: (() -> Unit)? = null,
     onDown: (() -> Unit)? = null,
 ) {
@@ -298,6 +313,7 @@ private fun Pill(
         modifier = Modifier
             .height(48.dp)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .onFocusChanged { onFocusChanged(it.isFocused) }
             .then(if (onUp != null || onDown != null) Modifier.onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.key) {
@@ -341,20 +357,18 @@ private fun TabCard(
         label = "tab-card-glow",
     )
     Box(modifier = Modifier.tabBloom(glowAlpha).padding(10.dp)) {
-        if (focused) {
-            // An opaque backing keeps the soft shadow behind the tab content.
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .shadow(
-                        PebbleElevation.E3,
-                        PebbleShape.Md,
-                        ambientColor = PebbleColors.Primary.copy(alpha = 0.85f),
-                        spotColor = PebbleColors.Primary.copy(alpha = 0.85f),
-                    )
-                    .background(PebbleColors.Bg, PebbleShape.Md),
-            )
-        }
+        // Fade the backing with the bloom so it never appears in a single frame.
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .shadow(
+                    PebbleElevation.E3,
+                    PebbleShape.Md,
+                    ambientColor = PebbleColors.Primary.copy(alpha = 0.85f * glowAlpha),
+                    spotColor = PebbleColors.Primary.copy(alpha = 0.85f * glowAlpha),
+                )
+                .background(PebbleColors.Bg.copy(alpha = glowAlpha), PebbleShape.Md),
+        )
         Column(
             modifier = Modifier
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)

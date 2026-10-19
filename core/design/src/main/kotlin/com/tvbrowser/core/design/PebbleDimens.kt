@@ -41,6 +41,8 @@ object PebbleElevation {
 
 object PebbleMotion {
     val Standard = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-    const val DurationMs = 180
-    const val DurationFastMs = 120
+    const val DurationMs = 260
+    const val DurationFastMs = 160
+    const val ScreenEnterMs = 260
+    const val ScreenExitMs = 180
 }
