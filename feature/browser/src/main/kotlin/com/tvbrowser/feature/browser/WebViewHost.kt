@@ -8,6 +8,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tvbrowser.core.cursor.CursorController
 import com.tvbrowser.core.webview.TabConfig
 import com.tvbrowser.core.webview.TabManager
@@ -28,6 +32,8 @@ fun WebViewHost(
     modifier: Modifier = Modifier,
 ) {
     val callbackOwner = remember(tabId) { Any() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleObserver = remember(tabId) { arrayOfNulls<Pair<LifecycleOwner, LifecycleEventObserver>>(1) }
     val latestPageStarted = rememberUpdatedState(onPageStarted)
     val latestPageFinished = rememberUpdatedState(onPageFinished)
     val latestProgress = rememberUpdatedState(onProgress)
@@ -39,7 +45,8 @@ fun WebViewHost(
             factory = {
                 val view = tabManager.getOrCreate(tabId, config)
                 (view.parent as? ViewGroup)?.removeView(view)
-                (view.webViewClient as TabWebViewClient).attach(
+                val client = view.webViewClient as TabWebViewClient
+                client.attach(
                     callbackOwner,
                     TabUiCallbacks(
                         onPageStarted = { latestPageStarted.value(it) },
@@ -50,6 +57,18 @@ fun WebViewHost(
                         },
                     ),
                 )
+                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) view.onPause()
+                val observer = LifecycleEventObserver { _, event ->
+                    if (client.owns(callbackOwner)) {
+                        when (event) {
+                            Lifecycle.Event.ON_RESUME -> view.onResume()
+                            Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> view.onPause()
+                            else -> Unit
+                        }
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                lifecycleObserver[0] = lifecycleOwner to observer
                 cursorController.attachTarget(view)
                 if (view.url.isNullOrEmpty() && initialUrl.isNotEmpty()) view.loadUrl(initialUrl)
                 view
@@ -58,8 +77,11 @@ fun WebViewHost(
                 (view.webViewClient as? TabWebViewClient)?.adblockEnabled = config.adblockEnabled
             },
             onRelease = { view ->
+                lifecycleObserver[0]?.let { (owner, observer) -> owner.lifecycle.removeObserver(observer) }
+                lifecycleObserver[0] = null
                 if ((view.webViewClient as? TabWebViewClient)?.detach(callbackOwner) == true) {
                     cursorController.detachTarget(view)
+                    view.onPause()
                 }
             },
         )

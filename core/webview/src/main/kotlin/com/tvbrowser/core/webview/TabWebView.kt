@@ -43,6 +43,8 @@ internal class TabCallbackRelay(
         return true
     }
 
+    fun owns(owner: Any): Boolean = this.owner === owner
+
     fun pageStarted(url: String) { ui?.onPageStarted?.invoke(url) }
     fun pageFinished(url: String, title: String?) {
         persistPageFinished(url, title)
@@ -65,6 +67,7 @@ class TabWebViewClient(
 
     fun attach(owner: Any, uiCallbacks: TabUiCallbacks) = callbacks.attach(owner, uiCallbacks)
     fun detach(owner: Any): Boolean = callbacks.detach(owner)
+    fun owns(owner: Any): Boolean = callbacks.owns(owner)
     fun onProgress(value: Int) = callbacks.progress(value)
 
     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {

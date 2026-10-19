@@ -1,6 +1,8 @@
 package com.tvbrowser.core.webview
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TabCallbackRelayTest {
@@ -21,13 +23,18 @@ class TabCallbackRelayTest {
         val firstOwner = Any()
         val secondOwner = Any()
         relay.attach(firstOwner, callbacks("first", events))
+        assertTrue(relay.owns(firstOwner))
         relay.pageStarted("one")
 
         relay.attach(secondOwner, callbacks("second", events))
+        assertFalse(relay.owns(firstOwner))
+        assertTrue(relay.owns(secondOwner))
         relay.detach(firstOwner)
+        assertTrue(relay.owns(secondOwner))
         relay.progress(50)
         relay.pageFinished("two", "Two")
         relay.detach(secondOwner)
+        assertFalse(relay.owns(secondOwner))
         relay.pageFinished("three", "Three")
 
         assertEquals(
