@@ -308,6 +308,11 @@ private fun NavPill(
                 ringColorOverride = Color.Transparent,
                 gapColorOverride = Color.Transparent,
             )
+            .then(if (selected && dark) Modifier.shadow(
+                8.dp, PebbleShape.Full,
+                ambientColor = PebbleColors.Primary.copy(alpha = 0.48f),
+                spotColor = PebbleColors.Primary.copy(alpha = 0.32f),
+            ) else Modifier)
             .then(when {
                 selected -> Modifier.background(
                     Brush.verticalGradient(listOf(
@@ -319,9 +324,6 @@ private fun NavPill(
                 )
                 else -> Modifier
             })
-            .then(if (selected && dark) Modifier.border(
-                1.dp, PebbleColors.Primary.copy(alpha = 0.65f), PebbleShape.Full,
-            ) else Modifier)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
@@ -330,14 +332,6 @@ private fun NavPill(
             destination.label,
             style = PebbleType.Label.copy(fontWeight = if (selected) FontWeight.W700 else FontWeight.W500),
             color = textColor,
-        )
-        if (selected && dark) Box(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 3.dp)
-                .width(24.dp)
-                .height(2.dp)
-                .background(PebbleColors.Primary, PebbleShape.Full),
         )
     }
 }
