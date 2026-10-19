@@ -279,8 +279,13 @@ private fun NavPill(
 ) {
     val focusSource = remember { MutableInteractionSource() }
     val focused by focusSource.collectIsFocusedAsState()
+    val dark = PebbleColors.IsDark
     val textColor by animateColorAsState(
-        if (selected || focused) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurfaceMuted,
+        when {
+            selected && dark -> PebbleColors.PrimaryStrong
+            selected || focused -> PebbleColors.OnPrimaryContainer
+            else -> PebbleColors.OnSurfaceMuted
+        },
         tween(PebbleMotion.DurationFastMs, easing = PebbleMotion.Standard),
         label = "nav-pill-text-color",
     )
@@ -306,13 +311,17 @@ private fun NavPill(
             .then(when {
                 selected -> Modifier.background(
                     Brush.verticalGradient(listOf(
-                        PebbleColors.GlassMint.copy(alpha = 0.80f),
-                        PebbleColors.PrimaryContainer.copy(alpha = 0.58f),
+                        if (dark) PebbleColors.GlassFocus.copy(alpha = 0.78f)
+                        else PebbleColors.GlassMint.copy(alpha = 0.80f),
+                        PebbleColors.PrimaryContainer.copy(alpha = if (dark) 0.92f else 0.58f),
                     )),
                     PebbleShape.Full,
                 )
                 else -> Modifier
             })
+            .then(if (selected && dark) Modifier.border(
+                1.dp, PebbleColors.Primary.copy(alpha = 0.65f), PebbleShape.Full,
+            ) else Modifier)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
@@ -321,6 +330,14 @@ private fun NavPill(
             destination.label,
             style = PebbleType.Label.copy(fontWeight = if (selected) FontWeight.W700 else FontWeight.W500),
             color = textColor,
+        )
+        if (selected && dark) Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 3.dp)
+                .width(24.dp)
+                .height(2.dp)
+                .background(PebbleColors.Primary, PebbleShape.Full),
         )
     }
 }
