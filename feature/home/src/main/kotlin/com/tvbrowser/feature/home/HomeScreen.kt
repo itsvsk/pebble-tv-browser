@@ -131,8 +131,7 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)
-                .padding(bottom = PebbleDimens.HintH),
+                .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5),
         ) {
             SearchField(
                 value = query,
@@ -147,8 +146,6 @@ fun HomeScreen(
                 onUp = { homeNavFocus.requestFocus() },
                 onDown = { firstSpeedDialFocus.requestFocus() },
             )
-            Spacer(Modifier.height(PebbleDimens.Sp3))
-            Text("OK  Type       MIC  Speak       ▼  Jump to Speed Dials", style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceFaint)
             Spacer(Modifier.height(PebbleDimens.Sp8))
             MostVisitedSection(
                 items = mostVisited,
@@ -303,9 +300,9 @@ private fun MostVisitedSection(
     firstTileFocus: FocusRequester,
     searchFocus: FocusRequester,
 ) {
-    val rowFocusRequesters = remember(items.size, firstTileFocus) {
-        List((items.size + 3) / 4) { row ->
-            if (row == 0) firstTileFocus else FocusRequester()
+    val tileFocusRequesters = remember(items.size, firstTileFocus) {
+        List(items.size) { index ->
+            if (index == 0) firstTileFocus else FocusRequester()
         }
     }
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -340,11 +337,14 @@ private fun MostVisitedSection(
                             item = item,
                             onClick = { onClick(item) },
                             onLongClick = { onLongClick(item) },
+                            onLeft = if (index == 0) {
+                                { (tileFocusRequesters.getOrNull(rowIndex * 4 - 1) ?: searchFocus).requestFocus() }
+                            } else null,
                             onRight = if (index == rowItems.lastIndex) {
-                                { (rowFocusRequesters.getOrNull(rowIndex + 1) ?: searchFocus).requestFocus() }
+                                { (tileFocusRequesters.getOrNull((rowIndex + 1) * 4) ?: searchFocus).requestFocus() }
                             } else null,
                             modifier = Modifier.weight(1f)
-                                .then(if (index == 0) Modifier.focusRequester(rowFocusRequesters[rowIndex]) else Modifier),
+                                .focusRequester(tileFocusRequesters[rowIndex * 4 + index]),
                         )
                     }
                     repeat(4 - rowItems.size) { Spacer(Modifier.weight(1f)) }
@@ -371,6 +371,7 @@ private fun Tile(
     item: MostVisitedView,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onLeft: (() -> Unit)?,
     onRight: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
@@ -398,12 +399,14 @@ private fun Tile(
         }
         Box(
             modifier = Modifier
-                .then(if (onRight != null) Modifier.onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
-                        onRight()
-                        true
-                    } else false
-                } else Modifier)
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    when (event.key) {
+                        Key.DirectionLeft -> onLeft?.let { it(); true } ?: false
+                        Key.DirectionRight -> onRight?.let { it(); true } ?: false
+                        else -> false
+                    }
+                }
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource, gapWidth = 0.dp)
                 .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)
                 .pebbleClickable(onClick = onClick, onLongClick = onLongClick)

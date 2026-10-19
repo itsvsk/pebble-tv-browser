@@ -141,7 +141,7 @@ fun HistoryScreen(
                 verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
                 contentPadding = PaddingValues(
                     start = PebbleDimens.Gutter, end = PebbleDimens.Gutter,
-                    top = PebbleDimens.Sp2, bottom = PebbleDimens.HintH,
+                    top = PebbleDimens.Sp2, bottom = PebbleDimens.Sp4,
                 ),
                 modifier = Modifier.fillMaxWidth().weight(1f),
             ) {

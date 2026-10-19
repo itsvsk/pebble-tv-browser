@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.zIndex
@@ -24,19 +23,13 @@ import androidx.compose.ui.geometry.Offset
 import kotlin.random.Random
 
 /**
- * Persistent glass navigation and key hints shared by all native screens.
+ * Persistent glass navigation shared by all native screens.
  */
 @Composable
 fun RootShell(
     active: NavDestination,
     onSelect: (NavDestination) -> Unit,
-    hints: List<KeyHint> = listOf(
-        KeyHint("OK", "Select"),
-        KeyHint("BACK", "Return / Exit"),
-        KeyHint("D-PAD", "Navigate"),
-    ),
     showRail: Boolean = true,
-    showHints: Boolean = true,
     focusRequesters: Map<NavDestination, FocusRequester>,
     activeDownFocusRequester: FocusRequester? = null,
     onFocusedDestinationChanged: (NavDestination, Boolean) -> Unit,
@@ -93,7 +86,6 @@ fun RootShell(
         }
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             content()
-            if (showHints) KeyHintBar(hints = hints, modifier = Modifier.align(Alignment.BottomCenter))
         }
     }
 }

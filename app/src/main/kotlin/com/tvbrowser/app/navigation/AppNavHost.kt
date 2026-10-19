@@ -16,7 +16,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.tvbrowser.core.design.NavDestination
-import com.tvbrowser.core.design.KeyHint
 import com.tvbrowser.core.design.RootShell
 import com.tvbrowser.core.cursor.CursorState
 import com.tvbrowser.feature.bookmarks.BookmarksScreen
@@ -99,12 +98,6 @@ fun AppNavHost(
         cursorModeActive = cursorState.preferredActive.takeIf { currentRoute == Routes.BROWSER },
         onToggleCursor = onToggleCursor,
         showRail = currentRoute != Routes.BROWSER || browserChromeVisible,
-        showHints = currentRoute != Routes.BROWSER,
-        hints = listOf(
-            KeyHint("OK", "Select"),
-            KeyHint("BACK", "Return / Exit"),
-            KeyHint("D-PAD", "Navigate"),
-        ),
         onSelect = { dest ->
             if (dest == NavDestination.Browser) {
                 if (currentRoute != Routes.BROWSER) {

@@ -23,7 +23,6 @@ object PebbleDimens {
     val Gutter   = 48.dp   // TV safe-area inset
     val RailW    = 116.dp  // navigation rail width
     val ChromeH  = 76.dp
-    val HintH    = 44.dp
 
     // Cyan outer ring with a narrow inner separation keeps D-pad position clear.
     val FocusGap        = 2.dp

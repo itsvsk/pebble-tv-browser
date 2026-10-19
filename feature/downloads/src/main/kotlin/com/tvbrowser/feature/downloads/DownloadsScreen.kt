@@ -166,7 +166,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
                 TvLazyColumn(
                     verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
                     contentPadding = PaddingValues(horizontal = PebbleDimens.Sp2, vertical = PebbleDimens.Sp2),
-                    modifier = Modifier.weight(1f).padding(bottom = PebbleDimens.HintH),
+                    modifier = Modifier.weight(1f),
                 ) {
                 if (active.isNotEmpty()) {
                     item(key = "h-active") { GroupHeader("In progress") }

@@ -150,9 +150,6 @@ fun TabsOverviewScreen(
                     )
                 }
             }
-            Spacer(Modifier.height(PebbleDimens.Sp6))
-            Text("OK  Open tab       Hold OK  Tab actions       BACK  Return", style = PebbleType.Label,
-                color = PebbleColors.OnSurfaceMuted, modifier = Modifier.padding(horizontal = PebbleDimens.Gutter))
         }
     }
     menuTab?.let { tab ->
