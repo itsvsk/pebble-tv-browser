@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -110,6 +111,7 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
             Spacer(Modifier.height(PebbleDimens.Sp6))
             TvLazyColumn(
                 verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp5),
+                contentPadding = PaddingValues(horizontal = PebbleDimens.Sp2, vertical = PebbleDimens.Sp2),
                 modifier = Modifier
                     .width(880.dp)
                     .focusProperties { enter = { firstFocus } },

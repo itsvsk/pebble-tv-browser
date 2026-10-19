@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -110,20 +111,23 @@ fun TabsOverviewScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8),
+                .padding(vertical = PebbleDimens.Sp8),
         ) {
-            Header(
-                count = tabs.size,
-                newTabFocusRequester = newTabFocusRequester,
-                onUp = { topNavFocusRequester.requestFocus() },
-                onDown = focusFirstTab,
-                onNewTab = { vm.newTab(onNewTab) },
-                onCloseAll = { if (tabs.isNotEmpty()) showCloseAll = true },
-            )
+            Box(Modifier.fillMaxWidth().padding(horizontal = PebbleDimens.Gutter)) {
+                Header(
+                    count = tabs.size,
+                    newTabFocusRequester = newTabFocusRequester,
+                    onUp = { topNavFocusRequester.requestFocus() },
+                    onDown = focusFirstTab,
+                    onNewTab = { vm.newTab(onNewTab) },
+                    onCloseAll = { if (tabs.isNotEmpty()) showCloseAll = true },
+                )
+            }
             Spacer(Modifier.height(PebbleDimens.Sp10))
             TvLazyRow(
                 state = tabListState,
-                horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp4),
+                horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp1),
+                contentPadding = PaddingValues(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp2),
                 modifier = Modifier.fillMaxWidth().height(316.dp),
             ) {
                 items(count = tabs.size, key = { tabs[it].id }) { index ->
@@ -147,7 +151,8 @@ fun TabsOverviewScreen(
                 }
             }
             Spacer(Modifier.height(PebbleDimens.Sp6))
-            Text("OK  Open tab       Hold OK  Tab actions       BACK  Return", style = PebbleType.Label, color = PebbleColors.OnSurfaceMuted)
+            Text("OK  Open tab       Hold OK  Tab actions       BACK  Return", style = PebbleType.Label,
+                color = PebbleColors.OnSurfaceMuted, modifier = Modifier.padding(horizontal = PebbleDimens.Gutter))
         }
     }
     menuTab?.let { tab ->

@@ -56,18 +56,18 @@ fun RootShell(
                         Color(0xFFFFF4DF).copy(alpha = 0.32f),
                         Color.Transparent,
                     ),
-                    center = Offset(size.width * 0.28f, -size.height * 0.12f),
-                    radius = size.width * 0.86f,
+                    center = Offset(size.width * 0.43f, -size.height * 0.12f),
+                    radius = size.width * 0.42f,
                 )
                 val sideGlow = Brush.radialGradient(
                     colors = listOf(PebbleColors.GlassMint.copy(alpha = 0.28f), Color.Transparent),
-                    center = Offset(size.width * 0.92f, size.height * 0.26f),
-                    radius = size.width * 0.55f,
+                    center = Offset(size.width * 0.73f, size.height * 0.26f),
+                    radius = size.width * 0.26f,
                 )
                 val sandWash = Brush.radialGradient(
                     colors = listOf(Color(0xFFB7935F).copy(alpha = 0.13f), Color.Transparent),
-                    center = Offset(size.width * 0.20f, size.height * 0.92f),
-                    radius = size.width * 0.65f,
+                    center = Offset(size.width * 0.27f, size.height * 0.92f),
+                    radius = size.width * 0.26f,
                 )
                 val paperTexture = ShaderBrush(ImageShader(grain, TileMode.Repeated, TileMode.Repeated))
                 onDrawBehind {

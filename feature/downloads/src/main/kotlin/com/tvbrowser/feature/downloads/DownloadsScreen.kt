@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -152,7 +153,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
                 Spacer(Modifier.height(PebbleDimens.Sp4))
                 DefaultLocationCard(path = "/storage/emulated/0/Download")
                 Spacer(Modifier.height(PebbleDimens.Sp4))
-                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2)) {
                     listOf("All", "Videos", "Documents", "Packages").forEach { option ->
                         FilterChip(option, filter == option) { filter = option }
                     }
@@ -164,6 +165,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
                 }
                 TvLazyColumn(
                     verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+                    contentPadding = PaddingValues(horizontal = PebbleDimens.Sp2, vertical = PebbleDimens.Sp2),
                     modifier = Modifier.weight(1f).padding(bottom = PebbleDimens.HintH),
                 ) {
                 if (active.isNotEmpty()) {

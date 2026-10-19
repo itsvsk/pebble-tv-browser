@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -138,9 +139,10 @@ fun BookmarksScreen(
                         style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
                 } else {
                     TvLazyVerticalGrid(
-                        columns = TvGridCells.Fixed(3),
-                        horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
-                        verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+                        columns = TvGridCells.Fixed(2),
+                        horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
+                        verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
+                        contentPadding = PaddingValues(horizontal = PebbleDimens.Sp4, vertical = PebbleDimens.Sp4),
                         modifier = Modifier.weight(1f),
                     ) {
                         items(bookmarks, key = { it.id }) { bm ->

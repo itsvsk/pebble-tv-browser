@@ -332,9 +332,9 @@ private fun MostVisitedSection(
                     Text("Open Browse", style = PebbleType.Label, color = PebbleColors.OnPrimaryContainer)
                 }
             }
-        } else Column(verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3)) {
+        } else Column(verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2)) {
             items.chunked(4).forEachIndexed { rowIndex, rowItems ->
-                Row(horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2)) {
                     rowItems.forEachIndexed { index, item ->
                         Tile(
                             item = item,

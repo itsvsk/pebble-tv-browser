@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -125,15 +126,25 @@ fun HistoryScreen(
     val bookmarkedUrls by vm.bookmarkedUrls.collectAsState()
     val menuEntry by vm.selectedForMenu.collectAsState()
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8)) {
-            Header(onClear = { vm.clearAll() })
+        Column(modifier = Modifier.fillMaxSize().padding(vertical = PebbleDimens.Sp8)) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = PebbleDimens.Gutter)) {
+                Header(onClear = { vm.clearAll() })
+            }
             Spacer(Modifier.height(PebbleDimens.Sp6))
             if (entries.isEmpty()) {
-                Text("No history yet.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+                Text("No history yet.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted,
+                    modifier = Modifier.padding(horizontal = PebbleDimens.Gutter))
                 return@Column
             }
             val groups = remember(entries) { groupByDay(entries) }
-            TvLazyColumn(verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3)) {
+            TvLazyColumn(
+                verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+                contentPadding = PaddingValues(
+                    start = PebbleDimens.Gutter, end = PebbleDimens.Gutter,
+                    top = PebbleDimens.Sp2, bottom = PebbleDimens.HintH,
+                ),
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            ) {
                 groups.forEach { (label, rows) ->
                     item(key = "h-$label") { DayHeader(label) }
                     items(rows, key = { it.id }) { e ->
