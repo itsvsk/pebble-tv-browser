@@ -158,6 +158,7 @@ fun HomeScreen(
                 onLongClick = { item -> vm.showMenu(item) },
                 onOpenBrowse = onOpenBrowse,
                 firstTileFocus = firstSpeedDialFocus,
+                homeNavFocus = homeNavFocus,
             )
         }
         menuItem?.let { item ->
@@ -300,7 +301,13 @@ private fun MostVisitedSection(
     onLongClick: (MostVisitedView) -> Unit,
     onOpenBrowse: () -> Unit,
     firstTileFocus: FocusRequester,
+    homeNavFocus: FocusRequester,
 ) {
+    val rowFocusRequesters = remember(items.size, firstTileFocus) {
+        List((items.size + 3) / 4) { row ->
+            if (row == 0) firstTileFocus else FocusRequester()
+        }
+    }
     Column(modifier = Modifier.fillMaxWidth()) {
         SectionTitle("Speed Dials", if (items.isEmpty()) "Frequently visited sites" else "${items.size} quick links")
         Spacer(Modifier.height(PebbleDimens.Sp4))
@@ -333,8 +340,11 @@ private fun MostVisitedSection(
                             item = item,
                             onClick = { onClick(item) },
                             onLongClick = { onLongClick(item) },
+                            onRight = if (index == rowItems.lastIndex) {
+                                { (rowFocusRequesters.getOrNull(rowIndex + 1) ?: homeNavFocus).requestFocus() }
+                            } else null,
                             modifier = Modifier.weight(1f)
-                                .then(if (rowIndex == 0 && index == 0) Modifier.focusRequester(firstTileFocus) else Modifier),
+                                .then(if (index == 0) Modifier.focusRequester(rowFocusRequesters[rowIndex]) else Modifier),
                         )
                     }
                     repeat(4 - rowItems.size) { Spacer(Modifier.weight(1f)) }
@@ -361,6 +371,7 @@ private fun Tile(
     item: MostVisitedView,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onRight: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val host = UrlUtils.hostOf(item.url) ?: item.url
@@ -387,6 +398,12 @@ private fun Tile(
         }
         Box(
             modifier = Modifier
+                .then(if (onRight != null) Modifier.onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
+                        onRight()
+                        true
+                    } else false
+                } else Modifier)
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource, gapWidth = 0.dp)
                 .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)
                 .pebbleClickable(onClick = onClick, onLongClick = onLongClick)

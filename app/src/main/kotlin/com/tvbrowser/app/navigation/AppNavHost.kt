@@ -44,6 +44,7 @@ fun AppNavHost(
     }
     val navFocusRequesters = remember { NavDestination.entries.associateWith { FocusRequester() } }
     val homeNavFocus = navFocusRequesters.getValue(NavDestination.Home)
+    val tabsNewTabFocus = remember { FocusRequester() }
     var focusedNav by remember { mutableStateOf<NavDestination?>(null) }
     // Start every destination with its chrome visible in the first frame. Resetting in a
     // LaunchedEffect would briefly reuse the previous browser entry's hidden state.
@@ -90,6 +91,7 @@ fun AppNavHost(
     RootShell(
         active = active,
         focusRequesters = navFocusRequesters,
+        activeDownFocusRequester = tabsNewTabFocus.takeIf { currentRoute == Routes.TABS },
         onFocusedDestinationChanged = { destination, focused ->
             if (focused) focusedNav = destination
             else if (focusedNav == destination) focusedNav = null
@@ -159,6 +161,8 @@ fun AppNavHost(
             composable(Routes.TABS) {
                 handleBack()
                 TabsOverviewScreen(
+                    topNavFocusRequester = navFocusRequesters.getValue(NavDestination.Tabs),
+                    newTabFocusRequester = tabsNewTabFocus,
                     onOpenTab = ::openBrowser,
                     onNewTab = ::openBrowser,
                 )

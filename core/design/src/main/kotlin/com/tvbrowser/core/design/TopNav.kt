@@ -50,6 +50,7 @@ fun TopNav(
     active: NavDestination,
     onSelect: (NavDestination) -> Unit,
     focusRequesters: Map<NavDestination, FocusRequester>,
+    activeDownFocusRequester: FocusRequester?,
     onFocusedDestinationChanged: (NavDestination, Boolean) -> Unit,
     cursorModeActive: Boolean?,
     onToggleCursor: () -> Unit,
@@ -94,6 +95,9 @@ fun TopNav(
                     onFocusChanged = { focused -> onFocusedDestinationChanged(destination, focused) },
                     onLeft = if (destination == NavDestination.Home) {
                         { focusRequesters.getValue(NavDestination.Settings).requestFocus() }
+                    } else null,
+                    onDown = if (destination == active && activeDownFocusRequester != null) {
+                        { activeDownFocusRequester.requestFocus() }
                     } else null,
                     onClick = { onSelect(destination) },
                 )
@@ -168,6 +172,7 @@ private fun NavPill(
     focusRequester: FocusRequester,
     onFocusChanged: (Boolean) -> Unit,
     onLeft: (() -> Unit)?,
+    onDown: (() -> Unit)?,
     onClick: () -> Unit,
 ) {
     val focusSource = remember { MutableInteractionSource() }
@@ -176,11 +181,13 @@ private fun NavPill(
         modifier = Modifier.height(36.dp)
             .focusRequester(focusRequester)
             .onFocusChanged { onFocusChanged(it.isFocused) }
-            .then(if (onLeft != null) Modifier.onPreviewKeyEvent { event ->
-                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft) {
-                    onLeft()
-                    true
-                } else false
+            .then(if (onLeft != null || onDown != null) Modifier.onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.DirectionLeft -> if (onLeft != null) { onLeft(); true } else false
+                    Key.DirectionDown -> if (onDown != null) { onDown(); true } else false
+                    else -> false
+                }
             } else Modifier)
             .pebbleFocus(
                 shape = PebbleShape.Full, lift = false, tight = true,

@@ -31,7 +31,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -48,6 +50,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.foundation.lazy.list.TvLazyRow
+import androidx.tv.foundation.lazy.list.rememberTvLazyListState
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -63,6 +66,11 @@ import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -71,10 +79,13 @@ import android.webkit.WebViewClient
 import androidx.compose.ui.viewinterop.AndroidView
 import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun TabsOverviewScreen(
+    topNavFocusRequester: FocusRequester,
+    newTabFocusRequester: FocusRequester,
     onOpenTab: (tabId: String) -> Unit,
     onNewTab: (String) -> Unit,
     vm: TabsViewModel = hiltViewModel(),
@@ -84,6 +95,16 @@ fun TabsOverviewScreen(
     val menuTab by vm.selectedForMenu.collectAsState()
     val currentTabId = tabs.maxByOrNull { it.lastActiveAt }?.id
     var showCloseAll by remember { mutableStateOf(false) }
+    val firstTabFocusRequester = remember { FocusRequester() }
+    val tabListState = rememberTvLazyListState()
+    val scope = rememberCoroutineScope()
+    val focusFirstTab: () -> Unit = {
+        scope.launch {
+            tabListState.scrollToItem(0)
+            withFrameNanos { }
+            firstTabFocusRequester.requestFocus()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -93,11 +114,15 @@ fun TabsOverviewScreen(
         ) {
             Header(
                 count = tabs.size,
+                newTabFocusRequester = newTabFocusRequester,
+                onUp = { topNavFocusRequester.requestFocus() },
+                onDown = focusFirstTab,
                 onNewTab = { vm.newTab(onNewTab) },
                 onCloseAll = { if (tabs.isNotEmpty()) showCloseAll = true },
             )
             Spacer(Modifier.height(PebbleDimens.Sp10))
             TvLazyRow(
+                state = tabListState,
                 horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp4),
                 modifier = Modifier.fillMaxWidth().height(316.dp),
             ) {
@@ -109,9 +134,17 @@ fun TabsOverviewScreen(
                         onClick = { onOpenTab(tab.id) },
                         onClose = { vm.close(tab) },
                         onLongClick = { vm.showMenu(tab) },
+                        focusRequester = firstTabFocusRequester.takeIf { index == 0 },
+                        onUp = { newTabFocusRequester.requestFocus() },
                     )
                 }
-                item { NewTabCard(onClick = { vm.newTab(onNewTab) }) }
+                item {
+                    NewTabCard(
+                        onClick = { vm.newTab(onNewTab) },
+                        focusRequester = firstTabFocusRequester.takeIf { tabs.isEmpty() },
+                        onUp = { newTabFocusRequester.requestFocus() },
+                    )
+                }
             }
             Spacer(Modifier.height(PebbleDimens.Sp6))
             Text("OK  Open tab       Hold OK  Tab actions       BACK  Return", style = PebbleType.Label, color = PebbleColors.OnSurfaceMuted)
@@ -223,14 +256,25 @@ private fun DialogButton(
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun Header(count: Int, onNewTab: () -> Unit, onCloseAll: () -> Unit) {
+private fun Header(
+    count: Int,
+    newTabFocusRequester: FocusRequester,
+    onUp: () -> Unit,
+    onDown: () -> Unit,
+    onNewTab: () -> Unit,
+    onCloseAll: () -> Unit,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Active Tabs", style = PebbleType.Display, color = PebbleColors.OnSurface)
         Spacer(Modifier.width(PebbleDimens.Sp3))
         Text("$count", style = PebbleType.Label, color = PebbleColors.OnPrimaryContainer,
             modifier = Modifier.seaGlass(PebbleShape.Full, PebbleColors.GlassMint, 2.dp, emphasized = true).padding(horizontal = 10.dp, vertical = 3.dp))
         Spacer(Modifier.weight(1f))
-        Pill(label = "New tab", icon = Icons.Outlined.Add, primary = true, onClick = onNewTab)
+        Pill(
+            label = "New tab", icon = Icons.Outlined.Add, primary = true,
+            focusRequester = newTabFocusRequester, onUp = onUp, onDown = onDown,
+            onClick = onNewTab,
+        )
         Spacer(Modifier.width(PebbleDimens.Sp3))
         Pill(label = "Close all", icon = Icons.Outlined.Close, primary = false, onClick = onCloseAll)
     }
@@ -238,11 +282,28 @@ private fun Header(count: Int, onNewTab: () -> Unit, onCloseAll: () -> Unit) {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun Pill(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, primary: Boolean, onClick: () -> Unit) {
+private fun Pill(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    primary: Boolean,
+    onClick: () -> Unit,
+    focusRequester: FocusRequester? = null,
+    onUp: (() -> Unit)? = null,
+    onDown: (() -> Unit)? = null,
+) {
     val fg = if (primary) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurface
     Row(
         modifier = Modifier
             .height(48.dp)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .then(if (onUp != null || onDown != null) Modifier.onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.DirectionUp -> if (onUp != null) { onUp(); true } else false
+                    Key.DirectionDown -> if (onDown != null) { onDown(); true } else false
+                    else -> false
+                }
+            } else Modifier)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
             .seaGlass(PebbleShape.Full, if (primary) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 3.dp, emphasized = primary)
             .pebbleClickable(onClick = onClick)
@@ -263,6 +324,8 @@ private fun TabCard(
     onClick: () -> Unit,
     onClose: () -> Unit,
     onLongClick: () -> Unit,
+    focusRequester: FocusRequester?,
+    onUp: () -> Unit,
 ) {
     val host = UrlUtils.hostOf(tab.url) ?: tab.url
     val isHome = tab.url.isBlank() || tab.url == "about:blank"
@@ -292,6 +355,13 @@ private fun TabCard(
         }
         Column(
             modifier = Modifier
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                        onUp()
+                        true
+                    } else false
+                }
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
                 .seaGlass(PebbleShape.Md, if (isCurrent) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 4.dp)
                 .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
@@ -372,7 +442,11 @@ private fun TabFavicon(host: String, isHome: Boolean, size: androidx.compose.ui.
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun NewTabCard(onClick: () -> Unit) {
+private fun NewTabCard(
+    onClick: () -> Unit,
+    focusRequester: FocusRequester?,
+    onUp: () -> Unit,
+) {
     val dashColor = PebbleColors.Outline
     val focusSource = remember { MutableInteractionSource() }
     val focused by focusSource.collectIsFocusedAsState()
@@ -390,6 +464,13 @@ private fun NewTabCard(onClick: () -> Unit) {
     ) {
         Box(
             modifier = Modifier
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                        onUp()
+                        true
+                    } else false
+                }
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
                 .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
                 .pebbleClickable(onClick = onClick)
