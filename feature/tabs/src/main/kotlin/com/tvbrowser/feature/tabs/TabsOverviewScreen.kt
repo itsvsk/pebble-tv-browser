@@ -111,7 +111,7 @@ fun TabsOverviewScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = PebbleDimens.Sp8),
+                .padding(top = PebbleDimens.Sp8),
         ) {
             Box(Modifier.fillMaxWidth().padding(horizontal = PebbleDimens.Gutter)) {
                 Header(
@@ -123,12 +123,12 @@ fun TabsOverviewScreen(
                     onCloseAll = { if (tabs.isNotEmpty()) showCloseAll = true },
                 )
             }
-            Spacer(Modifier.height(PebbleDimens.Sp6))
+            Spacer(Modifier.height(PebbleDimens.Sp4))
             TvLazyRow(
                 state = tabListState,
                 horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp1),
-                contentPadding = PaddingValues(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp2),
-                modifier = Modifier.fillMaxWidth().height(316.dp),
+                contentPadding = PaddingValues(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5),
+                modifier = Modifier.fillMaxWidth().weight(1f),
             ) {
                 items(count = tabs.size, key = { tabs[it].id }) { index ->
                     val tab = tabs[index]

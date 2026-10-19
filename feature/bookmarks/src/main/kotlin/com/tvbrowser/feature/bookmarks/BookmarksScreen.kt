@@ -142,7 +142,7 @@ fun BookmarksScreen(
                         columns = TvGridCells.Fixed(2),
                         horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
                         verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
-                        contentPadding = PaddingValues(horizontal = PebbleDimens.Sp4, vertical = PebbleDimens.Sp4),
+                        contentPadding = PaddingValues(horizontal = PebbleDimens.Sp4, vertical = PebbleDimens.Sp5),
                         modifier = Modifier.weight(1f),
                     ) {
                         items(bookmarks, key = { it.id }) { bm ->
@@ -229,30 +229,34 @@ private fun BookmarkRow(bm: Bookmark, onOpen: () -> Unit, onLongClick: () -> Uni
                     .background(PebbleColors.Bg, PebbleShape.Md),
             )
         }
-        Column(
+        Row(
             modifier = Modifier
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
                 .fillMaxWidth()
-                .height(216.dp)
+                .height(104.dp)
                 .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)
                 .pebbleClickable(onClick = onOpen, onLongClick = onLongClick)
-                .padding(10.dp),
+                .padding(PebbleDimens.Sp3),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier.fillMaxWidth().height(116.dp)
+                modifier = Modifier.size(56.dp)
                     .seaGlass(PebbleShape.Sm, PebbleColors.GlassMint, 2.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 AsyncImage(
                     model = "https://www.google.com/s2/favicons?domain=$host&sz=128",
                     contentDescription = null,
-                    modifier = Modifier.size(44.dp).clip(PebbleShape.Sm),
+                    modifier = Modifier.size(32.dp).clip(PebbleShape.Sm),
                 )
             }
-            Spacer(Modifier.height(10.dp))
-            Text(bm.title, style = PebbleType.Label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W600),
-                color = PebbleColors.OnSurface, maxLines = 2)
-            Text(host, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceFaint, maxLines = 1)
+            Spacer(Modifier.width(PebbleDimens.Sp3))
+            Column(Modifier.weight(1f)) {
+                Text(bm.title, style = PebbleType.Label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W600),
+                    color = PebbleColors.OnSurface, maxLines = 2)
+                Spacer(Modifier.height(PebbleDimens.Sp1))
+                Text(host, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceFaint, maxLines = 1)
+            }
         }
     }
 }
