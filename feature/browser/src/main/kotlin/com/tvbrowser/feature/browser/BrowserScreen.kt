@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.tvbrowser.core.cursor.CursorController
 import com.tvbrowser.core.cursor.CursorOverlay
-import com.tvbrowser.core.cursor.CursorState
+import com.tvbrowser.core.cursor.CursorMode
 import com.tvbrowser.core.design.PebbleColors
 import com.tvbrowser.core.downloads.DownloadManagerRepo
 import dagger.hilt.EntryPoint
@@ -42,7 +42,7 @@ interface BrowserEntryPoint {
 @Composable
 fun BrowserScreen(
     tabId: String,
-    cursorState: CursorState,
+    cursorMode: CursorMode,
     chromeVisible: Boolean,
     topNavFocusRequester: FocusRequester,
     onWebNavigation: () -> Unit,
@@ -86,7 +86,7 @@ fun BrowserScreen(
         if (chromeVisible) AddressBar(
             controlsFocusRequester = controlsFocusRequester,
             topNavFocusRequester = topNavFocusRequester,
-            pointerPreferred = cursorState.preferredActive,
+            pointerPreferred = cursorMode.preferredActive,
             onResumePointer = onResumePointer,
             url = ui.url,
             isBookmarked = ui.isBookmarked,
@@ -131,17 +131,22 @@ fun BrowserScreen(
                     },
                 )
             }
-            CursorOverlay(state = cursorState)
-
-            if (ui.progress in 1..99) {
-                LinearProgressIndicator(
-                    progress = { ui.progress / 100f },
-                    color = PebbleColors.Primary,
-                    trackColor = PebbleColors.Surface3,
-                    modifier = Modifier.fillMaxWidth().height(3.dp).align(Alignment.TopCenter),
-                )
-            }
+            CursorOverlay(controller = entry.cursorController())
+            BrowserProgressIndicator(vm, Modifier.align(Alignment.TopCenter))
         }
+    }
+}
+
+@Composable
+private fun BrowserProgressIndicator(vm: BrowserViewModel, modifier: Modifier = Modifier) {
+    val progress by vm.progress.collectAsState()
+    if (progress in 1..99) {
+        LinearProgressIndicator(
+            progress = { progress / 100f },
+            color = PebbleColors.Primary,
+            trackColor = PebbleColors.Surface3,
+            modifier = modifier.fillMaxWidth().height(3.dp),
+        )
     }
 }
 

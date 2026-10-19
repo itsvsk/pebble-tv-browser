@@ -18,6 +18,7 @@ import com.tvbrowser.core.design.PebbleTheme
 import com.tvbrowser.core.common.SettingsRepository
 import com.tvbrowser.core.common.ThemePreference
 import com.tvbrowser.core.cursor.CursorController
+import com.tvbrowser.core.cursor.CursorMode
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -30,7 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val cursorState by cursorController.state.collectAsState()
+            val cursorMode by cursorController.mode.collectAsState(initial = CursorMode())
             val themePreference by settingsRepository.theme.collectAsState(initial = ThemePreference.System)
             val darkTheme = when (themePreference) {
                 ThemePreference.System -> isSystemInDarkTheme()
@@ -49,7 +50,7 @@ class MainActivity : ComponentActivity() {
             }
             PebbleTheme(darkTheme = darkTheme) {
                 AppNavHost(
-                    cursorState = cursorState,
+                    cursorMode = cursorMode,
                     onSetCursorActive = cursorController::setActive,
                     onSetCursorPreferred = cursorController::setPreferredActive,
                 )

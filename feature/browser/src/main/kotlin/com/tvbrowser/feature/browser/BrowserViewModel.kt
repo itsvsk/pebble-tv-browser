@@ -22,7 +22,6 @@ import javax.inject.Inject
 data class BrowserUi(
     val url: String = "",
     val title: String? = null,
-    val progress: Int = 100,
     val isBookmarked: Boolean = false,
     val isIncognito: Boolean = false,
     val desktopUa: Boolean = false,
@@ -40,6 +39,8 @@ class BrowserViewModel @Inject constructor(
 
     private val _ui = MutableStateFlow(BrowserUi())
     val ui: StateFlow<BrowserUi> = _ui.asStateFlow()
+    private val _progress = MutableStateFlow(100)
+    val progress: StateFlow<Int> = _progress.asStateFlow()
 
     private var currentTab: TabEntity? = null
 
@@ -56,6 +57,7 @@ class BrowserViewModel @Inject constructor(
                 desktopUa = desktop,
                 adblockEnabled = adblock,
             )
+            _progress.value = 100
         }
     }
 
@@ -65,11 +67,13 @@ class BrowserViewModel @Inject constructor(
     }
 
     fun onPageStarted(url: String) {
-        _ui.value = _ui.value.copy(url = url, progress = 0)
+        _ui.value = _ui.value.copy(url = url)
+        _progress.value = 0
     }
 
     fun onPageFinished(url: String, title: String?) {
-        _ui.value = _ui.value.copy(url = url, title = title, progress = 100)
+        _ui.value = _ui.value.copy(url = url, title = title)
+        _progress.value = 100
         if (!_ui.value.isIncognito && url.startsWith("http")) {
             viewModelScope.launch {
                 historyRepo.record(url, title)
@@ -78,11 +82,12 @@ class BrowserViewModel @Inject constructor(
         }
     }
 
-    fun onProgress(p: Int) { _ui.value = _ui.value.copy(progress = p) }
+    fun onProgress(p: Int) { _progress.value = p.coerceIn(0, 100) }
 
     fun submitOmnibox(input: String): String {
         val target = UrlUtils.toQueryOrUrl(input)
-        _ui.value = _ui.value.copy(url = target, progress = 0)
+        _ui.value = _ui.value.copy(url = target)
+        _progress.value = 0
         return target
     }
 

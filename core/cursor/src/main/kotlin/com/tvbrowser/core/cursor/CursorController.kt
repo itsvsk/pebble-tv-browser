@@ -8,6 +8,8 @@ import android.view.View
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,6 +21,8 @@ data class CursorState(
     val viewportW: Int = 0,
     val viewportH: Int = 0,
 )
+
+data class CursorMode(val active: Boolean = false, val preferredActive: Boolean = false)
 
 /**
  * Hybrid spatial-focus + virtual-cursor controller.
@@ -32,6 +36,7 @@ class CursorController @Inject constructor() {
 
     private val _state = MutableStateFlow(CursorState())
     val state: StateFlow<CursorState> = _state.asStateFlow()
+    val mode = state.map { CursorMode(it.active, it.preferredActive) }.distinctUntilChanged()
 
     private var targetView: View? = null
     private var focusControls: (() -> Unit)? = null

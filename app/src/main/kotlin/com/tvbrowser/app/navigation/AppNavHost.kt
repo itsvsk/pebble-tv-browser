@@ -22,7 +22,7 @@ import androidx.navigation.navArgument
 import com.tvbrowser.core.design.NavDestination
 import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.RootShell
-import com.tvbrowser.core.cursor.CursorState
+import com.tvbrowser.core.cursor.CursorMode
 import com.tvbrowser.feature.bookmarks.BookmarksScreen
 import com.tvbrowser.feature.browser.BrowserScreen
 import com.tvbrowser.feature.downloads.DownloadsScreen
@@ -33,7 +33,7 @@ import com.tvbrowser.feature.tabs.TabsOverviewScreen
 
 @Composable
 fun AppNavHost(
-    cursorState: CursorState,
+    cursorMode: CursorMode,
     onSetCursorActive: (Boolean) -> Unit,
     onSetCursorPreferred: (Boolean) -> Unit,
 ) {
@@ -41,7 +41,7 @@ fun AppNavHost(
     val shellVm: ShellViewModel = hiltViewModel()
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val onToggleCursor = { onSetCursorPreferred(!cursorState.preferredActive) }
+    val onToggleCursor = { onSetCursorPreferred(!cursorMode.preferredActive) }
     fun openBrowser(tabId: String) {
         onSetCursorPreferred(true)
         nav.navigate(Routes.browser(tabId))
@@ -80,9 +80,9 @@ fun AppNavHost(
     val handleBack: @Composable () -> Unit = {
         BackHandler(
             enabled = (currentRoute == Routes.BROWSER && !browserChromeVisible) ||
-                cursorState.active || focusedNav != active,
+                cursorMode.active || focusedNav != active,
         ) {
-            if (cursorState.active) onSetCursorActive(false)
+            if (cursorMode.active) onSetCursorActive(false)
             if (currentRoute == Routes.BROWSER && !browserChromeVisible) {
                 browserChromeVisible = true
                 focusTopBarWhenShown = true
@@ -100,7 +100,7 @@ fun AppNavHost(
             if (focused) focusedNav = destination
             else if (focusedNav == destination) focusedNav = null
         },
-        cursorModeActive = cursorState.preferredActive.takeIf { currentRoute == Routes.BROWSER },
+        cursorModeActive = cursorMode.preferredActive.takeIf { currentRoute == Routes.BROWSER },
         onToggleCursor = onToggleCursor,
         showRail = currentRoute != Routes.BROWSER || browserChromeVisible,
         onSelect = { dest ->
@@ -163,7 +163,7 @@ fun AppNavHost(
                 val tabId = backStack.arguments?.getString("tabId").orEmpty()
                 BrowserScreen(
                     tabId = tabId,
-                    cursorState = cursorState,
+                    cursorMode = cursorMode,
                     chromeVisible = browserChromeVisible,
                     topNavFocusRequester = navFocusRequesters.getValue(NavDestination.Browser),
                     onWebNavigation = { browserChromeVisible = false },
