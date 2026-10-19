@@ -513,17 +513,21 @@ private fun NewTabCard(
     }
 }
 
-private fun Modifier.tabBloom(alpha: Float): Modifier = drawBehind {
-    // Keep the halo in a rounded layer behind the card instead of using a hardware shadow.
-    if (alpha > 0f) {
-        listOf(0.dp to 0.04f, 4.dp to 0.08f, 7.dp to 0.12f).forEach { (inset, strength) ->
-            val px = inset.toPx()
-            drawRoundRect(
-                color = PebbleColors.Primary.copy(alpha = strength * alpha),
-                topLeft = Offset(px, px),
-                size = Size(size.width - 2 * px, size.height - 2 * px),
-                cornerRadius = CornerRadius((26.dp - inset).toPx()),
-            )
+@Composable
+private fun Modifier.tabBloom(alpha: Float): Modifier {
+    val primary = PebbleColors.Primary
+    return drawBehind {
+        // Keep the halo in a rounded layer behind the card instead of using a hardware shadow.
+        if (alpha > 0f) {
+            listOf(0.dp to 0.04f, 4.dp to 0.08f, 7.dp to 0.12f).forEach { (inset, strength) ->
+                val px = inset.toPx()
+                drawRoundRect(
+                    color = primary.copy(alpha = strength * alpha),
+                    topLeft = Offset(px, px),
+                    size = Size(size.width - 2 * px, size.height - 2 * px),
+                    cornerRadius = CornerRadius((26.dp - inset).toPx()),
+                )
+            }
         }
     }
 }

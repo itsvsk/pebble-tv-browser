@@ -19,11 +19,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AdsClick
+import androidx.compose.material.icons.outlined.BrightnessAuto
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.NoEncryption
 import androidx.compose.runtime.Composable
@@ -41,6 +45,8 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -53,6 +59,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import com.tvbrowser.core.common.PrefKeys
 import com.tvbrowser.core.common.SettingsRepository
+import com.tvbrowser.core.common.ThemePreference
 import com.tvbrowser.core.db.repo.HistoryRepository
 import com.tvbrowser.core.design.PebbleColors
 import com.tvbrowser.core.design.seaGlass
@@ -79,10 +86,13 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val cursorLongPress: StateFlow<Boolean> = settings.cursorToggleLongPress
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val theme: StateFlow<ThemePreference> = settings.theme
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemePreference.System)
 
     fun setDesktopUa(v: Boolean) = viewModelScope.launch { settings.set(PrefKeys.DesktopUa, v) }
     fun setAdblock(v: Boolean) = viewModelScope.launch { settings.set(PrefKeys.AdblockEnabled, v) }
     fun setCursorLongPress(v: Boolean) = viewModelScope.launch { settings.set(PrefKeys.CursorToggleLongPress, v) }
+    fun setTheme(v: ThemePreference) = viewModelScope.launch { settings.setTheme(v) }
 
     fun clearHistory() = viewModelScope.launch { history.clear() }
     fun clearIncognito() = viewModelScope.launch {
@@ -97,6 +107,7 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
     val desktop by vm.desktopUa.collectAsState()
     val ad by vm.adblock.collectAsState()
     val longPress by vm.cursorLongPress.collectAsState()
+    val theme by vm.theme.collectAsState()
     val firstFocus = remember { FocusRequester() }
     var showClearHistory by remember { mutableStateOf(false) }
     var showClearIncognito by remember { mutableStateOf(false) }
@@ -116,6 +127,35 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                     .width(880.dp)
                     .focusProperties { enter = { firstFocus } },
             ) {
+                item { SectionHeader("Appearance") }
+                item {
+                    ThemeOptionRow(
+                        mode = ThemePreference.System,
+                        subtitle = "Match your TV appearance",
+                        selected = theme == ThemePreference.System,
+                        icon = Icons.Outlined.BrightnessAuto,
+                        onClick = vm::setTheme,
+                        modifier = Modifier.focusRequester(firstFocus),
+                    )
+                }
+                item {
+                    ThemeOptionRow(
+                        mode = ThemePreference.Light,
+                        subtitle = "Warm sand and sea glass",
+                        selected = theme == ThemePreference.Light,
+                        icon = Icons.Outlined.LightMode,
+                        onClick = vm::setTheme,
+                    )
+                }
+                item {
+                    ThemeOptionRow(
+                        mode = ThemePreference.Dark,
+                        subtitle = "Deep sea glass for low light",
+                        selected = theme == ThemePreference.Dark,
+                        icon = Icons.Outlined.DarkMode,
+                        onClick = vm::setTheme,
+                    )
+                }
                 item { SectionHeader("Page rendering") }
                 item {
                     ToggleRow(
@@ -124,7 +164,6 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                         subtitle = "Default user-agent for new tabs",
                         value = desktop,
                         onChange = vm::setDesktopUa,
-                        modifier = Modifier.focusRequester(firstFocus),
                     )
                 }
                 item {
@@ -198,6 +237,34 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                 onCancel = { showClearIncognito = false },
             )
         }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun ThemeOptionRow(
+    mode: ThemePreference,
+    subtitle: String,
+    selected: Boolean,
+    icon: ImageVector,
+    onClick: (ThemePreference) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SetRow(
+        icon = icon,
+        title = mode.label,
+        subtitle = subtitle,
+        onClick = { onClick(mode) },
+        modifier = modifier.semantics { this.selected = selected },
+    ) {
+        if (selected) {
+            Icon(
+                Icons.Outlined.Check,
+                contentDescription = "Selected",
+                tint = PebbleColors.Primary,
+                modifier = Modifier.size(24.dp),
+            )
+        } else Spacer(Modifier.size(24.dp))
     }
 }
 

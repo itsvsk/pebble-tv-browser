@@ -436,16 +436,20 @@ private fun Tile(
     }
 }
 
-private fun Modifier.speedDialBloom(alpha: Float): Modifier = drawBehind {
-    if (alpha > 0f) {
-        listOf(0.dp to 0.025f, 2.dp to 0.04f, 4.dp to 0.06f).forEach { (inset, strength) ->
-            val px = inset.toPx()
-            drawRoundRect(
-                color = PebbleColors.Primary.copy(alpha = strength * alpha),
-                topLeft = Offset(px, px),
-                size = Size(size.width - 2 * px, size.height - 2 * px),
-                cornerRadius = CornerRadius((22.dp - inset).toPx()),
-            )
+@Composable
+private fun Modifier.speedDialBloom(alpha: Float): Modifier {
+    val primary = PebbleColors.Primary
+    return drawBehind {
+        if (alpha > 0f) {
+            listOf(0.dp to 0.025f, 2.dp to 0.04f, 4.dp to 0.06f).forEach { (inset, strength) ->
+                val px = inset.toPx()
+                drawRoundRect(
+                    color = primary.copy(alpha = strength * alpha),
+                    topLeft = Offset(px, px),
+                    size = Size(size.width - 2 * px, size.height - 2 * px),
+                    cornerRadius = CornerRadius((22.dp - inset).toPx()),
+                )
+            }
         }
     }
 }

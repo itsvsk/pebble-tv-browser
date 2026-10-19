@@ -18,11 +18,20 @@ import javax.inject.Singleton
 
 private val Context.prefStore by preferencesDataStore(name = "tv_browser_prefs")
 
+enum class ThemePreference(val label: String) {
+    System("System default"), Light("Light"), Dark("Dark");
+
+    companion object {
+        fun fromStored(value: String?): ThemePreference = entries.firstOrNull { it.name == value } ?: System
+    }
+}
+
 object PrefKeys {
     val DesktopUa = booleanPreferencesKey("desktop_ua")
     val AdblockEnabled = booleanPreferencesKey("adblock_enabled")
     val DownloadPath = stringPreferencesKey("download_path")
     val CursorToggleLongPress = booleanPreferencesKey("cursor_toggle_longpress")
+    val Theme = stringPreferencesKey("theme_preference")
 }
 
 @Singleton
@@ -35,6 +44,7 @@ class SettingsRepository @Inject constructor(
     val adblockEnabled: Flow<Boolean> = store.data.map { it[PrefKeys.AdblockEnabled] ?: true }
     val downloadPath: Flow<String?> = store.data.map { it[PrefKeys.DownloadPath] }
     val cursorToggleLongPress: Flow<Boolean> = store.data.map { it[PrefKeys.CursorToggleLongPress] ?: true }
+    val theme: Flow<ThemePreference> = store.data.map { ThemePreference.fromStored(it[PrefKeys.Theme]) }
 
     suspend fun set(key: Preferences.Key<Boolean>, value: Boolean) {
         store.edit { it[key] = value }
@@ -42,6 +52,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setString(key: Preferences.Key<String>, value: String) {
         store.edit { it[key] = value }
+    }
+
+    suspend fun setTheme(value: ThemePreference) {
+        setString(PrefKeys.Theme, value.name)
     }
 }
 

@@ -16,6 +16,8 @@ import com.tvbrowser.core.design.PebbleColors
  */
 @Composable
 fun PebbleLogo(modifier: Modifier = Modifier, size: Dp = 52.dp) {
+    val primary = PebbleColors.Primary
+    val primaryStrong = PebbleColors.PrimaryStrong
     Canvas(modifier = modifier.size(size)) {
         val r = this.size.minDimension / 2f
         val center = Offset(this.size.width / 2f, this.size.height / 2f)
@@ -24,8 +26,8 @@ fun PebbleLogo(modifier: Modifier = Modifier, size: Dp = 52.dp) {
         drawCircle(
             brush = Brush.radialGradient(
                 colorStops = arrayOf(
-                    0f to PebbleColors.Primary.copy(alpha = 0.35f),
-                    1f to PebbleColors.Primary.copy(alpha = 0f),
+                    0f to primary.copy(alpha = 0.35f),
+                    1f to primary.copy(alpha = 0f),
                 ),
                 center = center,
                 radius = r * 1.6f,
@@ -38,8 +40,8 @@ fun PebbleLogo(modifier: Modifier = Modifier, size: Dp = 52.dp) {
         drawCircle(
             brush = Brush.radialGradient(
                 colorStops = arrayOf(
-                    0f to PebbleColors.PrimaryStrong,
-                    1f to PebbleColors.Primary,
+                    0f to primaryStrong,
+                    1f to primary,
                 ),
                 center = Offset(center.x - r * 0.25f, center.y - r * 0.3f),
                 radius = r,

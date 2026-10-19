@@ -1,8 +1,12 @@
 package com.tvbrowser.core.design
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.darkColorScheme
 import androidx.tv.material3.lightColorScheme
 
 /**
@@ -24,31 +28,37 @@ import androidx.tv.material3.lightColorScheme
  *   error               = danger
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
-private val PebbleColorScheme = lightColorScheme(
-    primary = PebbleColors.Primary,
-    onPrimary = PebbleColors.OnPrimary,
-    primaryContainer = PebbleColors.PrimaryContainer,
-    onPrimaryContainer = PebbleColors.OnPrimaryContainer,
-    background = PebbleColors.Bg,
-    onBackground = PebbleColors.OnSurface,
-    surface = PebbleColors.Surface1,
-    onSurface = PebbleColors.OnSurface,
-    surfaceVariant = PebbleColors.Surface2,
-    onSurfaceVariant = PebbleColors.OnSurfaceMuted,
-    border = PebbleColors.Outline,
-    borderVariant = PebbleColors.OutlineFaint,
-    error = PebbleColors.Danger,
-    onError = PebbleColors.OnPrimary,
-    scrim = PebbleColors.Scrim,
-)
+private fun paletteScheme(palette: PebblePalette) = with(palette) {
+    if (isDark) darkColorScheme(
+        primary = Primary, onPrimary = OnPrimary,
+        primaryContainer = PrimaryContainer, onPrimaryContainer = OnPrimaryContainer,
+        background = Bg, onBackground = OnSurface,
+        surface = Surface1, onSurface = OnSurface,
+        surfaceVariant = Surface2, onSurfaceVariant = OnSurfaceMuted,
+        border = Outline, borderVariant = OutlineFaint,
+        error = Danger, onError = Bg, scrim = Scrim,
+    ) else lightColorScheme(
+        primary = Primary, onPrimary = OnPrimary,
+        primaryContainer = PrimaryContainer, onPrimaryContainer = OnPrimaryContainer,
+        background = Bg, onBackground = OnSurface,
+        surface = Surface1, onSurface = OnSurface,
+        surfaceVariant = Surface2, onSurfaceVariant = OnSurfaceMuted,
+        border = Outline, borderVariant = OutlineFaint,
+        error = Danger, onError = OnPrimary, scrim = Scrim,
+    )
+}
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-fun PebbleTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = PebbleColorScheme,
-        typography = PebbleTypography,
-        shapes = PebbleShapes,
-        content = content,
-    )
+fun PebbleTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+    val palette = if (darkTheme) DarkPebblePalette else LightPebblePalette
+    val colorScheme = remember(palette) { paletteScheme(palette) }
+    CompositionLocalProvider(LocalPebblePalette provides palette) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = PebbleTypography,
+            shapes = PebbleShapes,
+            content = content,
+        )
+    }
 }
