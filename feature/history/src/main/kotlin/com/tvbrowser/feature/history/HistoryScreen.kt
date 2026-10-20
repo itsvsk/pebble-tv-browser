@@ -3,13 +3,13 @@ package com.tvbrowser.feature.history
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -175,27 +175,17 @@ fun HistoryScreen(
         expandedByBack = true
         headerCompact = false
     }
+    val headerGap by animateDpAsState(
+        targetValue = if (headerCompact) PebbleDimens.Sp2 else PebbleDimens.Sp6,
+        animationSpec = tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "history-header-gap",
+    )
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(top = PebbleDimens.Sp8)) {
-            AnimatedContent(
-                targetState = headerCompact,
-                transitionSpec = {
-                    fadeIn(tween(PebbleMotion.DurationMs)) togetherWith
-                        fadeOut(tween(PebbleMotion.DurationMs)) using
-                        SizeTransform(clip = false) { _, _ ->
-                            tween(PebbleMotion.DurationMs, easing = FastOutSlowInEasing)
-                        }
-                },
-                label = "history-header-size",
-            ) { compact ->
-                Column {
-                    Box(Modifier.fillMaxWidth().padding(horizontal = PebbleDimens.Gutter)) {
-                        if (compact) CompactHeader(onClear = { vm.clearAll() })
-                        else Header(onClear = { vm.clearAll() })
-                    }
-                    Spacer(Modifier.height(if (compact) PebbleDimens.Sp2 else PebbleDimens.Sp6))
-                }
+            Box(Modifier.fillMaxWidth().padding(horizontal = PebbleDimens.Gutter)) {
+                Header(compact = headerCompact, onClear = { vm.clearAll() })
             }
+            Spacer(Modifier.height(headerGap))
             if (entries.isEmpty()) {
                 Text("No history yet.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted,
                     modifier = Modifier.padding(horizontal = PebbleDimens.Gutter))
@@ -278,21 +268,21 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun Header(onClear: () -> Unit) {
+private fun Header(compact: Boolean, onClear: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column {
             Text("History", style = PebbleType.Display, color = PebbleColors.OnSurface)
-            Text("Recently visited", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+            AnimatedVisibility(
+                visible = !compact,
+                enter = expandVertically(tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard)) +
+                    fadeIn(tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard)),
+                exit = shrinkVertically(tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard)) +
+                    fadeOut(tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard)),
+                label = "history-subtitle",
+            ) {
+                Text("Recently visited", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+            }
         }
-        Spacer(Modifier.weight(1f))
-        ClearPill(onClick = onClear)
-    }
-}
-
-@Composable
-private fun CompactHeader(onClear: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("History", style = PebbleType.Title, color = PebbleColors.OnSurface)
         Spacer(Modifier.weight(1f))
         ClearPill(onClick = onClear)
     }
