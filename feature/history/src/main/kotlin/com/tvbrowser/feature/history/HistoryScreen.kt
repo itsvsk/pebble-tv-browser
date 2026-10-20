@@ -182,7 +182,7 @@ fun HistoryScreen(
         headerVisible = true
     }
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().padding(vertical = PebbleDimens.Sp8)) {
+        Column(modifier = Modifier.fillMaxSize().padding(top = PebbleDimens.Sp8)) {
             AnimatedVisibility(
                 visible = headerVisible,
                 enter = expandVertically(tween(PebbleMotion.DurationMs, easing = FastOutSlowInEasing)) +
@@ -208,7 +208,7 @@ fun HistoryScreen(
                 verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
                 contentPadding = PaddingValues(
                     start = PebbleDimens.Gutter, end = PebbleDimens.Gutter,
-                    top = PebbleDimens.Sp2, bottom = PebbleDimens.Sp4,
+                    top = PebbleDimens.Sp2, bottom = PebbleDimens.Sp8,
                 ),
                 modifier = Modifier.fillMaxWidth().weight(1f)
                     .onPreviewKeyEvent { event ->
@@ -222,24 +222,25 @@ fun HistoryScreen(
                     }
                     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                     .drawWithCache {
-                        val edge = 20.dp.toPx()
+                        val topEdge = 20.dp.toPx()
+                        val bottomEdge = 12.dp.toPx()
                         val topFade = Brush.verticalGradient(
                             colors = listOf(Color.Transparent, Color.Black),
-                            startY = 0f, endY = edge,
+                            startY = 0f, endY = topEdge,
                         )
                         val bottomFade = Brush.verticalGradient(
                             colors = listOf(Color.Black, Color.Transparent),
-                            startY = size.height - edge, endY = size.height,
+                            startY = size.height - bottomEdge, endY = size.height,
                         )
                         onDrawWithContent {
                             drawContent()
                             if (listState.canScrollBackward) {
                                 drawRect(topFade, topLeft = Offset.Zero,
-                                    size = Size(size.width, edge), blendMode = BlendMode.DstIn)
+                                    size = Size(size.width, topEdge), blendMode = BlendMode.DstIn)
                             }
                             if (listState.canScrollForward) {
-                                drawRect(bottomFade, topLeft = Offset(0f, size.height - edge),
-                                    size = Size(size.width, edge), blendMode = BlendMode.DstIn)
+                                drawRect(bottomFade, topLeft = Offset(0f, size.height - bottomEdge),
+                                    size = Size(size.width, bottomEdge), blendMode = BlendMode.DstIn)
                             }
                         }
                     },
