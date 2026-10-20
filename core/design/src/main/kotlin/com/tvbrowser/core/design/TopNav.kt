@@ -54,6 +54,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
@@ -137,7 +138,7 @@ fun TopNav(
         PebbleLogo(size = 28.dp)
         Spacer(Modifier.width(10.dp))
         Text("Pebble", style = PebbleType.Title.copy(fontWeight = FontWeight.W700), color = PebbleColors.OnSurface)
-        Spacer(Modifier.width(30.dp))
+        Spacer(Modifier.width(PebbleDimens.Sp5))
         Box(
             modifier = Modifier
                 .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 5.dp)
@@ -287,7 +288,7 @@ private fun NavPill(
         else -> PebbleColors.OnSurfaceMuted
     }
     Box(
-        modifier = Modifier.height(36.dp)
+        modifier = Modifier.width(96.dp).height(40.dp)
             .focusRequester(focusRequester)
             .onGloballyPositioned { onPositioned(it.boundsInRoot()) }
             .onFocusChanged { onFocusChanged(it.isFocused) }
@@ -318,13 +319,15 @@ private fun NavPill(
                 else -> Modifier
             })
             .pebbleClickable(onClick = onClick)
-            .padding(horizontal = 14.dp),
+            .padding(PebbleDimens.Sp1),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             destination.label,
-            style = PebbleType.Label.copy(fontWeight = if (selected) FontWeight.W700 else FontWeight.W500),
+            style = PebbleType.LabelSm.copy(fontWeight = if (selected) FontWeight.W700 else FontWeight.W500),
             color = textColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
