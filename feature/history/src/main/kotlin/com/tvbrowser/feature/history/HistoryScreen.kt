@@ -3,11 +3,11 @@ package com.tvbrowser.feature.history
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.background
@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -89,7 +90,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -152,49 +152,48 @@ fun HistoryScreen(
     val bookmarkedUrls by vm.bookmarkedUrls.collectAsState()
     val menuEntry by vm.selectedForMenu.collectAsState()
     val listState = rememberLazyListState()
-    var headerVisible by remember { mutableStateOf(true) }
-    var revealedByNavigation by remember { mutableStateOf(false) }
+    var headerCompact by remember { mutableStateOf(false) }
+    var expandedByBack by remember { mutableStateOf(false) }
     LaunchedEffect(listState) {
         var lastIndex = listState.firstVisibleItemIndex
         var lastOffset = listState.firstVisibleItemScrollOffset
         snapshotFlow {
-            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
-        }.collect { (index, offset) ->
+            Triple(listState.isScrollInProgress, listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
+        }.collect { (scrolling, index, offset) ->
             val movedDown = index > lastIndex || (index == lastIndex && offset > lastOffset)
             val movedUp = index < lastIndex || (index == lastIndex && offset < lastOffset)
             lastIndex = index
             lastOffset = offset
             when {
-                listState.isScrollInProgress && movedDown && !revealedByNavigation -> headerVisible = false
-                listState.isScrollInProgress && movedUp -> headerVisible = true
+                !scrolling -> expandedByBack = false
+                movedDown && !expandedByBack -> headerCompact = true
+                movedUp && index == 0 && offset == 0 -> headerCompact = false
             }
         }
     }
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (!listState.isScrollInProgress) {
-            delay(450)
-            headerVisible = true
-            revealedByNavigation = false
-        }
-    }
-    BackHandler(enabled = !headerVisible && menuEntry == null) {
-        revealedByNavigation = true
-        headerVisible = true
+    BackHandler(enabled = headerCompact && menuEntry == null) {
+        expandedByBack = true
+        headerCompact = false
     }
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(top = PebbleDimens.Sp8)) {
-            AnimatedVisibility(
-                visible = headerVisible,
-                enter = expandVertically(tween(PebbleMotion.DurationMs, easing = FastOutSlowInEasing)) +
-                    fadeIn(tween(PebbleMotion.DurationMs)),
-                exit = shrinkVertically(tween(PebbleMotion.DurationMs, easing = FastOutSlowInEasing)) +
-                    fadeOut(tween(PebbleMotion.DurationMs)),
-            ) {
+            AnimatedContent(
+                targetState = headerCompact,
+                transitionSpec = {
+                    fadeIn(tween(PebbleMotion.DurationMs)) togetherWith
+                        fadeOut(tween(PebbleMotion.DurationMs)) using
+                        SizeTransform(clip = false) { _, _ ->
+                            tween(PebbleMotion.DurationMs, easing = FastOutSlowInEasing)
+                        }
+                },
+                label = "history-header-size",
+            ) { compact ->
                 Column {
                     Box(Modifier.fillMaxWidth().padding(horizontal = PebbleDimens.Gutter)) {
-                        Header(onClear = { vm.clearAll() })
+                        if (compact) CompactHeader(onClear = { vm.clearAll() })
+                        else Header(onClear = { vm.clearAll() })
                     }
-                    Spacer(Modifier.height(PebbleDimens.Sp6))
+                    Spacer(Modifier.height(if (compact) PebbleDimens.Sp2 else PebbleDimens.Sp6))
                 }
             }
             if (entries.isEmpty()) {
@@ -203,6 +202,7 @@ fun HistoryScreen(
                 return@Column
             }
             val groups = remember(entries) { groupByDay(entries) }
+            val firstEntryId = entries.firstOrNull()?.id
             LazyColumn(
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
@@ -212,11 +212,8 @@ fun HistoryScreen(
                 ),
                 modifier = Modifier.fillMaxWidth().weight(1f)
                     .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
-                            revealedByNavigation = true
-                            headerVisible = true
-                        } else if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
-                            revealedByNavigation = false
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                            expandedByBack = false
                         }
                         false
                     }
@@ -252,6 +249,7 @@ fun HistoryScreen(
                             entry = e,
                             onOpen = { vm.open(e) { onOpenUrl(it) } },
                             onLongClick = { vm.showMenu(e) },
+                            onFocused = if (e.id == firstEntryId) ({ headerCompact = false }) else null,
                         )
                     }
                 }
@@ -292,6 +290,15 @@ private fun Header(onClear: () -> Unit) {
 }
 
 @Composable
+private fun CompactHeader(onClear: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("History", style = PebbleType.Title, color = PebbleColors.OnSurface)
+        Spacer(Modifier.weight(1f))
+        ClearPill(onClick = onClear)
+    }
+}
+
+@Composable
 private fun ClearPill(onClick: () -> Unit) {
     Row(
         modifier = Modifier
@@ -315,7 +322,12 @@ private val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun HistoryRow(entry: HistoryEntry, onOpen: () -> Unit, onLongClick: () -> Unit) {
+private fun HistoryRow(
+    entry: HistoryEntry,
+    onOpen: () -> Unit,
+    onLongClick: () -> Unit,
+    onFocused: (() -> Unit)? = null,
+) {
     val host = UrlUtils.hostOf(entry.url) ?: entry.url
     val time = remember(entry.visitedAt) {
         LocalDateTime.ofInstant(Instant.ofEpochMilli(entry.visitedAt), ZoneId.systemDefault()).format(timeFmt)
@@ -326,6 +338,7 @@ private fun HistoryRow(entry: HistoryEntry, onOpen: () -> Unit, onLongClick: () 
                 // Reuse the glass tile while the list moves it across the screen.
                 compositingStrategy = CompositingStrategy.Offscreen
             }
+            .onFocusChanged { if (it.isFocused) onFocused?.invoke() }
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
             .height(72.dp)
