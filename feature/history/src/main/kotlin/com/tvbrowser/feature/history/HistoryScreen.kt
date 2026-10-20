@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,9 +40,16 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -81,7 +89,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -147,25 +154,27 @@ fun HistoryScreen(
     val listState = rememberLazyListState()
     var headerVisible by remember { mutableStateOf(true) }
     var revealedByNavigation by remember { mutableStateOf(false) }
-    LaunchedEffect(listState, entries.isNotEmpty()) {
+    LaunchedEffect(listState) {
         var lastIndex = listState.firstVisibleItemIndex
         var lastOffset = listState.firstVisibleItemScrollOffset
         snapshotFlow {
-            Triple(listState.isScrollInProgress, listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
-        }.collectLatest { (scrolling, index, offset) ->
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
             val movedDown = index > lastIndex || (index == lastIndex && offset > lastOffset)
             val movedUp = index < lastIndex || (index == lastIndex && offset < lastOffset)
             lastIndex = index
             lastOffset = offset
             when {
-                scrolling && movedDown && !revealedByNavigation -> headerVisible = false
-                scrolling && movedUp -> headerVisible = true
-                !scrolling -> {
-                    delay(300)
-                    headerVisible = true
-                    revealedByNavigation = false
-                }
+                listState.isScrollInProgress && movedDown && !revealedByNavigation -> headerVisible = false
+                listState.isScrollInProgress && movedUp -> headerVisible = true
             }
+        }
+    }
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (!listState.isScrollInProgress) {
+            delay(450)
+            headerVisible = true
+            revealedByNavigation = false
         }
     }
     BackHandler(enabled = !headerVisible && menuEntry == null) {
@@ -176,8 +185,10 @@ fun HistoryScreen(
         Column(modifier = Modifier.fillMaxSize().padding(vertical = PebbleDimens.Sp8)) {
             AnimatedVisibility(
                 visible = headerVisible,
-                enter = expandVertically(tween(PebbleMotion.DurationFastMs)) + fadeIn(tween(PebbleMotion.DurationFastMs)),
-                exit = shrinkVertically(tween(PebbleMotion.DurationFastMs)) + fadeOut(tween(PebbleMotion.DurationFastMs)),
+                enter = expandVertically(tween(PebbleMotion.DurationMs, easing = FastOutSlowInEasing)) +
+                    fadeIn(tween(PebbleMotion.DurationMs)),
+                exit = shrinkVertically(tween(PebbleMotion.DurationMs, easing = FastOutSlowInEasing)) +
+                    fadeOut(tween(PebbleMotion.DurationMs)),
             ) {
                 Column {
                     Box(Modifier.fillMaxWidth().padding(horizontal = PebbleDimens.Gutter)) {
@@ -208,6 +219,29 @@ fun HistoryScreen(
                             revealedByNavigation = false
                         }
                         false
+                    }
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithCache {
+                        val edge = 20.dp.toPx()
+                        val topFade = Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black),
+                            startY = 0f, endY = edge,
+                        )
+                        val bottomFade = Brush.verticalGradient(
+                            colors = listOf(Color.Black, Color.Transparent),
+                            startY = size.height - edge, endY = size.height,
+                        )
+                        onDrawWithContent {
+                            drawContent()
+                            if (listState.canScrollBackward) {
+                                drawRect(topFade, topLeft = Offset.Zero,
+                                    size = Size(size.width, edge), blendMode = BlendMode.DstIn)
+                            }
+                            if (listState.canScrollForward) {
+                                drawRect(bottomFade, topLeft = Offset(0f, size.height - edge),
+                                    size = Size(size.width, edge), blendMode = BlendMode.DstIn)
+                            }
+                        }
                     },
             ) {
                 groups.forEach { (label, rows) ->
