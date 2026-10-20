@@ -288,7 +288,7 @@ private fun NavPill(
         else -> PebbleColors.OnSurfaceMuted
     }
     Box(
-        modifier = Modifier.width(96.dp).height(40.dp)
+        modifier = Modifier.width(96.dp).height(36.dp)
             .focusRequester(focusRequester)
             .onGloballyPositioned { onPositioned(it.boundsInRoot()) }
             .onFocusChanged { onFocusChanged(it.isFocused) }
