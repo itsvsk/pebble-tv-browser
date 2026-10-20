@@ -321,6 +321,10 @@ private fun HistoryRow(entry: HistoryEntry, onOpen: () -> Unit, onLongClick: () 
     }
     Row(
         modifier = Modifier
+            .graphicsLayer {
+                // Reuse the glass tile while the list moves it across the screen.
+                compositingStrategy = CompositingStrategy.Offscreen
+            }
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
             .height(72.dp)
