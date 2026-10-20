@@ -378,7 +378,7 @@ private fun TabCard(
                         true
                     } else false
                 }
-                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
+                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource, gapWidth = 0.dp)
                 .seaGlass(PebbleShape.Md, if (isCurrent) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 4.dp)
                 .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
                 .padding(PebbleDimens.Sp3)
@@ -487,7 +487,7 @@ private fun NewTabCard(
                         true
                     } else false
                 }
-                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
+                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource, gapWidth = 0.dp)
                 .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
                 .pebbleClickable(onClick = onClick)
                 .width(178.dp)

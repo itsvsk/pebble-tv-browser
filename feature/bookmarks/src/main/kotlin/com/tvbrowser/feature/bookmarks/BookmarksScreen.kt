@@ -229,7 +229,7 @@ private fun BookmarkRow(bm: Bookmark, onOpen: () -> Unit, onLongClick: () -> Uni
         )
         Row(
             modifier = Modifier
-                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource)
+                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource, gapWidth = 0.dp)
                 .fillMaxWidth()
                 .height(104.dp)
                 .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)

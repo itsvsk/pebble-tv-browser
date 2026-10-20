@@ -2,6 +2,13 @@ package com.tvbrowser.feature.history
 
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,12 +33,20 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -41,6 +56,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -52,6 +68,7 @@ import com.tvbrowser.core.db.repo.HistoryRepository
 import com.tvbrowser.core.design.PebbleColors
 import com.tvbrowser.core.design.seaGlass
 import com.tvbrowser.core.design.PebbleDimens
+import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
 import com.tvbrowser.core.design.pebbleClickable
@@ -64,6 +81,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -125,12 +144,48 @@ fun HistoryScreen(
     val entries by vm.entries.collectAsState()
     val bookmarkedUrls by vm.bookmarkedUrls.collectAsState()
     val menuEntry by vm.selectedForMenu.collectAsState()
+    val listState = rememberLazyListState()
+    var headerVisible by remember { mutableStateOf(true) }
+    var revealedByNavigation by remember { mutableStateOf(false) }
+    LaunchedEffect(listState, entries.isNotEmpty()) {
+        var lastIndex = listState.firstVisibleItemIndex
+        var lastOffset = listState.firstVisibleItemScrollOffset
+        snapshotFlow {
+            Triple(listState.isScrollInProgress, listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
+        }.collectLatest { (scrolling, index, offset) ->
+            val movedDown = index > lastIndex || (index == lastIndex && offset > lastOffset)
+            val movedUp = index < lastIndex || (index == lastIndex && offset < lastOffset)
+            lastIndex = index
+            lastOffset = offset
+            when {
+                scrolling && movedDown && !revealedByNavigation -> headerVisible = false
+                scrolling && movedUp -> headerVisible = true
+                !scrolling -> {
+                    delay(300)
+                    headerVisible = true
+                    revealedByNavigation = false
+                }
+            }
+        }
+    }
+    BackHandler(enabled = !headerVisible && menuEntry == null) {
+        revealedByNavigation = true
+        headerVisible = true
+    }
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().padding(vertical = PebbleDimens.Sp8)) {
-            Box(Modifier.fillMaxWidth().padding(horizontal = PebbleDimens.Gutter)) {
-                Header(onClear = { vm.clearAll() })
+            AnimatedVisibility(
+                visible = headerVisible,
+                enter = expandVertically(tween(PebbleMotion.DurationFastMs)) + fadeIn(tween(PebbleMotion.DurationFastMs)),
+                exit = shrinkVertically(tween(PebbleMotion.DurationFastMs)) + fadeOut(tween(PebbleMotion.DurationFastMs)),
+            ) {
+                Column {
+                    Box(Modifier.fillMaxWidth().padding(horizontal = PebbleDimens.Gutter)) {
+                        Header(onClear = { vm.clearAll() })
+                    }
+                    Spacer(Modifier.height(PebbleDimens.Sp6))
+                }
             }
-            Spacer(Modifier.height(PebbleDimens.Sp6))
             if (entries.isEmpty()) {
                 Text("No history yet.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted,
                     modifier = Modifier.padding(horizontal = PebbleDimens.Gutter))
@@ -138,12 +193,22 @@ fun HistoryScreen(
             }
             val groups = remember(entries) { groupByDay(entries) }
             LazyColumn(
+                state = listState,
                 verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
                 contentPadding = PaddingValues(
                     start = PebbleDimens.Gutter, end = PebbleDimens.Gutter,
                     top = PebbleDimens.Sp2, bottom = PebbleDimens.Sp4,
                 ),
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = Modifier.fillMaxWidth().weight(1f)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
+                            revealedByNavigation = true
+                            headerVisible = true
+                        } else if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                            revealedByNavigation = false
+                        }
+                        false
+                    },
             ) {
                 groups.forEach { (label, rows) ->
                     item(key = "h-$label") { DayHeader(label) }
