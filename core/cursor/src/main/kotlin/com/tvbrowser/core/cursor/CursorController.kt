@@ -1,7 +1,9 @@
 package com.tvbrowser.core.cursor
 
 import android.animation.ValueAnimator
+import android.os.Build
 import android.os.SystemClock
+import android.provider.Settings
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -12,6 +14,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.abs
+import kotlin.math.exp
+import kotlin.math.roundToInt
 
 data class CursorState(
     val active: Boolean = false,
@@ -47,6 +52,7 @@ class CursorController @Inject constructor() {
     private var scrollAnimator: ValueAnimator? = null
     private var scrollTargetX = 0
     private var scrollTargetY = 0
+    private var lastScrollFrameMs = 0L
     private var lastScrollDirectionX = 0
     private var lastScrollDirectionY = 0
     private var pointerPositionInitialized = false
@@ -60,7 +66,7 @@ class CursorController @Inject constructor() {
     fun attachTarget(view: View?) {
         if (targetView !== view && pointerTouchDown) dispatchTouch(MotionEvent.ACTION_CANCEL)
         scrollAnimator?.cancel()
-        scrollAnimator = null
+        lastScrollFrameMs = 0L
         targetView?.removeOnLayoutChangeListener(layoutListener)
         targetView = view
         view?.let { v ->
@@ -76,7 +82,7 @@ class CursorController @Inject constructor() {
         if (targetView === view) {
             if (pointerTouchDown) dispatchTouch(MotionEvent.ACTION_CANCEL)
             scrollAnimator?.cancel()
-            scrollAnimator = null
+            lastScrollFrameMs = 0L
             view.removeOnLayoutChangeListener(layoutListener)
             targetView = null
         }
@@ -269,22 +275,58 @@ class CursorController @Inject constructor() {
             running && lastScrollDirectionY == directionY -> scrollTargetY + deltaY
             else -> startY + deltaY
         }
-        scrollAnimator?.cancel()
         scrollTargetX = targetX
         scrollTargetY = targetY
         if (deltaX != 0) lastScrollDirectionX = directionX
         if (deltaY != 0) lastScrollDirectionY = directionY
-        scrollAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 220L
-            addUpdateListener {
-                val progress = it.animatedValue as Float
-                view.scrollTo(
-                    startX + ((targetX - startX) * progress).toInt(),
-                    startY + ((targetY - startY) * progress).toInt(),
-                )
-            }
-            start()
+        val animationsEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ValueAnimator.areAnimatorsEnabled()
+        } else {
+            Settings.Global.getFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
         }
+        if (!animationsEnabled) {
+            scrollAnimator?.cancel()
+            view.scrollTo(targetX, targetY)
+            scrollTargetX = view.scrollX
+            scrollTargetY = view.scrollY
+            return
+        }
+        if (!running) {
+            lastScrollFrameMs = 0L
+            val animator = scrollAnimator ?: ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = 1_000L
+                repeatCount = ValueAnimator.INFINITE
+                addUpdateListener { stepWebScroll() }
+            }.also { scrollAnimator = it }
+            animator.start()
+        }
+    }
+
+    private fun stepWebScroll() {
+        val view = targetView ?: run {
+            scrollAnimator?.cancel()
+            return
+        }
+        val now = SystemClock.uptimeMillis()
+        val frameMs = if (lastScrollFrameMs == 0L) 16L else (now - lastScrollFrameMs).coerceIn(1L, 50L)
+        lastScrollFrameMs = now
+        val fraction = 1f - exp(-frameMs / 65f)
+        val startX = view.scrollX
+        val startY = view.scrollY
+        view.scrollTo(scrollStep(startX, scrollTargetX, fraction), scrollStep(startY, scrollTargetY, fraction))
+        if (view.scrollX == startX && scrollTargetX != startX) scrollTargetX = startX
+        if (view.scrollY == startY && scrollTargetY != startY) scrollTargetY = startY
+        if (abs(scrollTargetX - view.scrollX) <= 1 && abs(scrollTargetY - view.scrollY) <= 1) {
+            view.scrollTo(scrollTargetX, scrollTargetY)
+            scrollAnimator?.cancel()
+        }
+    }
+
+    private fun scrollStep(current: Int, target: Int, fraction: Float): Int {
+        val remaining = target - current
+        if (abs(remaining) <= 1) return target
+        val step = (remaining * fraction).roundToInt().takeIf { it != 0 } ?: remaining.sign()
+        return current + step
     }
 
     private fun Int.sign(): Int = when {
