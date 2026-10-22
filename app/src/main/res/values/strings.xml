@@ -8,7 +8,6 @@
     <string name="action_reload">Reload</string>
     <string name="action_back">Back</string>
     <string name="action_forward">Forward</string>
-    <string name="action_incognito">Incognito</string>
     <string name="action_open">Open</string>
     <string name="action_delete">Delete</string>
     <string name="settings_title">Settings</string>
@@ -16,6 +15,5 @@
     <string name="settings_adblock">Block ads &amp; trackers</string>
     <string name="settings_download_path">Default download location</string>
     <string name="settings_clear_data">Clear browsing data</string>
-    <string name="settings_clear_incognito">Clear incognito data</string>
     <string name="settings_cursor_toggle_key">Cursor toggle (long-press OK)</string>
 </resources>

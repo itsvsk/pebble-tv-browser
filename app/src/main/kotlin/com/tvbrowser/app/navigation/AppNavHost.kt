@@ -201,7 +201,12 @@ fun AppNavHost(
             }
             composable(Routes.SETTINGS) {
                 handleBack()
-                SettingsScreen()
+                SettingsScreen(onOpenDownloads = {
+                    nav.navigate(Routes.DOWNLOADS) {
+                        popUpTo(Routes.HOME) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                })
             }
         }
     }

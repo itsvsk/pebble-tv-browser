@@ -29,7 +29,6 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Mouse
-import androidx.compose.material.icons.outlined.NoEncryption
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -95,22 +94,20 @@ class SettingsViewModel @Inject constructor(
     fun setTheme(v: ThemePreference) = viewModelScope.launch { settings.setTheme(v) }
 
     fun clearHistory() = viewModelScope.launch { history.clear() }
-    fun clearIncognito() = viewModelScope.launch {
-        android.webkit.CookieManager.getInstance().removeSessionCookies(null)
-        android.webkit.WebStorage.getInstance().deleteAllData()
-    }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
-fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    onOpenDownloads: () -> Unit,
+    vm: SettingsViewModel = hiltViewModel(),
+) {
     val desktop by vm.desktopUa.collectAsState()
     val ad by vm.adblock.collectAsState()
     val longPress by vm.cursorLongPress.collectAsState()
     val theme by vm.theme.collectAsState()
     val firstFocus = remember { FocusRequester() }
     var showClearHistory by remember { mutableStateOf(false) }
-    var showClearIncognito by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -189,9 +186,9 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                 item {
                     ActionRow(
                         icon = Icons.Outlined.Folder,
-                        title = "Download location",
-                        subtitle = "/storage/emulated/0/Download",
-                        onClick = {},
+                        title = "View downloads",
+                        subtitle = "Saved in Pebble app storage",
+                        onClick = onOpenDownloads,
                     )
                 }
                 item { SectionHeader("Privacy") }
@@ -201,14 +198,6 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                         title = "Clear browsing history",
                         subtitle = "Remove all visited pages from this device",
                         onClick = { showClearHistory = true },
-                    )
-                }
-                item {
-                    ActionRow(
-                        icon = Icons.Outlined.NoEncryption,
-                        title = "Clear incognito data",
-                        subtitle = "Cookies and site storage from private tabs",
-                        onClick = { showClearIncognito = true },
                     )
                 }
             }
@@ -223,18 +212,6 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                     showClearHistory = false
                 },
                 onCancel = { showClearHistory = false },
-            )
-        }
-        if (showClearIncognito) {
-            ConfirmDialog(
-                title = "Clear incognito data?",
-                message = "Cookies and site storage from private tabs will be erased. This cannot be undone.",
-                confirmLabel = "Clear",
-                onConfirm = {
-                    vm.clearIncognito()
-                    showClearIncognito = false
-                },
-                onCancel = { showClearIncognito = false },
             )
         }
     }

@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.tvbrowser.core.common.PrefKeys
 import com.tvbrowser.core.common.SettingsRepository
 import com.tvbrowser.core.common.UrlUtils
-import com.tvbrowser.core.db.entity.TabEntity
 import com.tvbrowser.core.db.repo.BookmarkRepository
 import com.tvbrowser.core.db.repo.HistoryRepository
 import com.tvbrowser.core.db.repo.TabRepository
@@ -41,13 +40,12 @@ class BrowserViewModel @Inject constructor(
     val ui: StateFlow<BrowserUi> = _ui.asStateFlow()
     private val _progress = MutableStateFlow(100)
     val progress: StateFlow<Int> = _progress.asStateFlow()
-
-    private var currentTab: TabEntity? = null
+    private var boundTabId: String? = null
 
     fun bind(tabId: String) {
+        boundTabId = tabId
         viewModelScope.launch {
-            val tab = tabRepo.get(tabId)
-            currentTab = tab
+            val tab = tabManager.privateTab(tabId) ?: tabRepo.get(tabId)
             val desktop = settings.desktopUa.first()
             val adblock = settings.adblockEnabled.first()
             _ui.value = BrowserUi(
@@ -83,6 +81,13 @@ class BrowserViewModel @Inject constructor(
     }
 
     fun onProgress(p: Int) { _progress.value = p.coerceIn(0, 100) }
+
+    override fun onCleared() {
+        // A private tab is absent from the persisted Tabs list. The navigation entry owns it,
+        // so remove its WebView and in-memory metadata when that entry leaves the back stack.
+        boundTabId?.takeIf { tabManager.privateTab(it) != null }?.let(tabManager::release)
+        super.onCleared()
+    }
 
     fun submitOmnibox(input: String): String {
         val target = UrlUtils.toQueryOrUrl(input)

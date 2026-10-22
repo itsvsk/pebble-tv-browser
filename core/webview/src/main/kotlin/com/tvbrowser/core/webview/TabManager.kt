@@ -23,6 +23,7 @@ class TabManager @Inject constructor(
     companion object { const val MAX_LIVE = 8 }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val privateTabs = PrivateTabRegistry()
     private val live = object : LinkedHashMap<String, WebView>(MAX_LIVE, 0.75f, true) {
         override fun removeEldestEntry(eldest: Map.Entry<String, WebView>?): Boolean {
             val over = size > MAX_LIVE
@@ -34,12 +35,18 @@ class TabManager @Inject constructor(
     @Synchronized
     fun getOrCreate(tabId: String, config: TabConfig = TabConfig()): WebView {
         live[tabId]?.let { return it }
+        val privateTab = privateTabs.get(tabId) != null
+        val effectiveConfig = if (privateTab && !config.isIncognito) {
+            TabConfig(isIncognito = true, desktopUa = config.desktopUa, adblockEnabled = config.adblockEnabled)
+        } else config
         val wv = TabWebViewFactory.create(
             context = context,
-            config = config,
+            config = effectiveConfig,
             adBlock = adBlock,
             onPageFinished = { url, title ->
-                if (!config.isIncognito) {
+                if (effectiveConfig.isIncognito) {
+                    privateTabs.updatePage(tabId, url, title)
+                } else {
                     scope.launch {
                         tabRepo.get(tabId)?.let { t ->
                             tabRepo.upsert(t.copy(url = url, title = title, lastActiveAt = System.currentTimeMillis()))
@@ -55,17 +62,23 @@ class TabManager @Inject constructor(
     @Synchronized
     fun release(tabId: String) {
         live.remove(tabId)?.destroy()
+        privateTabs.remove(tabId)
     }
 
     @Synchronized
     fun destroyAll() {
         live.values.forEach { it.destroy() }
         live.clear()
+        privateTabs.clear()
     }
+
+    fun privateTab(tabId: String): TabEntity? = privateTabs.get(tabId)
 
     suspend fun newTab(initialUrl: String, isIncognito: Boolean = false): String {
         val id = UUID.randomUUID().toString()
-        if (!isIncognito) {
+        if (isIncognito) {
+            privateTabs.add(id, initialUrl)
+        } else {
             tabRepo.upsert(TabEntity(id = id, url = initialUrl, isIncognito = false))
         }
         return id
