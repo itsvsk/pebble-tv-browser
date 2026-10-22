@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cancel
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Folder
@@ -79,6 +80,8 @@ class DownloadsViewModel @Inject constructor(
     private val dmRepo: DownloadManagerRepo,
 ) : ViewModel() {
 
+    val downloadLocation: String = dmRepo.defaultDirectory()?.absolutePath ?: "Storage unavailable"
+
     val records: StateFlow<List<DownloadRecord>> = repo.all()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -94,6 +97,8 @@ class DownloadsViewModel @Inject constructor(
 
     private val _selectedForMenu = MutableStateFlow<DownloadRecord?>(null)
     val selectedForMenu: StateFlow<DownloadRecord?> = _selectedForMenu.asStateFlow()
+    private val _operationError = MutableStateFlow<String?>(null)
+    val operationError: StateFlow<String?> = _operationError.asStateFlow()
 
     fun showMenu(r: DownloadRecord) { _selectedForMenu.value = r }
     fun dismissMenu() { _selectedForMenu.value = null }
@@ -101,7 +106,13 @@ class DownloadsViewModel @Inject constructor(
     fun cancel(record: DownloadRecord) {
         viewModelScope.launch { dmRepo.cancel(record.dmId) }
     }
-    fun open(record: DownloadRecord) { dmRepo.openFile(record) }
+    fun open(record: DownloadRecord) {
+        if (!dmRepo.openFile(record)) {
+            _operationError.value = "The file is missing, or no app on this TV can open it."
+        }
+    }
+
+    fun dismissError() { _operationError.value = null }
 
     fun deleteRecord(record: DownloadRecord) {
         viewModelScope.launch {
@@ -120,6 +131,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
     val records by vm.records.collectAsState()
     val progress by vm.progress.collectAsState()
     val menuRecord by vm.selectedForMenu.collectAsState()
+    val operationError by vm.operationError.collectAsState()
     var filter by remember { mutableStateOf("All") }
 
     val visibleRecords = records.filter { matchesFilter(it, filter) }
@@ -129,7 +141,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (records.isEmpty()) {
-            EmptyDownloads()
+            EmptyDownloads(vm.downloadLocation)
         } else Row(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)) {
             Box(
                 modifier = Modifier.weight(1f).fillMaxHeight()
@@ -153,7 +165,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
             ) {
                 Header(active = active.size, done = done.size)
                 Spacer(Modifier.height(PebbleDimens.Sp4))
-                DefaultLocationCard(path = "/storage/emulated/0/Download")
+                DefaultLocationCard(path = vm.downloadLocation)
                 Spacer(Modifier.height(PebbleDimens.Sp4))
                 Row(horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2)) {
                     listOf("All", "Videos", "Documents", "Packages").forEach { option ->
@@ -221,11 +233,14 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
             onDismiss = { vm.dismissMenu() },
         )
     }
+    operationError?.let { message ->
+        DownloadErrorDialog(message = message, onDismiss = vm::dismissError)
+    }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun EmptyDownloads() {
+private fun EmptyDownloads(downloadLocation: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -236,7 +251,7 @@ private fun EmptyDownloads() {
         Header(active = 0, done = 0)
         Spacer(Modifier.height(PebbleDimens.Sp5))
         Box(Modifier.width(480.dp)) {
-            DefaultLocationCard(path = "/storage/emulated/0/Download")
+            DefaultLocationCard(path = downloadLocation)
         }
         Column(
             modifier = Modifier.fillMaxWidth().weight(1f),
@@ -312,9 +327,9 @@ private fun DefaultLocationCard(path: String) {
         IconWell(Icons.Outlined.Folder)
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text("DEFAULT DOWNLOAD LOCATION", style = PebbleType.Overline, color = PebbleColors.OnSurfaceFaint)
+            Text("APP DOWNLOAD LOCATION", style = PebbleType.Overline, color = PebbleColors.OnSurfaceFaint)
             Spacer(Modifier.height(2.dp))
-            Text(path, style = PebbleType.Mono, color = PebbleColors.OnSurface)
+            Text(path, style = PebbleType.Mono, color = PebbleColors.OnSurface, maxLines = 2)
         }
     }
 }
@@ -507,6 +522,31 @@ private fun DownloadContextMenu(
             }
         }
         LaunchedEffect(Unit) { firstFocus.requestFocus() }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun DownloadErrorDialog(message: String, onDismiss: () -> Unit) {
+    val dismissFocus = remember { FocusRequester() }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.width(500.dp)
+                .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 8.dp)
+                .padding(20.dp),
+        ) {
+            Text("Download error", style = PebbleType.Title, color = PebbleColors.OnSurface)
+            Spacer(Modifier.height(12.dp))
+            Text(message, style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+            Spacer(Modifier.height(20.dp))
+            MenuRow(
+                label = "Dismiss",
+                icon = Icons.Outlined.Check,
+                onClick = onDismiss,
+                modifier = Modifier.focusRequester(dismissFocus),
+            )
+        }
+        LaunchedEffect(Unit) { dismissFocus.requestFocus() }
     }
 }
 
