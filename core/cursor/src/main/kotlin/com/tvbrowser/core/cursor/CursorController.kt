@@ -7,6 +7,7 @@ import android.provider.Settings
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,7 +38,13 @@ data class CursorMode(val active: Boolean = false, val preferredActive: Boolean 
  * - Outside cursor mode: returns false so spatial focus traversal works normally
  */
 @Singleton
-class CursorController @Inject constructor() {
+class CursorController private constructor(
+    private val animatorsEnabled: (View) -> Boolean,
+) {
+    @Inject constructor() : this(::systemAnimationsEnabled)
+
+    @VisibleForTesting
+    constructor(animationsEnabled: Boolean) : this({ animationsEnabled })
 
     private val _state = MutableStateFlow(CursorState())
     val state: StateFlow<CursorState> = _state.asStateFlow()
@@ -279,12 +286,7 @@ class CursorController @Inject constructor() {
         scrollTargetY = targetY
         if (deltaX != 0) lastScrollDirectionX = directionX
         if (deltaY != 0) lastScrollDirectionY = directionY
-        val animationsEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            ValueAnimator.areAnimatorsEnabled()
-        } else {
-            Settings.Global.getFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
-        }
-        if (!animationsEnabled) {
+        if (!animatorsEnabled(view)) {
             scrollAnimator?.cancel()
             view.scrollTo(targetX, targetY)
             scrollTargetX = view.scrollX
@@ -353,3 +355,10 @@ class CursorController @Inject constructor() {
         if (action != MotionEvent.ACTION_DOWN) pointerTouchDown = false
     }
 }
+
+private fun systemAnimationsEnabled(view: View): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        ValueAnimator.areAnimatorsEnabled()
+    } else {
+        Settings.Global.getFloat(view.context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
+    }
