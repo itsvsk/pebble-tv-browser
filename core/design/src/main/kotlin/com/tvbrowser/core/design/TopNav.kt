@@ -75,8 +75,6 @@ fun TopNav(
     onToggleCursor: () -> Unit,
 ) {
     var now by remember { mutableStateOf(LocalTime.now()) }
-    val settingsFocusSource = remember { MutableInteractionSource() }
-    val settingsFocused by settingsFocusSource.collectIsFocusedAsState()
     val cursorFocusSource = remember { MutableInteractionSource() }
     val cursorFocused by cursorFocusSource.collectIsFocusedAsState()
     val cursorTint by animateColorAsState(
@@ -89,25 +87,13 @@ fun TopNav(
         tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
         label = "cursor-control-elevation",
     )
-    val settingsGlow by animateFloatAsState(
-        if (settingsFocused) 1f else 0f,
-        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
-        label = "settings-focus-glow",
-    )
-    val settingsTint by animateColorAsState(
-        if (settingsFocused) PebbleColors.Primary else PebbleColors.PrimaryDim,
-        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
-        label = "settings-icon-tint",
-    )
-    val settingsElevation by animateDpAsState(
-        if (settingsFocused) 10.dp else 0.dp,
-        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
-        label = "settings-focus-elevation",
-    )
     var focusedPill by remember { mutableStateOf<NavDestination?>(null) }
+    // Keep the highlight at the last focused pill while it fades out. Falling back to
+    // the selected pill makes it visibly travel backwards when focus reaches Settings.
+    var highlightPill by remember { mutableStateOf<NavDestination?>(null) }
     var navOrigin by remember { mutableStateOf<Offset?>(null) }
     var pillBounds by remember { mutableStateOf<Map<NavDestination, Rect>>(emptyMap()) }
-    val highlightBounds = pillBounds[focusedPill] ?: pillBounds[active]
+    val highlightBounds = highlightPill?.let(pillBounds::get)
     val highlightTarget = highlightBounds?.let { bounds ->
         navOrigin?.let { origin ->
             Rect(
@@ -184,7 +170,10 @@ fun TopNav(
                         selected = active == destination,
                         focusRequester = focusRequesters.getValue(destination),
                         onFocusChanged = { focused ->
-                            if (focused) focusedPill = destination
+                            if (focused) {
+                                focusedPill = destination
+                                highlightPill = destination
+                            }
                             onFocusedDestinationChanged(destination, focused)
                         },
                         onPositioned = { bounds ->
@@ -235,35 +224,68 @@ fun TopNav(
         }
         Text(now.format(DateTimeFormatter.ofPattern("hh:mm a")), style = PebbleType.Label, color = PebbleColors.OnSurface)
         Spacer(Modifier.width(14.dp))
-        Box(
-            modifier = Modifier.size(34.dp)
-                .focusRequester(focusRequesters.getValue(NavDestination.Settings))
-                .onFocusChanged { onFocusedDestinationChanged(NavDestination.Settings, it.isFocused) }
-                .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
-                        focusRequesters.getValue(NavDestination.Home).requestFocus()
-                        true
-                    } else false
-                }
-                .pebbleFocus(
-                    shape = CircleShape, lift = false, tight = true,
-                    interactionSource = settingsFocusSource,
-                    ringColorOverride = Color.Transparent,
-                    gapColorOverride = Color.Transparent,
-                )
-                .shadow(
-                    settingsElevation,
-                    CircleShape,
-                    ambientColor = PebbleColors.Primary.copy(alpha = 0.55f * settingsGlow),
-                    spotColor = PebbleColors.Primary.copy(alpha = 0.35f * settingsGlow),
-                )
-                .background(PebbleColors.GlassFocus.copy(alpha = 0.7f * settingsGlow), CircleShape)
-                .border(1.dp, Color.White.copy(alpha = settingsGlow), CircleShape)
-                .pebbleClickable(onClick = { onSelect(NavDestination.Settings) }),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = settingsTint, modifier = Modifier.size(18.dp))
-        }
+        SettingsButton(
+            focusRequester = focusRequesters.getValue(NavDestination.Settings),
+            homeFocusRequester = focusRequesters.getValue(NavDestination.Home),
+            onFocusedChanged = { onFocusedDestinationChanged(NavDestination.Settings, it) },
+            onClick = { onSelect(NavDestination.Settings) },
+        )
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun SettingsButton(
+    focusRequester: FocusRequester,
+    homeFocusRequester: FocusRequester,
+    onFocusedChanged: (Boolean) -> Unit,
+    onClick: () -> Unit,
+) {
+    val focusSource = remember { MutableInteractionSource() }
+    val focused by focusSource.collectIsFocusedAsState()
+    val glow by animateFloatAsState(
+        if (focused) 1f else 0f,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "settings-focus-glow",
+    )
+    val tint by animateColorAsState(
+        if (focused) PebbleColors.Primary else PebbleColors.PrimaryDim,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "settings-icon-tint",
+    )
+    val elevation by animateDpAsState(
+        if (focused) 10.dp else 0.dp,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "settings-focus-elevation",
+    )
+    Box(
+        modifier = Modifier.size(34.dp)
+            .focusRequester(focusRequester)
+            .onFocusChanged { onFocusedChanged(it.isFocused) }
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionRight) {
+                    homeFocusRequester.requestFocus()
+                    true
+                } else false
+            }
+            .pebbleFocus(
+                shape = CircleShape, lift = false, tight = true,
+                interactionSource = focusSource,
+                ringColorOverride = Color.Transparent,
+                gapColorOverride = Color.Transparent,
+            )
+            .shadow(
+                elevation,
+                CircleShape,
+                ambientColor = PebbleColors.Primary.copy(alpha = 0.55f * glow),
+                spotColor = PebbleColors.Primary.copy(alpha = 0.35f * glow),
+            )
+            .background(PebbleColors.GlassFocus.copy(alpha = 0.7f * glow), CircleShape)
+            .border(1.dp, Color.White.copy(alpha = glow), CircleShape)
+            .pebbleClickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = tint, modifier = Modifier.size(18.dp))
     }
 }
 

@@ -21,7 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -82,19 +81,18 @@ fun Modifier.pebbleFocus(
         tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
         label = "pebble-focus-elevation",
     )
+    val shadowColor = PebbleColors.Primary.copy(alpha = 0.30f)
 
     this
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
             translationY = ty.toPx()
+            shadowElevation = elevation.toPx()
+            this.shape = shape
+            ambientShadowColor = shadowColor
+            spotShadowColor = shadowColor
         }
-        .shadow(
-            elevation,
-            shape,
-            ambientColor = PebbleColors.Primary.copy(alpha = 0.30f),
-            spotColor = PebbleColors.Primary.copy(alpha = 0.30f),
-        )
         .border(ring, ringColor, shape)
         .padding(ring)
         .border(gap, gapColor, shape)

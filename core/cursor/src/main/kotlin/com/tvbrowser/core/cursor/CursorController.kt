@@ -312,10 +312,16 @@ class CursorController private constructor(
         val now = SystemClock.uptimeMillis()
         val frameMs = if (lastScrollFrameMs == 0L) 16L else (now - lastScrollFrameMs).coerceIn(1L, 50L)
         lastScrollFrameMs = now
-        val fraction = 1f - exp(-frameMs / 65f)
+        // Ease toward the accumulated target, but bound a single frame's movement so a
+        // late WebView frame does not turn into a visible jump on the next one.
+        val fraction = 1f - exp(-frameMs / 90f)
+        val maxStep = (view.height / 18).coerceIn(48, 120)
         val startX = view.scrollX
         val startY = view.scrollY
-        view.scrollTo(scrollStep(startX, scrollTargetX, fraction), scrollStep(startY, scrollTargetY, fraction))
+        view.scrollTo(
+            scrollStep(startX, scrollTargetX, fraction, maxStep),
+            scrollStep(startY, scrollTargetY, fraction, maxStep),
+        )
         if (view.scrollX == startX && scrollTargetX != startX) scrollTargetX = startX
         if (view.scrollY == startY && scrollTargetY != startY) scrollTargetY = startY
         if (abs(scrollTargetX - view.scrollX) <= 1 && abs(scrollTargetY - view.scrollY) <= 1) {
@@ -324,11 +330,11 @@ class CursorController private constructor(
         }
     }
 
-    private fun scrollStep(current: Int, target: Int, fraction: Float): Int {
+    private fun scrollStep(current: Int, target: Int, fraction: Float, maxStep: Int): Int {
         val remaining = target - current
         if (abs(remaining) <= 1) return target
         val step = (remaining * fraction).roundToInt().takeIf { it != 0 } ?: remaining.sign()
-        return current + step
+        return current + step.coerceIn(-maxStep, maxStep)
     }
 
     private fun Int.sign(): Int = when {

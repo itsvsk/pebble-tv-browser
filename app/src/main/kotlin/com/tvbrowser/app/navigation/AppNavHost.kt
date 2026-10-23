@@ -3,7 +3,6 @@ package com.tvbrowser.app.navigation
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -130,21 +129,11 @@ fun AppNavHost(
         NavHost(
             navController = nav,
             startDestination = Routes.HOME,
-            enterTransition = {
-                fadeIn(tween(PebbleMotion.ScreenEnterMs, easing = PebbleMotion.Standard)) +
-                    slideInHorizontally(
-                        initialOffsetX = { it / 40 },
-                        animationSpec = tween(PebbleMotion.ScreenEnterMs, easing = PebbleMotion.Standard),
-                    )
-            },
+            // Moving a whole destination repositions its WebView or lazy list every frame.
+            // Let the persistent top rail provide directional motion; crossfade content.
+            enterTransition = { fadeIn(tween(PebbleMotion.ScreenEnterMs, easing = PebbleMotion.Standard)) },
             exitTransition = { fadeOut(tween(PebbleMotion.ScreenExitMs)) },
-            popEnterTransition = {
-                fadeIn(tween(PebbleMotion.ScreenEnterMs, easing = PebbleMotion.Standard)) +
-                    slideInHorizontally(
-                        initialOffsetX = { -it / 40 },
-                        animationSpec = tween(PebbleMotion.ScreenEnterMs, easing = PebbleMotion.Standard),
-                    )
-            },
+            popEnterTransition = { fadeIn(tween(PebbleMotion.ScreenEnterMs, easing = PebbleMotion.Standard)) },
             popExitTransition = { fadeOut(tween(PebbleMotion.ScreenExitMs)) },
         ) {
             composable(Routes.HOME) {
