@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
@@ -23,6 +25,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
@@ -42,21 +48,36 @@ fun RootShell(
     content: @Composable () -> Unit,
 ) {
     val palette = LocalPebblePalette.current
-    val grain = remember(palette.isDark) { createPaperGrain(palette.isDark) }
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val backgroundSize = with(density) {
+        IntSize(
+            configuration.screenWidthDp.dp.roundToPx().coerceAtLeast(1),
+            configuration.screenHeightDp.dp.roundToPx().coerceAtLeast(1),
+        )
+    }
+    val background = produceState<ImageBitmap?>(null, palette, backgroundSize) {
+        value = withContext(Dispatchers.Default) {
+            createBackgroundBitmap(
+                backgroundSize.width,
+                backgroundSize.height,
+                palette,
+                createPaperGrain(palette.isDark),
+            )
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .drawWithCache {
-                // Rasterize the sea-glass canvas once per size/theme. Focus movement then
-                // draws one image rather than five full-screen shader passes per frame.
-                val background = createBackgroundBitmap(
+                val image = background.value
+                val destinationSize = IntSize(
                     size.width.roundToInt().coerceAtLeast(1),
                     size.height.roundToInt().coerceAtLeast(1),
-                    palette,
-                    grain,
                 )
                 onDrawBehind {
-                    drawImage(background)
+                    if (image == null) drawRect(palette.Bg)
+                    else drawImage(image, dstSize = destinationSize)
                 }
             },
     ) {
