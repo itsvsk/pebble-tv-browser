@@ -47,11 +47,11 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -88,12 +88,12 @@ fun TopNav(
         label = "cursor-control-elevation",
     )
     var focusedPill by remember { mutableStateOf<NavDestination?>(null) }
-    // Keep the highlight at the last focused pill while it fades out. Falling back to
-    // the selected pill makes it visibly travel backwards when focus reaches Settings.
-    var highlightPill by remember { mutableStateOf<NavDestination?>(null) }
     var navOrigin by remember { mutableStateOf<Offset?>(null) }
     var pillBounds by remember { mutableStateOf<Map<NavDestination, Rect>>(emptyMap()) }
-    val highlightBounds = highlightPill?.let(pillBounds::get)
+    // A fast series of D-pad presses can leave the spring behind the focused pill.
+    // Remove it as soon as focus leaves this group so it cannot trail across the
+    // selected tab while the Settings focus glow appears.
+    val highlightBounds = focusedPill?.let(pillBounds::get)
     val highlightTarget = highlightBounds?.let { bounds ->
         navOrigin?.let { origin ->
             Rect(
@@ -102,11 +102,6 @@ fun TopNav(
             )
         }
     }
-    val highlightAlpha by animateFloatAsState(
-        targetValue = if (focusedPill != null) 1f else 0f,
-        animationSpec = tween(PebbleMotion.DurationFastMs),
-        label = "nav-highlight-alpha",
-    )
     LaunchedEffect(Unit) {
         while (true) {
             now = LocalTime.now()
@@ -144,6 +139,7 @@ fun TopNav(
                 Box(
                     Modifier
                         .size(100.dp, 36.dp)
+                        .testTag("top-nav-focus-highlight")
                         .graphicsLayer {
                             val rect = highlightRect
                             transformOrigin = TransformOrigin(0f, 0f)
@@ -151,8 +147,6 @@ fun TopNav(
                             translationY = rect.top
                             scaleX = if (size.width > 0f) rect.width / size.width else 0f
                             scaleY = if (size.height > 0f) rect.height / size.height else 0f
-                            alpha = highlightAlpha
-                            compositingStrategy = CompositingStrategy.ModulateAlpha
                         }
                         .seaGlass(PebbleShape.Full, PebbleColors.GlassFocus, 10.dp, emphasized = true),
                 )
@@ -172,7 +166,6 @@ fun TopNav(
                         onFocusChanged = { focused ->
                             if (focused) {
                                 focusedPill = destination
-                                highlightPill = destination
                             }
                             onFocusedDestinationChanged(destination, focused)
                         },
