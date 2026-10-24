@@ -1,5 +1,7 @@
 # Pebble roadmap tasks
 
+**Next execution order (2026-10-24):** 5 (measure first-launch motion), 4 (remote and accessibility regression coverage), 3's end-to-end download check plus 7 (browser reliability), then 6 (layout polish). Private storage isolation and a Room migration remain conditional on exposing private browsing and changing the schema.
+
 ## 1. Correct private browsing behavior
 
 - [x] Keep an open private tab's URL and private flag in memory through page navigation, and release it when its Browser navigation entry is removed.
@@ -54,13 +56,14 @@
 
 ## 5. Measure and reduce navigation latency
 
-- [ ] Record release-like startup, Home-to-Browse, menu-open, and long-list scroll timing and frame data.
+- [x] Move sea-glass background rasterization off the UI thread; confirm the updated TV navigation test still passes (`d200605`).
+- [ ] Record repeatable release-like cold startup with immediate D-pad input, Home-to-Browse, menu-open, and long-list scroll timing and frame data on the same device.
 - [ ] Compare live context WebView previews with a static or cached preview; adopt the change only if it improves results without harming usability.
-- [ ] Add a Baseline Profile for proven startup and critical navigation paths, then verify the gain.
+- [ ] Add a Baseline Profile for proven startup and critical navigation paths, then verify the gain against the unprofiled build.
 
 **Likely files:** Home, Tabs, Bookmarks, and History screens; new benchmark/profile module
 **Scope:** Medium tasks, implemented sequentially.
-**Verification:** Repeatable benchmark results on the same emulator/device and release-like build.
+**Verification:** Keep a before/after benchmark record with cold-start time and frame timing for the same journeys and device; review slow-frame traces before further code changes.
 **Depends on:** None; measurement precedes implementation.
 
 ## 6. Polish layouts across TV sizes
@@ -72,6 +75,16 @@
 **Likely files:** `feature/home/HomeScreen.kt`, `feature/bookmarks/BookmarksScreen.kt`, other affected feature screens
 **Scope:** Small to medium per screen.
 **Verification:** Emulator screenshots and D-pad traversal at both sizes.
+**Depends on:** None.
+
+## 7. Verify browser reliability on TV
+
+- [ ] Navigate a page backward and forward, switch tabs, and relaunch the app; confirm each action returns to the expected page and focus target.
+- [ ] Change the theme, restart the app, and confirm the selected theme and readable focus states persist.
+
+**Likely files:** `feature/browser/BrowserScreen.kt`, `app/navigation/AppNavHost.kt`, `feature/settings/SettingsScreen.kt` if failures are observed.
+**Scope:** Small verification pass; split any observed defects into focused fixes.
+**Verification:** Record the D-pad steps and results on Android TV; add a regression test for each reproducible defect.
 **Depends on:** None.
 
 ## Final checkpoint
