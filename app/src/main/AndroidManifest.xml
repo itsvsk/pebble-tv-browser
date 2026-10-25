@@ -27,6 +27,8 @@
         android:usesCleartextTraffic="false"
         tools:targetApi="35">
 
+        <profileable android:shell="true" />
+
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout|uiMode"
