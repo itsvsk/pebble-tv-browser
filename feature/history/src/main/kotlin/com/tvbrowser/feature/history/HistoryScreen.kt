@@ -1,7 +1,5 @@
 package com.tvbrowser.feature.history
 
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -57,7 +55,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -80,6 +77,7 @@ import com.tvbrowser.core.design.PebbleDimens
 import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
+import com.tvbrowser.core.design.WebsitePreview
 import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
 import com.tvbrowser.core.webview.TabManager
@@ -381,8 +379,8 @@ private fun HistoryContextMenu(
                     .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(18.dp),
             ) {
-                HistoryWebViewPreview(
-                    url = entry.url,
+                WebsitePreview(
+                    host = host,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
@@ -450,33 +448,6 @@ private fun MenuRow(
     }
 }
 
-@Composable
-private fun HistoryWebViewPreview(url: String, modifier: Modifier = Modifier) {
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.useWideViewPort = true
-                settings.loadWithOverviewMode = true
-                setInitialScale(50)
-                isFocusable = false
-                isFocusableInTouchMode = false
-                webViewClient = WebViewClient()
-                loadUrl(url)
-            }
-        },
-        update = { wv -> if (wv.url != url) wv.loadUrl(url) },
-        onRelease = { wv ->
-            wv.stopLoading()
-            wv.loadUrl("about:blank")
-            wv.onPause()
-            wv.removeAllViews()
-            wv.destroy()
-        },
-    )
-}
 
 private fun groupByDay(entries: List<HistoryEntry>): List<Pair<String, List<HistoryEntry>>> {
     val today = LocalDate.now()

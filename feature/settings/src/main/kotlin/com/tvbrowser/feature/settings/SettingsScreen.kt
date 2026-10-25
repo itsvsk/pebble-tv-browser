@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AdsClick
@@ -121,7 +122,8 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
                 contentPadding = PaddingValues(horizontal = PebbleDimens.Sp2, vertical = PebbleDimens.Sp2),
                 modifier = Modifier
-                    .width(880.dp)
+                    .widthIn(max = 880.dp)
+                    .fillMaxWidth()
                     .focusProperties { enter = { firstFocus } },
             ) {
                 item { SectionHeader("Appearance") }

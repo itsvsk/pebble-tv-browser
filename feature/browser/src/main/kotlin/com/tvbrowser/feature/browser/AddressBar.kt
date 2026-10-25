@@ -47,6 +47,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -222,15 +223,21 @@ private fun AddressPill(
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
+    val editorFocusRequester = remember { FocusRequester() }
+    var editorHasFocus by remember { mutableStateOf(false) }
     val host = remember(url) { url.substringAfter("://", url) }
     val secure = url.startsWith("https://", ignoreCase = true)
+    LaunchedEffect(editing) {
+        if (editing) editorFocusRequester.requestFocus()
+    }
     Row(
         modifier = modifier
             .height(42.dp)
+            .testTag("browser-address")
             .pebbleFocus(shape = PebbleShape.Full, lift = false)
             .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 2.dp)
+            .pebbleClickable(onClick = { onEditingChange(true) }, onClickLabel = "Edit address")
             .padding(horizontal = 16.dp)
-            .onFocusChanged { onEditingChange(it.isFocused) }
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (e.key) {
@@ -262,7 +269,16 @@ private fun AddressPill(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { onSubmit() }),
                 cursorBrush = SolidColor(PebbleColors.Primary),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f)
+                    .testTag("browser-address-editor")
+                    .focusRequester(editorFocusRequester)
+                    .onFocusChanged { state ->
+                        if (state.isFocused) editorHasFocus = true
+                        else if (editorHasFocus) {
+                            editorHasFocus = false
+                            onEditingChange(false)
+                        }
+                    },
                 decorationBox = { inner ->
                     if (text.isEmpty()) {
                         Text("Search or type URL", style = PebbleType.Title, color = PebbleColors.OnSurfaceFaint)

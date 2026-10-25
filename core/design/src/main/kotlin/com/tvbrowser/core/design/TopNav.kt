@@ -51,6 +51,8 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
@@ -74,6 +76,9 @@ fun TopNav(
     cursorModeActive: Boolean?,
     onToggleCursor: () -> Unit,
 ) {
+    val largeText = LocalDensity.current.fontScale > 1.1f
+    val compactLargeText = largeText && LocalConfiguration.current.screenWidthDp < 1000
+    val pillWidth = if (largeText) 128.dp else 96.dp
     var now by remember { mutableStateOf(LocalTime.now()) }
     val cursorFocusSource = remember { MutableInteractionSource() }
     val cursorFocused by cursorFocusSource.collectIsFocusedAsState()
@@ -113,13 +118,15 @@ fun TopNav(
             .fillMaxWidth()
             .height(72.dp)
             .background(PebbleColors.Surface1.copy(alpha = 0.75f))
-            .padding(horizontal = PebbleDimens.Gutter),
+            .padding(horizontal = if (compactLargeText) PebbleDimens.Sp6 else PebbleDimens.Gutter),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         PebbleLogo(size = 28.dp)
-        Spacer(Modifier.width(10.dp))
-        Text("Pebble", style = PebbleType.Title.copy(fontWeight = FontWeight.W700), color = PebbleColors.OnSurface)
-        Spacer(Modifier.width(PebbleDimens.Sp5))
+        if (!compactLargeText) {
+            Spacer(Modifier.width(10.dp))
+            Text("Pebble", style = PebbleType.Title.copy(fontWeight = FontWeight.W700), color = PebbleColors.OnSurface)
+        }
+        Spacer(Modifier.width(if (compactLargeText) PebbleDimens.Sp2 else PebbleDimens.Sp5))
         Box(
             modifier = Modifier
                 .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 5.dp)
@@ -161,6 +168,7 @@ fun TopNav(
                 ).forEach { destination ->
                     NavPill(
                         destination = destination,
+                        width = pillWidth,
                         selected = active == destination,
                         focusRequester = focusRequesters.getValue(destination),
                         onFocusChanged = { focused ->
@@ -196,7 +204,10 @@ fun TopNav(
                         gapColorOverride = Color.Transparent,
                     )
                     .seaGlass(PebbleShape.Full, cursorTint, cursorElevation)
-                    .pebbleClickable(onClick = onToggleCursor)
+                    .pebbleClickable(
+                        onClick = onToggleCursor,
+                        onClickLabel = "Switch navigation mode",
+                    )
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -207,16 +218,20 @@ fun TopNav(
                     tint = PebbleColors.Primary,
                     modifier = Modifier.size(20.dp),
                 )
-                Text(
-                    if (cursorModeActive) "Pointer" else "D-pad",
-                    style = PebbleType.LabelSm,
-                    color = PebbleColors.OnSurface,
-                )
+                if (!compactLargeText) {
+                    Text(
+                        if (cursorModeActive) "Pointer" else "D-pad",
+                        style = PebbleType.LabelSm,
+                        color = PebbleColors.OnSurface,
+                    )
+                }
             }
             Spacer(Modifier.width(14.dp))
         }
-        Text(now.format(DateTimeFormatter.ofPattern("hh:mm a")), style = PebbleType.Label, color = PebbleColors.OnSurface)
-        Spacer(Modifier.width(14.dp))
+        if (!compactLargeText) {
+            Text(now.format(DateTimeFormatter.ofPattern("hh:mm a")), style = PebbleType.Label, color = PebbleColors.OnSurface)
+            Spacer(Modifier.width(14.dp))
+        }
         SettingsButton(
             focusRequester = focusRequesters.getValue(NavDestination.Settings),
             homeFocusRequester = focusRequesters.getValue(NavDestination.Home),
@@ -253,6 +268,7 @@ private fun SettingsButton(
     )
     Box(
         modifier = Modifier.size(34.dp)
+            .testTag("top-nav-settings")
             .focusRequester(focusRequester)
             .onFocusChanged { onFocusedChanged(it.isFocused) }
             .onPreviewKeyEvent { event ->
@@ -275,7 +291,7 @@ private fun SettingsButton(
             )
             .background(PebbleColors.GlassFocus.copy(alpha = 0.7f * glow), CircleShape)
             .border(1.dp, Color.White.copy(alpha = glow), CircleShape)
-            .pebbleClickable(onClick = onClick),
+            .pebbleClickable(onClick = onClick, onClickLabel = "Open settings"),
         contentAlignment = Alignment.Center,
     ) {
         Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = tint, modifier = Modifier.size(18.dp))
@@ -286,6 +302,7 @@ private fun SettingsButton(
 @Composable
 private fun NavPill(
     destination: NavDestination,
+    width: androidx.compose.ui.unit.Dp,
     selected: Boolean,
     focusRequester: FocusRequester,
     onFocusChanged: (Boolean) -> Unit,
@@ -303,7 +320,8 @@ private fun NavPill(
         else -> PebbleColors.OnSurfaceMuted
     }
     Box(
-        modifier = Modifier.width(96.dp).height(36.dp)
+        modifier = Modifier.width(width).height(36.dp)
+            .testTag("top-nav-${destination.name.lowercase()}")
             .focusRequester(focusRequester)
             .onGloballyPositioned { onPositioned(it.boundsInRoot()) }
             .onFocusChanged { onFocusChanged(it.isFocused) }
@@ -333,7 +351,7 @@ private fun NavPill(
                 )
                 else -> Modifier
             })
-            .pebbleClickable(onClick = onClick)
+            .pebbleClickable(onClick = onClick, onClickLabel = "Open ${destination.label}")
             .padding(PebbleDimens.Sp1),
         contentAlignment = Alignment.Center,
     ) {

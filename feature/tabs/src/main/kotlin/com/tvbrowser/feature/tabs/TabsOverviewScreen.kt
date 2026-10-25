@@ -65,6 +65,7 @@ import com.tvbrowser.core.design.PebbleElevation
 import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
+import com.tvbrowser.core.design.WebsitePreview
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -73,12 +74,10 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import androidx.compose.ui.viewinterop.AndroidView
 import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
 import kotlinx.coroutines.launch
@@ -312,6 +311,7 @@ private fun Pill(
     Row(
         modifier = Modifier
             .height(48.dp)
+            .testTag(if (label == "New tab") "tabs-new-tab" else "tabs-${label.replace(' ', '-')}")
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged { onFocusChanged(it.isFocused) }
             .then(if (onUp != null || onDown != null) Modifier.onPreviewKeyEvent { event ->
@@ -324,7 +324,7 @@ private fun Pill(
             } else Modifier)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
             .seaGlass(PebbleShape.Full, if (primary) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 3.dp, emphasized = primary)
-            .pebbleClickable(onClick = onClick)
+            .pebbleClickable(onClick = onClick, onClickLabel = label)
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -371,6 +371,7 @@ private fun TabCard(
         )
         Column(
             modifier = Modifier
+                .then(if (focusRequester != null) Modifier.testTag("tabs-list-first") else Modifier)
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
@@ -380,7 +381,12 @@ private fun TabCard(
                 }
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource, gapWidth = 0.dp)
                 .seaGlass(PebbleShape.Md, if (isCurrent) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 4.dp)
-                .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
+                .pebbleClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                    onClickLabel = "Open ${displayTitle}",
+                    onLongClickLabel = "More options for ${displayTitle}",
+                )
                 .padding(PebbleDimens.Sp3)
                 .width(178.dp),
         ) {
@@ -480,6 +486,7 @@ private fun NewTabCard(
     ) {
         Box(
             modifier = Modifier
+                .then(if (focusRequester != null) Modifier.testTag("tabs-list-first") else Modifier)
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionUp) {
@@ -489,7 +496,7 @@ private fun NewTabCard(
                 }
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource, gapWidth = 0.dp)
                 .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
-                .pebbleClickable(onClick = onClick)
+                .pebbleClickable(onClick = onClick, onClickLabel = "Create new tab")
                 .width(178.dp)
                 .height(270.dp),
             contentAlignment = Alignment.Center,
@@ -578,7 +585,7 @@ private fun TabContextMenu(
                             modifier = Modifier.size(64.dp),
                         )
                     } else {
-                        TabWebViewPreview(url = tab.url, modifier = Modifier.fillMaxSize())
+                        WebsitePreview(host = host, modifier = Modifier.fillMaxSize())
                     }
                 }
                 Spacer(Modifier.height(14.dp))
@@ -640,32 +647,4 @@ private fun MenuRow(
         Spacer(Modifier.width(14.dp))
         Text(label, style = PebbleType.Body, color = tint)
     }
-}
-
-@Composable
-private fun TabWebViewPreview(url: String, modifier: Modifier = Modifier) {
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.useWideViewPort = true
-                settings.loadWithOverviewMode = true
-                setInitialScale(50)
-                isFocusable = false
-                isFocusableInTouchMode = false
-                webViewClient = WebViewClient()
-                loadUrl(url)
-            }
-        },
-        update = { wv -> if (wv.url != url) wv.loadUrl(url) },
-        onRelease = { wv ->
-            wv.stopLoading()
-            wv.loadUrl("about:blank")
-            wv.onPause()
-            wv.removeAllViews()
-            wv.destroy()
-        },
-    )
 }

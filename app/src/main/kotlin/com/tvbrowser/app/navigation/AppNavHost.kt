@@ -177,6 +177,7 @@ fun AppNavHost(
                 handleBack()
                 BookmarksScreen(
                     onOpenUrl = ::openBrowser,
+                    onOpenBrowse = { shellVm.openBrowser(::openBrowser) },
                     onOpenHistory = { nav.navigate(Routes.HISTORY) },
                 )
             }

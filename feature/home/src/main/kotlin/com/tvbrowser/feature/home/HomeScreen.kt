@@ -4,8 +4,6 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -64,8 +62,8 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
@@ -85,6 +83,7 @@ import com.tvbrowser.core.design.PebbleElevation
 import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
+import com.tvbrowser.core.design.WebsitePreview
 import com.tvbrowser.core.design.pebbleFocus
 import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.seaGlass
@@ -236,7 +235,7 @@ private fun SearchField(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                     keyboardActions = KeyboardActions(onGo = { onSubmit() }),
                     cursorBrush = SolidColor(PebbleColors.Primary),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag("home-search"),
                     decorationBox = { inner ->
                         if (value.isEmpty()) {
                             Text(
@@ -278,7 +277,7 @@ private fun MicButton(
                     else -> false
                 }
             }
-            .pebbleClickable(onClick = onClick),
+            .pebbleClickable(onClick = onClick, onClickLabel = "Start voice search"),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -323,7 +322,7 @@ private fun MostVisitedSection(
                         .focusRequester(firstTileFocus)
                         .pebbleFocus(shape = PebbleShape.Full, lift = false)
                         .seaGlass(PebbleShape.Full, PebbleColors.GlassMint, 3.dp, emphasized = true)
-                        .pebbleClickable(onClick = onOpenBrowse)
+                        .pebbleClickable(onClick = onOpenBrowse, onClickLabel = "Open Browse")
                         .padding(horizontal = PebbleDimens.Sp4, vertical = PebbleDimens.Sp2),
                 ) {
                     Text("Open Browse", style = PebbleType.Label, color = PebbleColors.OnPrimaryContainer)
@@ -335,6 +334,7 @@ private fun MostVisitedSection(
                     rowItems.forEachIndexed { index, item ->
                         Tile(
                             item = item,
+                            index = rowIndex * 4 + index,
                             onClick = { onClick(item) },
                             onLongClick = { onLongClick(item) },
                             onLeft = if (index == 0) {
@@ -369,6 +369,7 @@ private fun SectionTitle(title: String, subtitle: String) {
 @Composable
 private fun Tile(
     item: MostVisitedView,
+    index: Int,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onLeft: (() -> Unit)?,
@@ -397,6 +398,7 @@ private fun Tile(
         )
         Box(
             modifier = Modifier
+                .testTag("home-speed-dial-$index")
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     when (event.key) {
@@ -407,7 +409,12 @@ private fun Tile(
                 }
                 .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource, gapWidth = 0.dp)
                 .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)
-                .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
+                .pebbleClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                    onClickLabel = "Open ${item.title ?: host}",
+                    onLongClickLabel = "More options for ${item.title ?: host}",
+                )
                 .padding(PebbleDimens.Sp3)
                 .height(108.dp),
         ) {
@@ -483,8 +490,8 @@ private fun TileContextMenu(
                     .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(18.dp),
             ) {
-                WebViewPreview(
-                    url = item.url,
+                WebsitePreview(
+                    host = host,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
@@ -557,32 +564,4 @@ private fun MenuRow(
         Spacer(Modifier.width(14.dp))
         Text(label, style = PebbleType.Body, color = tint)
     }
-}
-
-@Composable
-private fun WebViewPreview(url: String, modifier: Modifier = Modifier) {
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.useWideViewPort = true
-                settings.loadWithOverviewMode = true
-                setInitialScale(50)
-                isFocusable = false
-                isFocusableInTouchMode = false
-                webViewClient = WebViewClient()
-                loadUrl(url)
-            }
-        },
-        update = { wv -> if (wv.url != url) wv.loadUrl(url) },
-        onRelease = { wv ->
-            wv.stopLoading()
-            wv.loadUrl("about:blank")
-            wv.onPause()
-            wv.removeAllViews()
-            wv.destroy()
-        },
-    )
 }

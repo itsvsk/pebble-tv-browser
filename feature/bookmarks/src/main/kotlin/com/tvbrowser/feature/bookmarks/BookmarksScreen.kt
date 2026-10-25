@@ -1,7 +1,5 @@
 package com.tvbrowser.feature.bookmarks
 
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -39,13 +37,13 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -68,6 +66,7 @@ import com.tvbrowser.core.design.PebbleElevation
 import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
+import com.tvbrowser.core.design.WebsitePreview
 import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
 import com.tvbrowser.core.webview.TabManager
@@ -107,6 +106,7 @@ class BookmarksViewModel @Inject constructor(
 @Composable
 fun BookmarksScreen(
     onOpenUrl: (tabId: String) -> Unit,
+    onOpenBrowse: () -> Unit,
     onOpenHistory: () -> Unit,
     vm: BookmarksViewModel = hiltViewModel(),
 ) {
@@ -137,6 +137,21 @@ fun BookmarksScreen(
                 if (bookmarks.isEmpty()) {
                     Text("No bookmarks yet. Save a page from the browser to see it here.",
                         style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+                    Spacer(Modifier.height(PebbleDimens.Sp4))
+                    Row(
+                        modifier = Modifier
+                            .testTag("bookmarks-browse")
+                            .pebbleFocus(shape = PebbleShape.Full, lift = false)
+                            .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 2.dp)
+                            .pebbleClickable(onClick = onOpenBrowse, onClickLabel = "Browse the web")
+                            .padding(horizontal = PebbleDimens.Sp4, vertical = PebbleDimens.Sp2),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
+                    ) {
+                        Icon(Icons.Outlined.OpenInNew, contentDescription = null,
+                            tint = PebbleColors.Primary, modifier = Modifier.size(20.dp))
+                        Text("Browse the web", style = PebbleType.Label, color = PebbleColors.OnSurface)
+                    }
                 } else {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
@@ -304,8 +319,8 @@ private fun BookmarkContextMenu(
                     .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(18.dp),
             ) {
-                BookmarkWebViewPreview(
-                    url = bookmark.url,
+                WebsitePreview(
+                    host = host,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
@@ -365,32 +380,4 @@ private fun MenuRow(
         Spacer(Modifier.width(14.dp))
         Text(label, style = PebbleType.Body, color = tint)
     }
-}
-
-@Composable
-private fun BookmarkWebViewPreview(url: String, modifier: Modifier = Modifier) {
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.useWideViewPort = true
-                settings.loadWithOverviewMode = true
-                setInitialScale(50)
-                isFocusable = false
-                isFocusableInTouchMode = false
-                webViewClient = WebViewClient()
-                loadUrl(url)
-            }
-        },
-        update = { wv -> if (wv.url != url) wv.loadUrl(url) },
-        onRelease = { wv ->
-            wv.stopLoading()
-            wv.loadUrl("about:blank")
-            wv.onPause()
-            wv.removeAllViews()
-            wv.destroy()
-        },
-    )
 }

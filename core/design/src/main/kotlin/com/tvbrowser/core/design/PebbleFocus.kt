@@ -30,6 +30,11 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -116,10 +121,20 @@ fun Modifier.pebbleClickable(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     longPressMs: Long = 500L,
+    onClickLabel: String? = null,
+    onLongClickLabel: String? = null,
+    role: Role = Role.Button,
 ): Modifier = composed {
     var downAt by remember { mutableStateOf(0L) }
     var longFired by remember { mutableStateOf(false) }
     this
+        .semantics(mergeDescendants = true) {
+            this.role = role
+            this.onClick(label = onClickLabel) { onClick(); true }
+            onLongClick?.let { action ->
+                this.onLongClick(label = onLongClickLabel) { action(); true }
+            }
+        }
         .onPreviewKeyEvent { e ->
             if (e.key != Key.DirectionCenter && e.key != Key.Enter && e.key != Key.NumPadEnter) {
                 return@onPreviewKeyEvent false
