@@ -6,6 +6,28 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+val pebbleVersionName = providers.gradleProperty("pebbleVersionName").orElse("0.1.0").get()
+require(Regex("(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)").matches(pebbleVersionName)) {
+    "pebbleVersionName must be MAJOR.MINOR.PATCH without leading zeroes"
+}
+val versionParts = pebbleVersionName.split('.').map { it.toIntOrNull() ?: error("Version component is too large") }
+require(versionParts[0] in 0..2000 && versionParts[1] in 0..999 && versionParts[2] in 0..999) {
+    "Version components must fit the Android versionCode: major <= 2000, minor and patch <= 999"
+}
+val pebbleVersionCode = versionParts[0] * 1_000_000 + versionParts[1] * 1_000 + versionParts[2]
+require(pebbleVersionCode > 0) { "Version 0.0.0 cannot be released" }
+
+val signingEnvironment = listOf(
+    "PEBBLE_KEYSTORE_PATH", "PEBBLE_STORE_PASSWORD", "PEBBLE_KEY_ALIAS", "PEBBLE_KEY_PASSWORD",
+).associateWith { providers.environmentVariable(it).orNull }
+val hasReleaseSigning = signingEnvironment.values.all { !it.isNullOrBlank() }
+require(hasReleaseSigning || signingEnvironment.values.all { it.isNullOrBlank() }) {
+    "Release signing requires PEBBLE_KEYSTORE_PATH, PEBBLE_STORE_PASSWORD, PEBBLE_KEY_ALIAS and PEBBLE_KEY_PASSWORD"
+}
+if (providers.gradleProperty("requireReleaseSigning").orNull == "true") {
+    require(hasReleaseSigning) { "Release signing credentials are missing; refusing an unsigned release" }
+}
+
 android {
     namespace = "com.tvbrowser.app"
     compileSdk = 35
@@ -14,13 +36,23 @@ android {
         applicationId = "com.tvbrowser.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = pebbleVersionCode
+        versionName = pebbleVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    if (hasReleaseSigning) {
+        signingConfigs.create("release") {
+            storeFile = file(signingEnvironment.getValue("PEBBLE_KEYSTORE_PATH")!!)
+            storePassword = signingEnvironment.getValue("PEBBLE_STORE_PASSWORD")
+            keyAlias = signingEnvironment.getValue("PEBBLE_KEY_ALIAS")
+            keyPassword = signingEnvironment.getValue("PEBBLE_KEY_PASSWORD")
+        }
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -32,6 +64,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -52,6 +85,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(project(":core:common"))
     implementation(project(":core:design"))
     implementation(project(":core:db"))

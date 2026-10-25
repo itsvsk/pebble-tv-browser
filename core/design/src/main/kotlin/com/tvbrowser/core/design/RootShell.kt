@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.platform.LocalConfiguration
@@ -56,8 +58,9 @@ fun RootShell(
             configuration.screenHeightDp.dp.roundToPx().coerceAtLeast(1),
         )
     }
-    val background = produceState<ImageBitmap?>(null, palette, backgroundSize) {
-        value = withContext(Dispatchers.Default) {
+    val background = remember { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(palette, backgroundSize) {
+        background.value = withContext(Dispatchers.Default) {
             createBackgroundBitmap(
                 backgroundSize.width,
                 backgroundSize.height,
