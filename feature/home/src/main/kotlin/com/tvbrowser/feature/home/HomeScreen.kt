@@ -4,10 +4,13 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +23,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -32,10 +34,8 @@ import androidx.compose.material.icons.outlined.BookmarkRemove
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,11 +45,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -58,20 +62,15 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.tv.foundation.lazy.list.TvLazyRow
-import androidx.tv.foundation.lazy.list.itemsIndexed
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -80,33 +79,28 @@ import com.tvbrowser.core.common.UrlUtils
 import com.tvbrowser.core.db.entity.MostVisitedView
 import com.tvbrowser.core.design.PebbleColors
 import com.tvbrowser.core.design.PebbleDimens
-import com.tvbrowser.core.design.PebbleLogo
+import com.tvbrowser.core.design.PebbleElevation
+import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
+import com.tvbrowser.core.design.WebsitePreview
 import com.tvbrowser.core.design.pebbleFocus
 import com.tvbrowser.core.design.pebbleClickable
-import kotlinx.coroutines.delay
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle as JtTextStyle
-import java.util.Locale
+import com.tvbrowser.core.design.seaGlass
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    homeNavFocus: FocusRequester,
     onOpenUrl: (tabId: String) -> Unit,
-    onOpenTabs: () -> Unit,
-    onOpenBookmarks: () -> Unit,
-    onOpenHistory: () -> Unit,
-    onOpenDownloads: () -> Unit,
-    onOpenSettings: () -> Unit,
+    onOpenBrowse: () -> Unit,
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val mostVisited by vm.mostVisited.collectAsState()
     val bookmarked by vm.bookmarkedUrls.collectAsState()
     val menuItem by vm.selectedForMenu.collectAsState()
     val omniboxFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val firstSpeedDialFocus = remember { FocusRequester() }
     var query by remember { mutableStateOf("") }
 
     val voiceLauncher = rememberLauncherForActivityResult(
@@ -131,26 +125,13 @@ fun HomeScreen(
         }
     }
 
-    var now by remember { mutableStateOf(LocalTime.now()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            now = LocalTime.now()
-            delay(1000)
-        }
-    }
-    val today = remember(now) { LocalDate.now() }
-
-    Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5),
         ) {
-            Wordmark()
-            Spacer(Modifier.height(PebbleDimens.Sp10))
-            Hero(time = now, date = today)
-            Spacer(Modifier.height(PebbleDimens.Sp10))
             SearchField(
                 value = query,
                 onValueChange = { query = it },
@@ -161,14 +142,19 @@ fun HomeScreen(
                 },
                 onVoice = { voiceLauncher.launch(voiceIntent) },
                 focusRequester = omniboxFocus,
+                onUp = { homeNavFocus.requestFocus() },
+                onDown = { firstSpeedDialFocus.requestFocus() },
             )
-            Spacer(Modifier.height(PebbleDimens.Sp10))
+            Spacer(Modifier.height(PebbleDimens.Sp8))
             MostVisitedSection(
                 items = mostVisited,
                 onClick = { item ->
                     vm.openInNewTab(item.url) { tabId -> onOpenUrl(tabId) }
                 },
                 onLongClick = { item -> vm.showMenu(item) },
+                onOpenBrowse = onOpenBrowse,
+                firstTileFocus = firstSpeedDialFocus,
+                searchFocus = omniboxFocus,
             )
         }
         menuItem?.let { item ->
@@ -187,55 +173,6 @@ fun HomeScreen(
     }
 }
 
-@Composable
-private fun Wordmark() {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        PebbleLogo(size = 28.dp)
-        Spacer(Modifier.width(12.dp))
-        Row {
-            val tracking = 4.sp
-            Text("PEBB", style = PebbleType.Title.copy(fontWeight = FontWeight.W600, letterSpacing = tracking, fontSize = 20.sp), color = PebbleColors.OnSurface.copy(alpha = 0.92f))
-            Text("L", style = PebbleType.Title.copy(fontWeight = FontWeight.W600, letterSpacing = tracking, fontSize = 20.sp), color = PebbleColors.PrimaryStrong)
-            Text("E", style = PebbleType.Title.copy(fontWeight = FontWeight.W600, letterSpacing = tracking, fontSize = 20.sp), color = PebbleColors.OnSurface.copy(alpha = 0.92f))
-        }
-    }
-}
-
-@Composable
-private fun Hero(time: LocalTime, date: LocalDate) {
-    val clockText = time.format(DateTimeFormatter.ofPattern("HH:mm"))
-    val hour = time.hour
-    val greet = when {
-        hour < 12 -> "Good morning"
-        hour < 17 -> "Good afternoon"
-        hour < 21 -> "Good evening"
-        else -> "Good night"
-    }
-    val dayName = date.dayOfWeek.getDisplayName(JtTextStyle.FULL, Locale.getDefault()).uppercase(Locale.getDefault())
-    val monthName = date.month.getDisplayName(JtTextStyle.SHORT, Locale.getDefault()).uppercase(Locale.getDefault())
-    val dateLine = "$dayName, ${date.dayOfMonth} $monthName"
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            clockText,
-            style = PebbleType.Clock.copy(fontSize = 64.sp, lineHeight = 68.sp),
-            color = PebbleColors.OnSurface,
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            greet,
-            style = PebbleType.Greet.copy(fontSize = 24.sp, lineHeight = 30.sp),
-            color = PebbleColors.OnSurface,
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            dateLine,
-            style = PebbleType.Overline.copy(fontSize = 14.sp, letterSpacing = 1.4.sp),
-            color = PebbleColors.OnSurfaceFaint,
-        )
-    }
-}
-
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 private fun SearchField(
@@ -244,14 +181,15 @@ private fun SearchField(
     onSubmit: () -> Unit,
     onVoice: () -> Unit,
     focusRequester: androidx.compose.ui.focus.FocusRequester,
+    onUp: () -> Unit,
+    onDown: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
-            .widthIn(min = 720.dp, max = 1100.dp)
-            .fillMaxWidth(0.7f)
-            .height(78.dp),
+            .fillMaxWidth()
+            .height(68.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -259,19 +197,19 @@ private fun SearchField(
                 .weight(1f)
                 .fillMaxHeight()
                 .pebbleFocus(shape = PebbleShape.Full, lift = false)
-                .background(PebbleColors.Surface2, PebbleShape.Full)
+                .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon)
                 .focusRequester(focusRequester)
                 .onFocusChanged { focused = it.isFocused }
                 .onPreviewKeyEvent { e ->
                     if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     when (e.key) {
-                        Key.DirectionUp -> { focusManager.moveFocus(FocusDirection.Up); true }
-                        Key.DirectionDown -> { focusManager.moveFocus(FocusDirection.Down); true }
+                        Key.DirectionUp -> { onUp(); true }
+                        Key.DirectionDown -> { onDown(); true }
                         Key.DirectionRight -> { focusManager.moveFocus(FocusDirection.Right); true }
                         else -> false
                     }
                 }
-                .padding(horizontal = 28.dp),
+                .padding(horizontal = 22.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxSize(),
@@ -281,7 +219,7 @@ private fun SearchField(
                     Icons.Outlined.Search,
                     contentDescription = null,
                     tint = PebbleColors.OnSurfaceMuted,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(23.dp),
                 )
                 Spacer(Modifier.width(16.dp))
                 BasicTextField(
@@ -290,18 +228,19 @@ private fun SearchField(
                     singleLine = true,
                     textStyle = TextStyle(
                         color = PebbleColors.OnSurface,
-                        fontSize = 22.sp,
+                        fontFamily = PebbleType.sans,
+                        fontSize = 19.sp,
                         fontWeight = FontWeight.W400,
                     ),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                     keyboardActions = KeyboardActions(onGo = { onSubmit() }),
                     cursorBrush = SolidColor(PebbleColors.Primary),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag("home-search"),
                     decorationBox = { inner ->
                         if (value.isEmpty()) {
                             Text(
-                                "Search Google or type a URL",
-                                style = PebbleType.TitleLg,
+                                "Search the web or enter a URL",
+                                style = PebbleType.Title,
                                 color = PebbleColors.OnSurfaceFaint,
                             )
                         }
@@ -314,7 +253,7 @@ private fun SearchField(
         MicButton(
             onClick = onVoice,
             onUpDown = { dir ->
-                focusManager.moveFocus(dir)
+                if (dir == FocusDirection.Down) onDown() else focusManager.moveFocus(dir)
             },
         )
     }
@@ -327,9 +266,9 @@ private fun MicButton(
 ) {
     Box(
         modifier = Modifier
-            .size(64.dp)
+            .size(54.dp)
             .pebbleFocus(shape = CircleShape, lift = false)
-            .background(PebbleColors.Surface2, CircleShape)
+            .seaGlass(CircleShape, PebbleColors.GlassFocus, 5.dp, emphasized = true)
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (e.key) {
@@ -338,14 +277,14 @@ private fun MicButton(
                     else -> false
                 }
             }
-            .pebbleClickable(onClick = onClick),
+            .pebbleClickable(onClick = onClick, onClickLabel = "Start voice search"),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             Icons.Outlined.Mic,
             contentDescription = "Voice search",
             tint = PebbleColors.Primary,
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier.size(24.dp),
         )
     }
 }
@@ -356,38 +295,73 @@ private fun MostVisitedSection(
     items: List<MostVisitedView>,
     onClick: (MostVisitedView) -> Unit,
     onLongClick: (MostVisitedView) -> Unit,
+    onOpenBrowse: () -> Unit,
+    firstTileFocus: FocusRequester,
+    searchFocus: FocusRequester,
 ) {
+    val tileFocusRequesters = remember(items.size, firstTileFocus) {
+        List(items.size) { index ->
+            if (index == 0) firstTileFocus else FocusRequester()
+        }
+    }
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            "MOST VISITED",
-            style = PebbleType.Overline,
-            color = PebbleColors.OnSurfaceFaint,
-        )
+        SectionTitle("Speed Dials", if (items.isEmpty()) "Frequently visited sites" else "${items.size} quick links")
         Spacer(Modifier.height(PebbleDimens.Sp4))
         if (items.isEmpty()) {
-            Text(
-                "Your most-visited sites will appear here.",
-                style = PebbleType.BodySm,
-                color = PebbleColors.OnSurfaceMuted,
-            )
-            return@Column
-        }
-        val firstTileFocus = remember { FocusRequester() }
-        TvLazyRow(
-            horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp4),
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusProperties { enter = { firstTileFocus } },
-        ) {
-            itemsIndexed(items, key = { _, it -> it.url }) { index, item ->
-                Tile(
-                    item = item,
-                    onClick = { onClick(item) },
-                    onLongClick = { onLongClick(item) },
-                    modifier = if (index == 0) Modifier.focusRequester(firstTileFocus) else Modifier,
-                )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .seaGlass(PebbleShape.Md, PebbleColors.GlassMint)
+                    .padding(PebbleDimens.Sp5),
+                verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+            ) {
+                Text("No frequently visited pages yet", style = PebbleType.Title, color = PebbleColors.OnSurface)
+                Text("Browse the web and the pages you visit will appear here.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+                Box(
+                    modifier = Modifier
+                        .focusRequester(firstTileFocus)
+                        .pebbleFocus(shape = PebbleShape.Full, lift = false)
+                        .seaGlass(PebbleShape.Full, PebbleColors.GlassMint, 3.dp, emphasized = true)
+                        .pebbleClickable(onClick = onOpenBrowse, onClickLabel = "Open Browse")
+                        .padding(horizontal = PebbleDimens.Sp4, vertical = PebbleDimens.Sp2),
+                ) {
+                    Text("Open Browse", style = PebbleType.Label, color = PebbleColors.OnPrimaryContainer)
+                }
+            }
+        } else Column(verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2)) {
+            items.chunked(4).forEachIndexed { rowIndex, rowItems ->
+                Row(horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2)) {
+                    rowItems.forEachIndexed { index, item ->
+                        Tile(
+                            item = item,
+                            index = rowIndex * 4 + index,
+                            onClick = { onClick(item) },
+                            onLongClick = { onLongClick(item) },
+                            onLeft = if (index == 0) {
+                                { (tileFocusRequesters.getOrNull(rowIndex * 4 - 1) ?: searchFocus).requestFocus() }
+                            } else null,
+                            onRight = if (index == rowItems.lastIndex) {
+                                { (tileFocusRequesters.getOrNull((rowIndex + 1) * 4) ?: searchFocus).requestFocus() }
+                            } else null,
+                            modifier = Modifier.weight(1f)
+                                .focusRequester(tileFocusRequesters[rowIndex * 4 + index]),
+                        )
+                    }
+                    repeat(4 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun SectionTitle(title: String, subtitle: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(width = 3.dp, height = 22.dp).background(PebbleColors.Primary, PebbleShape.Full))
+        Spacer(Modifier.width(10.dp))
+        Text(title, style = PebbleType.TitleLg.copy(fontWeight = FontWeight.W700), color = PebbleColors.OnSurface)
+        Spacer(Modifier.width(10.dp))
+        Text(subtitle, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceMuted)
     }
 }
 
@@ -395,46 +369,94 @@ private fun MostVisitedSection(
 @Composable
 private fun Tile(
     item: MostVisitedView,
+    index: Int,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onLeft: (() -> Unit)?,
+    onRight: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val host = UrlUtils.hostOf(item.url) ?: item.url
-    Box(
-        modifier = modifier
-            .pebbleFocus(shape = PebbleShape.Md, lift = true)
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
-            .pebbleClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(PebbleDimens.Sp3)
-            .width(140.dp)
-            .height(120.dp),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+    val focusSource = remember { MutableInteractionSource() }
+    val focused by focusSource.collectIsFocusedAsState()
+    val glowAlpha by animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
+        animationSpec = tween(durationMillis = PebbleMotion.DurationMs),
+        label = "speed-dial-glow",
+    )
+    Box(modifier = modifier.speedDialBloom(glowAlpha).padding(6.dp)) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .shadow(
+                    PebbleElevation.E2,
+                    PebbleShape.Md,
+                    ambientColor = PebbleColors.Primary.copy(alpha = 0.45f * glowAlpha),
+                    spotColor = PebbleColors.Primary.copy(alpha = 0.45f * glowAlpha),
+                )
+                .background(PebbleColors.Bg.copy(alpha = glowAlpha), PebbleShape.Md),
+        )
+        Box(
+            modifier = Modifier
+                .testTag("home-speed-dial-$index")
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    when (event.key) {
+                        Key.DirectionLeft -> onLeft?.let { it(); true } ?: false
+                        Key.DirectionRight -> onRight?.let { it(); true } ?: false
+                        else -> false
+                    }
+                }
+                .pebbleFocus(shape = PebbleShape.Md, lift = false, interactionSource = focusSource, gapWidth = 0.dp)
+                .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)
+                .pebbleClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                    onClickLabel = "Open ${item.title ?: host}",
+                    onLongClickLabel = "More options for ${item.title ?: host}",
+                )
+                .padding(PebbleDimens.Sp3)
+                .height(108.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(CircleShape)
-                    .background(PebbleColors.Surface3, CircleShape),
-                contentAlignment = Alignment.Center,
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                AsyncImage(
-                    model = "https://www.google.com/s2/favicons?domain=$host&sz=64",
-                    contentDescription = null,
-                    modifier = Modifier.size(32.dp).clip(PebbleShape.Sm),
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .seaGlass(PebbleShape.Xs, PebbleColors.GlassLagoon, 1.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AsyncImage(
+                        model = "https://www.google.com/s2/favicons?domain=$host&sz=64",
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp).clip(PebbleShape.Xs),
+                    )
+                }
+                Column {
+                    Text(item.title?.takeIf { it.isNotBlank() } ?: host, style = PebbleType.Label.copy(fontWeight = FontWeight.W600), color = PebbleColors.OnSurface, maxLines = 1)
+                    Text(host, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceFaint, maxLines = 1)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Modifier.speedDialBloom(alpha: Float): Modifier {
+    val primary = PebbleColors.Primary
+    return drawBehind {
+        if (alpha > 0f) {
+            listOf(0.dp to 0.025f, 2.dp to 0.04f, 4.dp to 0.06f).forEach { (inset, strength) ->
+                val px = inset.toPx()
+                drawRoundRect(
+                    color = primary.copy(alpha = strength * alpha),
+                    topLeft = Offset(px, px),
+                    size = Size(size.width - 2 * px, size.height - 2 * px),
+                    cornerRadius = CornerRadius((22.dp - inset).toPx()),
                 )
             }
-            Spacer(Modifier.height(PebbleDimens.Sp2))
-            Text(
-                item.title?.takeIf { it.isNotBlank() } ?: host,
-                style = PebbleType.LabelSm,
-                color = PebbleColors.OnSurface,
-                maxLines = 1,
-            )
         }
     }
 }
@@ -465,16 +487,15 @@ private fun TileContextMenu(
                 modifier = Modifier
                     .width(540.dp)
                     .padding(end = PebbleDimens.Sp4)
-                    .background(PebbleColors.Surface1, PebbleShape.Lg)
-                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(18.dp),
             ) {
-                WebViewPreview(
-                    url = item.url,
+                WebsitePreview(
+                    host = host,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
-                        .background(PebbleColors.Surface3, RoundedCornerShape(10.dp))
+                        .seaGlass(RoundedCornerShape(10.dp), PebbleColors.GlassLagoon, 1.dp)
                         .clip(RoundedCornerShape(10.dp)),
                 )
                 Spacer(Modifier.height(14.dp))
@@ -504,13 +525,15 @@ private fun TileContextMenu(
                     icon = if (isBookmarked) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd,
                     onClick = onToggleBookmark,
                 )
-                Spacer(Modifier.height(8.dp))
-                MenuRow(
-                    label = "Delete",
-                    icon = Icons.Outlined.Delete,
-                    onClick = onDelete,
-                    danger = true,
-                )
+                if (item.visitCount > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    MenuRow(
+                        label = "Remove from history",
+                        icon = Icons.Outlined.Delete,
+                        onClick = onDelete,
+                        danger = true,
+                    )
+                }
             }
         }
         LaunchedEffect(Unit) { openFocus.requestFocus() }
@@ -532,7 +555,7 @@ private fun MenuRow(
             .fillMaxWidth()
             .height(56.dp)
             .pebbleFocus(shape = PebbleShape.Md, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, if (danger) PebbleColors.GlassRose else PebbleColors.GlassLagoon, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -542,43 +565,3 @@ private fun MenuRow(
         Text(label, style = PebbleType.Body, color = tint)
     }
 }
-
-@Composable
-private fun WebViewPreview(url: String, modifier: Modifier = Modifier) {
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.useWideViewPort = true
-                settings.loadWithOverviewMode = true
-                setInitialScale(50)
-                isFocusable = false
-                isFocusableInTouchMode = false
-                webViewClient = WebViewClient()
-                loadUrl(url)
-            }
-        },
-        update = { wv -> if (wv.url != url) wv.loadUrl(url) },
-        onRelease = { wv ->
-            wv.stopLoading()
-            wv.loadUrl("about:blank")
-            wv.onPause()
-            wv.removeAllViews()
-            wv.destroy()
-        },
-    )
-    DisposableEffect(lifecycle) {
-        val observer = object : DefaultLifecycleObserver {
-            override fun onPause(owner: LifecycleOwner) {}
-            override fun onResume(owner: LifecycleOwner) {}
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
-}
-
-@Suppress("unused")
-private val _unusedFallback = Icons.Outlined.Public

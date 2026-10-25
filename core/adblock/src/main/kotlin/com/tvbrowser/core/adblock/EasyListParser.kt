@@ -13,7 +13,7 @@ object EasyListParser {
     private val hostRule = Regex("""^\|\|([a-z0-9.\-_]+)\^""")
 
     fun parse(reader: BufferedReader): Set<String> {
-        val out = HashSet<String>(50_000)
+        val out = HashSet<String>()
         reader.useLines { lines ->
             for (raw in lines) {
                 val line = raw.trim()

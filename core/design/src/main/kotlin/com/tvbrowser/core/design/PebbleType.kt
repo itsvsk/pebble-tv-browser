@@ -2,6 +2,7 @@ package com.tvbrowser.core.design
 
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.unit.sp
@@ -9,7 +10,7 @@ import androidx.tv.material3.Typography
 
 /**
  * Pebble design tokens — type.
- * Source of truth: design_handoff_pebble_tv_browser/colors_and_type.css §5–6.
+ * Sea Glass pairs editorial serif headings with clear sans-serif controls.
  *
  * Mapping pebble-scale -> M3 Typography slots:
  *   clock     -> displayLarge       (92 / W200 / -2)
@@ -27,7 +28,13 @@ import androidx.tv.material3.Typography
  * Tabular figures for clock/percent/size use TextStyle.copy(fontFeatureSettings = "tnum").
  */
 object PebbleType {
-    val sans: FontFamily = FontFamily.SansSerif // swap to Google Sans Text font asset when bundled
+    val sans: FontFamily = FontFamily(
+        Font(R.font.plus_jakarta_sans, FontWeight.W400),
+        Font(R.font.plus_jakarta_sans, FontWeight.W500),
+        Font(R.font.plus_jakarta_sans, FontWeight.W600),
+        Font(R.font.plus_jakarta_sans, FontWeight.W700),
+        Font(R.font.plus_jakarta_sans, FontWeight.W800),
+    )
     val mono: FontFamily = FontFamily.Monospace // swap to Roboto Mono when bundled
 
     val Clock = TextStyle(
@@ -39,14 +46,14 @@ object PebbleType {
         fontFeatureSettings = "tnum",
     )
     val Display = TextStyle(
-        fontFamily = sans,
+        fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.W500,
         fontSize = 38.sp,
         lineHeight = 44.sp,
         letterSpacing = (-0.5).sp,
     )
     val Greet = TextStyle(
-        fontFamily = sans,
+        fontFamily = FontFamily.Serif,
         fontWeight = FontWeight.W300,
         fontSize = 30.sp,
         lineHeight = 36.sp,

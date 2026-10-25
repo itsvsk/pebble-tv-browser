@@ -2,13 +2,14 @@ package com.tvbrowser.feature.downloads
 
 import android.app.DownloadManager
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -16,38 +17,42 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cancel
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.tv.foundation.lazy.list.TvLazyColumn
-import androidx.tv.foundation.lazy.list.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import com.tvbrowser.core.db.entity.DownloadRecord
 import com.tvbrowser.core.db.repo.DownloadRepository
 import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.seaGlass
 import com.tvbrowser.core.design.PebbleDimens
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
@@ -61,7 +66,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -73,29 +80,47 @@ class DownloadsViewModel @Inject constructor(
     private val dmRepo: DownloadManagerRepo,
 ) : ViewModel() {
 
+    val downloadLocation: String = dmRepo.defaultDirectory()?.absolutePath ?: "Storage unavailable"
+
     val records: StateFlow<List<DownloadRecord>> = repo.all()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val progress: StateFlow<Map<Long, DownloadProgress>> = records
-        .flatMapLatest { list ->
-            val active = list.filter { it.status == DownloadRecord.STATUS_RUNNING }.map { it.dmId }
-            dmRepo.observeProgress(active)
+        .map { list ->
+            list.filter {
+                it.status == DownloadRecord.STATUS_RUNNING || it.status == DownloadRecord.STATUS_PAUSED
+            }
         }
+        .distinctUntilChanged()
+        .flatMapLatest(dmRepo::observeProgress)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private val _selectedForMenu = MutableStateFlow<DownloadRecord?>(null)
     val selectedForMenu: StateFlow<DownloadRecord?> = _selectedForMenu.asStateFlow()
+    private val _operationError = MutableStateFlow<String?>(null)
+    val operationError: StateFlow<String?> = _operationError.asStateFlow()
 
     fun showMenu(r: DownloadRecord) { _selectedForMenu.value = r }
     fun dismissMenu() { _selectedForMenu.value = null }
 
-    fun cancel(record: DownloadRecord) { dmRepo.cancel(record.dmId) }
-    fun open(record: DownloadRecord) { dmRepo.openFile(record) }
+    fun cancel(record: DownloadRecord) {
+        viewModelScope.launch { dmRepo.cancel(record.dmId) }
+    }
+    fun open(record: DownloadRecord) {
+        if (!dmRepo.openFile(record)) {
+            _operationError.value = "The file is missing, or no app on this TV can open it."
+        }
+    }
+
+    fun dismissError() { _operationError.value = null }
 
     fun deleteRecord(record: DownloadRecord) {
         viewModelScope.launch {
-            dmRepo.cancel(record.dmId)
-            repo.delete(record.dmId)
+            if (record.status == DownloadRecord.STATUS_RUNNING || record.status == DownloadRecord.STATUS_PAUSED) {
+                dmRepo.cancel(record.dmId)
+            } else {
+                repo.delete(record.dmId)
+            }
         }
     }
 }
@@ -106,22 +131,57 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
     val records by vm.records.collectAsState()
     val progress by vm.progress.collectAsState()
     val menuRecord by vm.selectedForMenu.collectAsState()
+    val operationError by vm.operationError.collectAsState()
+    var filter by remember { mutableStateOf("All") }
 
-    val active = records.filter { it.status == DownloadRecord.STATUS_RUNNING }
-    val done = records.filter { it.status == DownloadRecord.STATUS_SUCCESS }
-    val failed = records.filter { it.status == DownloadRecord.STATUS_FAILED }
+    val visibleRecords = records.filter { matchesFilter(it, filter) }
+    val active = visibleRecords.filter { it.status == DownloadRecord.STATUS_RUNNING || it.status == DownloadRecord.STATUS_PAUSED }
+    val done = visibleRecords.filter { it.status == DownloadRecord.STATUS_SUCCESS }
+    val failed = visibleRecords.filter { it.status == DownloadRecord.STATUS_FAILED }
 
-    Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8)) {
-            Header(active = active.size, done = done.size)
-            Spacer(Modifier.height(PebbleDimens.Sp6))
-            DefaultLocationCard(path = "/storage/emulated/0/Download")
-            Spacer(Modifier.height(PebbleDimens.Sp6))
-            if (records.isEmpty()) {
-                Text("No downloads yet.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
-                return@Column
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (records.isEmpty()) {
+            EmptyDownloads(vm.downloadLocation)
+        } else Row(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxHeight()
+                    .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon),
+                contentAlignment = Alignment.BottomStart,
+            ) {
+                Column(modifier = Modifier.padding(28.dp)) {
+                    Text("◉  PEBBLE DOWNLOADS", style = PebbleType.Overline, color = PebbleColors.Primary)
+                    Spacer(Modifier.height(10.dp))
+                    Text("Your files, in one place", style = PebbleType.Display, color = PebbleColors.OnSurface)
+                    Spacer(Modifier.height(8.dp))
+                    Text("${records.size} files  ·  ${records.count { it.status == DownloadRecord.STATUS_RUNNING }} active",
+                        style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+                }
             }
-            TvLazyColumn(verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3)) {
+            Spacer(Modifier.width(PebbleDimens.Sp4))
+            Column(
+                modifier = Modifier.width(420.dp).fillMaxHeight()
+                    .seaGlass(PebbleShape.Md, PebbleColors.GlassMint)
+                    .padding(18.dp),
+            ) {
+                Header(active = active.size, done = done.size)
+                Spacer(Modifier.height(PebbleDimens.Sp4))
+                DefaultLocationCard(path = vm.downloadLocation)
+                Spacer(Modifier.height(PebbleDimens.Sp4))
+                Row(horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2)) {
+                    listOf("All", "Videos", "Documents", "Packages").forEach { option ->
+                        FilterChip(option, filter == option) { filter = option }
+                    }
+                }
+                Spacer(Modifier.height(PebbleDimens.Sp4))
+                if (visibleRecords.isEmpty()) {
+                    Text("No $filter downloads.",
+                        style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+                }
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+                    contentPadding = PaddingValues(horizontal = PebbleDimens.Sp2, vertical = PebbleDimens.Sp2),
+                    modifier = Modifier.weight(1f),
+                ) {
                 if (active.isNotEmpty()) {
                     item(key = "h-active") { GroupHeader("In progress") }
                     items(active, key = { it.dmId }) { r ->
@@ -151,6 +211,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
                         )
                     }
                 }
+                }
             }
         }
     }
@@ -172,6 +233,44 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
             onDismiss = { vm.dismissMenu() },
         )
     }
+    operationError?.let { message ->
+        DownloadErrorDialog(message = message, onDismiss = vm::dismissError)
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun EmptyDownloads(downloadLocation: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassMint)
+            .padding(28.dp),
+    ) {
+        Header(active = 0, done = 0)
+        Spacer(Modifier.height(PebbleDimens.Sp5))
+        Box(Modifier.width(480.dp)) {
+            DefaultLocationCard(path = downloadLocation)
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                Icons.Outlined.FolderOpen,
+                contentDescription = null,
+                tint = PebbleColors.OnSurfaceMuted,
+                modifier = Modifier.size(64.dp),
+            )
+            Spacer(Modifier.height(PebbleDimens.Sp4))
+            Text("No downloads yet", style = PebbleType.Title, color = PebbleColors.OnSurface)
+            Spacer(Modifier.height(PebbleDimens.Sp2))
+            Text("Files saved from the browser will appear here.",
+                style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+        }
+    }
 }
 
 @Composable
@@ -181,8 +280,19 @@ private fun Header(active: Int, done: Int) {
             Text("Downloads", style = PebbleType.Display, color = PebbleColors.OnSurface)
             Text("$active active · $done completed", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
         }
-        Spacer(Modifier.weight(1f))
-        Pill(label = "Open folder", icon = Icons.Outlined.FolderOpen, onClick = {})
+    }
+}
+
+@Composable
+private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
+            .seaGlass(PebbleShape.Full, if (selected) PebbleColors.GlassMint else PebbleColors.GlassLagoon, 2.dp, emphasized = selected)
+            .pebbleClickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        Text(label, style = PebbleType.LabelSm,
+            color = if (selected) PebbleColors.OnPrimaryContainer else PebbleColors.OnSurfaceMuted)
     }
 }
 
@@ -193,7 +303,7 @@ private fun Pill(label: String, icon: androidx.compose.ui.graphics.vector.ImageV
         modifier = Modifier
             .height(40.dp)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Full)
+            .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 2.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -210,19 +320,17 @@ private fun DefaultLocationCard(path: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
             .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconWell(Icons.Outlined.Folder)
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text("DEFAULT DOWNLOAD LOCATION", style = PebbleType.Overline, color = PebbleColors.OnSurfaceFaint)
+            Text("APP DOWNLOAD LOCATION", style = PebbleType.Overline, color = PebbleColors.OnSurfaceFaint)
             Spacer(Modifier.height(2.dp))
             Text(path, style = PebbleType.Mono, color = PebbleColors.OnSurface)
         }
-        Pill(label = "Change", icon = Icons.Outlined.FolderOpen, onClick = {})
     }
 }
 
@@ -232,7 +340,7 @@ private fun IconWell(icon: androidx.compose.ui.graphics.vector.ImageVector, tint
     Box(
         modifier = Modifier
             .size(48.dp)
-            .background(PebbleColors.Surface3, PebbleShape.Sm),
+            .seaGlass(PebbleShape.Sm, PebbleColors.GlassMint, 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
@@ -248,7 +356,7 @@ private fun GroupHeader(label: String) {
 @Composable
 private fun ActiveCard(record: DownloadRecord, progress: DownloadProgress?, onLongClick: () -> Unit) {
     val pct = progress?.fractionOrNull?.let { (it * 100).toInt() } ?: 0
-    val paused = progress?.statusCode == DownloadManager.STATUS_PAUSED
+    val paused = record.status == DownloadRecord.STATUS_PAUSED || progress?.statusCode == DownloadManager.STATUS_PAUSED
     val so = progress?.bytesSoFar ?: 0L
     val total = progress?.totalBytes ?: 0L
     val meta = if (paused) "Paused · ${formatBytes(so)}" else "${formatBytes(so)} of ${formatBytes(total)}"
@@ -256,8 +364,7 @@ private fun ActiveCard(record: DownloadRecord, progress: DownloadProgress?, onLo
         modifier = Modifier
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
             .pebbleClickable(onClick = onLongClick, onLongClick = onLongClick)
             .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -288,8 +395,7 @@ private fun DoneCard(record: DownloadRecord, onOpen: () -> Unit, onLongClick: ()
         modifier = Modifier
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
             .pebbleClickable(onClick = onOpen, onLongClick = onLongClick)
             .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -311,8 +417,7 @@ private fun FailedCard(record: DownloadRecord, onLongClick: () -> Unit) {
         modifier = Modifier
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
             .pebbleClickable(onClick = onLongClick, onLongClick = onLongClick)
             .padding(20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -337,7 +442,7 @@ private fun DownloadContextMenu(
     onDismiss: () -> Unit,
 ) {
     val firstFocus = remember { FocusRequester() }
-    val running = record.status == DownloadRecord.STATUS_RUNNING
+    val running = record.status == DownloadRecord.STATUS_RUNNING || record.status == DownloadRecord.STATUS_PAUSED
     val success = record.status == DownloadRecord.STATUS_SUCCESS
     Dialog(
         onDismissRequest = onDismiss,
@@ -353,8 +458,7 @@ private fun DownloadContextMenu(
                 modifier = Modifier
                     .width(540.dp)
                     .padding(end = PebbleDimens.Sp4)
-                    .background(PebbleColors.Surface1, PebbleShape.Lg)
-                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(18.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -373,6 +477,7 @@ private fun DownloadContextMenu(
                         Text(
                             when (record.status) {
                                 DownloadRecord.STATUS_RUNNING -> "In progress"
+                                DownloadRecord.STATUS_PAUSED -> "Paused"
                                 DownloadRecord.STATUS_SUCCESS -> "Done"
                                 DownloadRecord.STATUS_FAILED -> "Failed"
                                 else -> ""
@@ -407,22 +512,41 @@ private fun DownloadContextMenu(
                     )
                 } else {
                     MenuRow(
-                        label = "Retry",
-                        icon = Icons.Outlined.Refresh,
-                        onClick = { /* TODO retry — v2 */ },
-                        modifier = Modifier.focusRequester(firstFocus),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    MenuRow(
                         label = "Remove from list",
                         icon = Icons.Outlined.DeleteOutline,
                         onClick = onDelete,
                         danger = true,
+                        modifier = Modifier.focusRequester(firstFocus),
                     )
                 }
             }
         }
         LaunchedEffect(Unit) { firstFocus.requestFocus() }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun DownloadErrorDialog(message: String, onDismiss: () -> Unit) {
+    val dismissFocus = remember { FocusRequester() }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.width(500.dp)
+                .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 8.dp)
+                .padding(20.dp),
+        ) {
+            Text("Download error", style = PebbleType.Title, color = PebbleColors.OnSurface)
+            Spacer(Modifier.height(12.dp))
+            Text(message, style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+            Spacer(Modifier.height(20.dp))
+            MenuRow(
+                label = "Dismiss",
+                icon = Icons.Outlined.Check,
+                onClick = onDismiss,
+                modifier = Modifier.focusRequester(dismissFocus),
+            )
+        }
+        LaunchedEffect(Unit) { dismissFocus.requestFocus() }
     }
 }
 
@@ -441,7 +565,7 @@ private fun MenuRow(
             .fillMaxWidth()
             .height(56.dp)
             .pebbleFocus(shape = PebbleShape.Md, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, if (danger) PebbleColors.GlassRose else PebbleColors.GlassLagoon, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -458,4 +582,16 @@ private fun formatBytes(bytes: Long): String {
     var v = bytes.toDouble(); var i = 0
     while (v >= 1024 && i < units.lastIndex) { v /= 1024; i++ }
     return String.format("%.1f %s", v, units[i])
+}
+
+private fun matchesFilter(record: DownloadRecord, filter: String): Boolean {
+    val name = record.filename.lowercase()
+    val mime = record.mime.orEmpty().lowercase()
+    return when (filter) {
+        "Videos" -> mime.startsWith("video/") || listOf(".mp4", ".mkv", ".webm", ".mov").any(name::endsWith)
+        "Documents" -> mime.startsWith("text/") || mime == "application/pdf" ||
+            listOf(".pdf", ".doc", ".docx", ".txt", ".epub").any(name::endsWith)
+        "Packages" -> listOf(".apk", ".zip", ".tar", ".gz").any(name::endsWith)
+        else -> true
+    }
 }

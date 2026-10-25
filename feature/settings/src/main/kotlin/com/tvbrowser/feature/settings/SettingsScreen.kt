@@ -3,10 +3,10 @@ package com.tvbrowser.feature.settings
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,16 +16,20 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AdsClick
+import androidx.compose.material.icons.outlined.BrightnessAuto
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Mouse
-import androidx.compose.material.icons.outlined.NoEncryption
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,20 +45,24 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.tv.foundation.lazy.list.TvLazyColumn
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import com.tvbrowser.core.common.PrefKeys
 import com.tvbrowser.core.common.SettingsRepository
+import com.tvbrowser.core.common.ThemePreference
 import com.tvbrowser.core.db.repo.HistoryRepository
 import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.seaGlass
 import com.tvbrowser.core.design.PebbleDimens
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
@@ -78,42 +86,75 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val cursorLongPress: StateFlow<Boolean> = settings.cursorToggleLongPress
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val theme: StateFlow<ThemePreference> = settings.theme
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemePreference.System)
 
     fun setDesktopUa(v: Boolean) = viewModelScope.launch { settings.set(PrefKeys.DesktopUa, v) }
     fun setAdblock(v: Boolean) = viewModelScope.launch { settings.set(PrefKeys.AdblockEnabled, v) }
     fun setCursorLongPress(v: Boolean) = viewModelScope.launch { settings.set(PrefKeys.CursorToggleLongPress, v) }
+    fun setTheme(v: ThemePreference) = viewModelScope.launch { settings.setTheme(v) }
 
     fun clearHistory() = viewModelScope.launch { history.clear() }
-    fun clearIncognito() = viewModelScope.launch {
-        android.webkit.CookieManager.getInstance().removeSessionCookies(null)
-        android.webkit.WebStorage.getInstance().deleteAllData()
-    }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
-fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    onOpenDownloads: () -> Unit,
+    vm: SettingsViewModel = hiltViewModel(),
+) {
     val desktop by vm.desktopUa.collectAsState()
     val ad by vm.adblock.collectAsState()
     val longPress by vm.cursorLongPress.collectAsState()
+    val theme by vm.theme.collectAsState()
     val firstFocus = remember { FocusRequester() }
     var showClearHistory by remember { mutableStateOf(false) }
-    var showClearIncognito by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8),
         ) {
             Header()
-            Spacer(Modifier.height(PebbleDimens.Sp6))
-            TvLazyColumn(
-                verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp5),
+            Spacer(Modifier.height(PebbleDimens.Sp4))
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+                contentPadding = PaddingValues(horizontal = PebbleDimens.Sp2, vertical = PebbleDimens.Sp2),
                 modifier = Modifier
-                    .width(880.dp)
+                    .widthIn(max = 880.dp)
+                    .fillMaxWidth()
                     .focusProperties { enter = { firstFocus } },
             ) {
+                item { SectionHeader("Appearance") }
+                item {
+                    ThemeOptionRow(
+                        mode = ThemePreference.System,
+                        subtitle = "Match your TV appearance",
+                        selected = theme == ThemePreference.System,
+                        icon = Icons.Outlined.BrightnessAuto,
+                        onClick = vm::setTheme,
+                        modifier = Modifier.focusRequester(firstFocus),
+                    )
+                }
+                item {
+                    ThemeOptionRow(
+                        mode = ThemePreference.Light,
+                        subtitle = "Warm sand and sea glass",
+                        selected = theme == ThemePreference.Light,
+                        icon = Icons.Outlined.LightMode,
+                        onClick = vm::setTheme,
+                    )
+                }
+                item {
+                    ThemeOptionRow(
+                        mode = ThemePreference.Dark,
+                        subtitle = "Deep sea glass for low light",
+                        selected = theme == ThemePreference.Dark,
+                        icon = Icons.Outlined.DarkMode,
+                        onClick = vm::setTheme,
+                    )
+                }
                 item { SectionHeader("Page rendering") }
                 item {
                     ToggleRow(
@@ -122,7 +163,6 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                         subtitle = "Default user-agent for new tabs",
                         value = desktop,
                         onChange = vm::setDesktopUa,
-                        modifier = Modifier.focusRequester(firstFocus),
                     )
                 }
                 item {
@@ -148,9 +188,9 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                 item {
                     ActionRow(
                         icon = Icons.Outlined.Folder,
-                        title = "Download location",
-                        subtitle = "/storage/emulated/0/Download",
-                        onClick = {},
+                        title = "View downloads",
+                        subtitle = "Saved in Pebble app storage",
+                        onClick = onOpenDownloads,
                     )
                 }
                 item { SectionHeader("Privacy") }
@@ -160,14 +200,6 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                         title = "Clear browsing history",
                         subtitle = "Remove all visited pages from this device",
                         onClick = { showClearHistory = true },
-                    )
-                }
-                item {
-                    ActionRow(
-                        icon = Icons.Outlined.NoEncryption,
-                        title = "Clear incognito data",
-                        subtitle = "Cookies and site storage from private tabs",
-                        onClick = { showClearIncognito = true },
                     )
                 }
             }
@@ -184,18 +216,34 @@ fun SettingsScreen(vm: SettingsViewModel = hiltViewModel()) {
                 onCancel = { showClearHistory = false },
             )
         }
-        if (showClearIncognito) {
-            ConfirmDialog(
-                title = "Clear incognito data?",
-                message = "Cookies and site storage from private tabs will be erased. This cannot be undone.",
-                confirmLabel = "Clear",
-                onConfirm = {
-                    vm.clearIncognito()
-                    showClearIncognito = false
-                },
-                onCancel = { showClearIncognito = false },
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun ThemeOptionRow(
+    mode: ThemePreference,
+    subtitle: String,
+    selected: Boolean,
+    icon: ImageVector,
+    onClick: (ThemePreference) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SetRow(
+        icon = icon,
+        title = mode.label,
+        subtitle = subtitle,
+        onClick = { onClick(mode) },
+        modifier = modifier.semantics { this.selected = selected },
+    ) {
+        if (selected) {
+            Icon(
+                Icons.Outlined.Check,
+                contentDescription = "Selected",
+                tint = PebbleColors.Primary,
+                modifier = Modifier.size(24.dp),
             )
-        }
+        } else Spacer(Modifier.size(24.dp))
     }
 }
 
@@ -259,16 +307,15 @@ private fun SetRow(
         modifier = modifier
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassMint, 4.dp)
             .pebbleClickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 18.dp),
+            .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .background(PebbleColors.Surface3, PebbleShape.Sm),
+                .seaGlass(PebbleShape.Sm, PebbleColors.GlassLagoon, 2.dp),
             contentAlignment = Alignment.Center,
         ) {
             Icon(icon, contentDescription = null, tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(24.dp))
@@ -286,8 +333,6 @@ private fun SetRow(
 
 @Composable
 private fun PebbleSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
-    val trackColor = if (checked) PebbleColors.PrimaryContainer else PebbleColors.Surface4
-    val knobColor = if (checked) PebbleColors.PrimaryStrong else PebbleColors.OnSurfaceFaint
     val knobX by animateDpAsState(
         targetValue = if (checked) 26.dp else 2.dp,
         animationSpec = tween(durationMillis = 180),
@@ -296,14 +341,14 @@ private fun PebbleSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
     Box(
         modifier = Modifier
             .size(width = 58.dp, height = 34.dp)
-            .background(trackColor, CircleShape),
+            .seaGlass(CircleShape, if (checked) PebbleColors.GlassFocus else PebbleColors.GlassLagoon, 2.dp, emphasized = checked),
         contentAlignment = Alignment.CenterStart,
     ) {
         Box(
             modifier = Modifier
                 .offset(x = knobX)
                 .size(30.dp)
-                .background(knobColor, CircleShape),
+                .seaGlass(CircleShape, PebbleColors.GlassHigh, 2.dp),
         )
     }
 }
@@ -330,8 +375,7 @@ private fun ConfirmDialog(
             Column(
                 modifier = Modifier
                     .width(480.dp)
-                    .background(PebbleColors.Surface1, PebbleShape.Lg)
-                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(24.dp),
             ) {
                 Text(title, style = PebbleType.TitleLg, color = PebbleColors.OnSurface)
@@ -363,13 +407,12 @@ private fun DialogButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val bg = if (danger) PebbleColors.Danger.copy(alpha = 0.18f) else PebbleColors.Surface2
     val fg = if (danger) PebbleColors.Danger else PebbleColors.OnSurface
     Box(
         modifier = modifier
             .height(48.dp)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-            .background(bg, PebbleShape.Full)
+            .seaGlass(PebbleShape.Full, if (danger) PebbleColors.GlassRose else PebbleColors.GlassLagoon, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 24.dp),
         contentAlignment = Alignment.Center,

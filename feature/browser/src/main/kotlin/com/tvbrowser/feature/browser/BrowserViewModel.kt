@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.tvbrowser.core.common.PrefKeys
 import com.tvbrowser.core.common.SettingsRepository
 import com.tvbrowser.core.common.UrlUtils
-import com.tvbrowser.core.db.entity.TabEntity
 import com.tvbrowser.core.db.repo.BookmarkRepository
 import com.tvbrowser.core.db.repo.HistoryRepository
 import com.tvbrowser.core.db.repo.TabRepository
@@ -22,7 +21,6 @@ import javax.inject.Inject
 data class BrowserUi(
     val url: String = "",
     val title: String? = null,
-    val progress: Int = 100,
     val isBookmarked: Boolean = false,
     val isIncognito: Boolean = false,
     val desktopUa: Boolean = false,
@@ -40,13 +38,14 @@ class BrowserViewModel @Inject constructor(
 
     private val _ui = MutableStateFlow(BrowserUi())
     val ui: StateFlow<BrowserUi> = _ui.asStateFlow()
-
-    private var currentTab: TabEntity? = null
+    private val _progress = MutableStateFlow(100)
+    val progress: StateFlow<Int> = _progress.asStateFlow()
+    private var boundTabId: String? = null
 
     fun bind(tabId: String) {
+        boundTabId = tabId
         viewModelScope.launch {
-            val tab = tabRepo.get(tabId)
-            currentTab = tab
+            val tab = tabManager.privateTab(tabId) ?: tabRepo.get(tabId)
             val desktop = settings.desktopUa.first()
             val adblock = settings.adblockEnabled.first()
             _ui.value = BrowserUi(
@@ -56,6 +55,7 @@ class BrowserViewModel @Inject constructor(
                 desktopUa = desktop,
                 adblockEnabled = adblock,
             )
+            _progress.value = 100
         }
     }
 
@@ -65,11 +65,13 @@ class BrowserViewModel @Inject constructor(
     }
 
     fun onPageStarted(url: String) {
-        _ui.value = _ui.value.copy(url = url, progress = 0)
+        _ui.value = _ui.value.copy(url = url)
+        _progress.value = 0
     }
 
     fun onPageFinished(url: String, title: String?) {
-        _ui.value = _ui.value.copy(url = url, title = title, progress = 100)
+        _ui.value = _ui.value.copy(url = url, title = title)
+        _progress.value = 100
         if (!_ui.value.isIncognito && url.startsWith("http")) {
             viewModelScope.launch {
                 historyRepo.record(url, title)
@@ -78,11 +80,19 @@ class BrowserViewModel @Inject constructor(
         }
     }
 
-    fun onProgress(p: Int) { _ui.value = _ui.value.copy(progress = p) }
+    fun onProgress(p: Int) { _progress.value = p.coerceIn(0, 100) }
+
+    override fun onCleared() {
+        // A private tab is absent from the persisted Tabs list. The navigation entry owns it,
+        // so remove its WebView and in-memory metadata when that entry leaves the back stack.
+        boundTabId?.takeIf { tabManager.privateTab(it) != null }?.let(tabManager::release)
+        super.onCleared()
+    }
 
     fun submitOmnibox(input: String): String {
         val target = UrlUtils.toQueryOrUrl(input)
-        _ui.value = _ui.value.copy(url = target, progress = 0)
+        _ui.value = _ui.value.copy(url = target)
+        _progress.value = 0
         return target
     }
 

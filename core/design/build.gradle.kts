@@ -24,4 +24,5 @@ dependencies {
     api(libs.compose.material.icons.extended)
     api(libs.tv.material)
     api(libs.tv.foundation)
+    implementation(libs.coil.compose)
 }

@@ -3,6 +3,9 @@ package com.tvbrowser.core.design
 import android.os.SystemClock
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -18,7 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -28,6 +30,12 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -43,33 +51,53 @@ fun Modifier.pebbleFocus(
     lift: Boolean = true,
     tight: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
+    ringColorOverride: Color? = null,
+    gapColorOverride: Color? = null,
+    gapWidth: Dp? = null,
 ): Modifier = composed {
-    val gap = if (tight) PebbleDimens.FocusGapTight else PebbleDimens.FocusGap
+    val gap = gapWidth ?: if (tight) PebbleDimens.FocusGapTight else PebbleDimens.FocusGap
     val ring = if (tight) PebbleDimens.FocusRingTight else PebbleDimens.FocusRing
     val src = interactionSource ?: remember { MutableInteractionSource() }
     val focused by src.collectIsFocusedAsState()
 
-    val ringColor = if (focused) PebbleColors.Primary else Color.Transparent
-    val gapColor = if (focused) PebbleColors.Bg else Color.Transparent
+    val ringColor by animateColorAsState(
+        if (focused) ringColorOverride ?: PebbleColors.Primary else Color.Transparent,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "pebble-focus-ring",
+    )
+    val gapColor by animateColorAsState(
+        if (focused) gapColorOverride ?: PebbleColors.Bg else Color.Transparent,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "pebble-focus-gap",
+    )
 
     val scale by animateFloatAsState(
         if (focused && lift) PebbleDimens.FocusLiftScale else 1f,
-        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "pebble-focus-scale",
     )
     val ty by animateDpAsState(
         if (focused && lift) PebbleDimens.FocusLiftY else 0.dp,
-        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "pebble-focus-ty",
     )
+    val elevation by animateDpAsState(
+        if (focused && lift) PebbleElevation.E2 else 0.dp,
+        tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "pebble-focus-elevation",
+    )
+    val shadowColor = PebbleColors.Primary.copy(alpha = 0.30f)
 
     this
         .graphicsLayer {
             scaleX = scale
             scaleY = scale
             translationY = ty.toPx()
+            shadowElevation = elevation.toPx()
+            this.shape = shape
+            ambientShadowColor = shadowColor
+            spotShadowColor = shadowColor
         }
-        .then(if (focused && lift) Modifier.shadow(PebbleElevation.E2, shape) else Modifier)
         .border(ring, ringColor, shape)
         .padding(ring)
         .border(gap, gapColor, shape)
@@ -93,10 +121,20 @@ fun Modifier.pebbleClickable(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     longPressMs: Long = 500L,
+    onClickLabel: String? = null,
+    onLongClickLabel: String? = null,
+    role: Role = Role.Button,
 ): Modifier = composed {
     var downAt by remember { mutableStateOf(0L) }
     var longFired by remember { mutableStateOf(false) }
     this
+        .semantics(mergeDescendants = true) {
+            this.role = role
+            this.onClick(label = onClickLabel) { onClick(); true }
+            onLongClick?.let { action ->
+                this.onLongClick(label = onLongClickLabel) { action(); true }
+            }
+        }
         .onPreviewKeyEvent { e ->
             if (e.key != Key.DirectionCenter && e.key != Key.Enter && e.key != Key.NumPadEnter) {
                 return@onPreviewKeyEvent false

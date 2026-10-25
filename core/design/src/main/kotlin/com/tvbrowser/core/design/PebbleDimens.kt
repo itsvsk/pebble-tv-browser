@@ -5,7 +5,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Pebble design tokens — spacing, layout, focus, motion.
- * Source: colors_and_type.css §7, §9, §10, §11, §12.
+ * Shared TV measurements used by the glass UI.
  */
 object PebbleDimens {
     // 4dp base grid
@@ -20,18 +20,17 @@ object PebbleDimens {
     val Sp14 = 56.dp
 
     // Layout
-    val Gutter   = 56.dp   // page side gutter / safe-area inset
+    val Gutter   = 48.dp   // TV safe-area inset
     val RailW    = 116.dp  // navigation rail width
-    val ChromeH  = 92.dp   // browser top bar
-    val HintH    = 56.dp   // key-hint bar
+    val ChromeH  = 76.dp
 
-    // Focus — two-part ring: 3dp bg gap + 3dp primary ring; rail/menu use 2+2
-    val FocusGap        = 3.dp
-    val FocusRing       = 3.dp
-    val FocusGapTight   = 2.dp
+    // Cyan outer ring with a narrow inner separation keeps D-pad position clear.
+    val FocusGap        = 2.dp
+    val FocusRing       = 2.dp
+    val FocusGapTight   = 1.dp
     val FocusRingTight  = 2.dp
     val FocusLiftY      = (-3).dp
-    const val FocusLiftScale = 1.03f
+    const val FocusLiftScale = 1.05f
 }
 
 object PebbleElevation {
@@ -42,6 +41,8 @@ object PebbleElevation {
 
 object PebbleMotion {
     val Standard = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-    const val DurationMs = 180
-    const val DurationFastMs = 120
+    const val DurationMs = 260
+    const val DurationFastMs = 160
+    const val ScreenEnterMs = 260
+    const val ScreenExitMs = 180
 }

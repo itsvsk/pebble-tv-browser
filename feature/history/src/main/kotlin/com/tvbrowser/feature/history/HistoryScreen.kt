@@ -1,12 +1,18 @@
 package com.tvbrowser.feature.history
 
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,29 +28,41 @@ import androidx.compose.material.icons.outlined.BookmarkRemove
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.tv.foundation.lazy.list.TvLazyColumn
-import androidx.tv.foundation.lazy.list.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -54,9 +72,12 @@ import com.tvbrowser.core.db.entity.HistoryEntry
 import com.tvbrowser.core.db.repo.BookmarkRepository
 import com.tvbrowser.core.db.repo.HistoryRepository
 import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.seaGlass
 import com.tvbrowser.core.design.PebbleDimens
+import com.tvbrowser.core.design.PebbleMotion
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
+import com.tvbrowser.core.design.WebsitePreview
 import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
 import com.tvbrowser.core.webview.TabManager
@@ -128,16 +149,87 @@ fun HistoryScreen(
     val entries by vm.entries.collectAsState()
     val bookmarkedUrls by vm.bookmarkedUrls.collectAsState()
     val menuEntry by vm.selectedForMenu.collectAsState()
-    Box(modifier = Modifier.fillMaxSize().background(PebbleColors.Bg)) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp8)) {
-            Header(onClear = { vm.clearAll() })
-            Spacer(Modifier.height(PebbleDimens.Sp6))
+    val listState = rememberLazyListState()
+    var headerCompact by remember { mutableStateOf(false) }
+    var expandedByBack by remember { mutableStateOf(false) }
+    LaunchedEffect(listState) {
+        var lastIndex = listState.firstVisibleItemIndex
+        var lastOffset = listState.firstVisibleItemScrollOffset
+        snapshotFlow {
+            Triple(listState.isScrollInProgress, listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
+        }.collect { (scrolling, index, offset) ->
+            val movedDown = index > lastIndex || (index == lastIndex && offset > lastOffset)
+            val movedUp = index < lastIndex || (index == lastIndex && offset < lastOffset)
+            lastIndex = index
+            lastOffset = offset
+            when {
+                !scrolling -> expandedByBack = false
+                movedDown && !expandedByBack -> headerCompact = true
+                movedUp && index == 0 && offset == 0 -> headerCompact = false
+            }
+        }
+    }
+    BackHandler(enabled = headerCompact && menuEntry == null) {
+        expandedByBack = true
+        headerCompact = false
+    }
+    val headerGap by animateDpAsState(
+        targetValue = if (headerCompact) PebbleDimens.Sp2 else PebbleDimens.Sp6,
+        animationSpec = tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard),
+        label = "history-header-gap",
+    )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().padding(top = PebbleDimens.Sp8)) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = PebbleDimens.Gutter)) {
+                Header(compact = headerCompact, onClear = { vm.clearAll() })
+            }
+            Spacer(Modifier.height(headerGap))
             if (entries.isEmpty()) {
-                Text("No history yet.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+                Text("No history yet.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted,
+                    modifier = Modifier.padding(horizontal = PebbleDimens.Gutter))
                 return@Column
             }
             val groups = remember(entries) { groupByDay(entries) }
-            TvLazyColumn(verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3)) {
+            val firstEntryId = entries.firstOrNull()?.id
+            LazyColumn(
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+                contentPadding = PaddingValues(
+                    start = PebbleDimens.Gutter, end = PebbleDimens.Gutter,
+                    top = PebbleDimens.Sp2, bottom = PebbleDimens.Sp8,
+                ),
+                modifier = Modifier.fillMaxWidth().weight(1f)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown) {
+                            expandedByBack = false
+                        }
+                        false
+                    }
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithCache {
+                        val topEdge = 20.dp.toPx()
+                        val bottomEdge = 12.dp.toPx()
+                        val topFade = Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black),
+                            startY = 0f, endY = topEdge,
+                        )
+                        val bottomFade = Brush.verticalGradient(
+                            colors = listOf(Color.Black, Color.Transparent),
+                            startY = size.height - bottomEdge, endY = size.height,
+                        )
+                        onDrawWithContent {
+                            drawContent()
+                            if (listState.canScrollBackward) {
+                                drawRect(topFade, topLeft = Offset.Zero,
+                                    size = Size(size.width, topEdge), blendMode = BlendMode.DstIn)
+                            }
+                            if (listState.canScrollForward) {
+                                drawRect(bottomFade, topLeft = Offset(0f, size.height - bottomEdge),
+                                    size = Size(size.width, bottomEdge), blendMode = BlendMode.DstIn)
+                            }
+                        }
+                    },
+            ) {
                 groups.forEach { (label, rows) ->
                     item(key = "h-$label") { DayHeader(label) }
                     items(rows, key = { it.id }) { e ->
@@ -145,6 +237,7 @@ fun HistoryScreen(
                             entry = e,
                             onOpen = { vm.open(e) { onOpenUrl(it) } },
                             onLongClick = { vm.showMenu(e) },
+                            onFocused = if (e.id == firstEntryId) ({ headerCompact = false }) else null,
                         )
                     }
                 }
@@ -173,11 +266,20 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun Header(onClear: () -> Unit) {
+private fun Header(compact: Boolean, onClear: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column {
             Text("History", style = PebbleType.Display, color = PebbleColors.OnSurface)
-            Text("Recently visited", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+            AnimatedVisibility(
+                visible = !compact,
+                enter = expandVertically(tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard)) +
+                    fadeIn(tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard)),
+                exit = shrinkVertically(tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard)) +
+                    fadeOut(tween(PebbleMotion.DurationMs, easing = PebbleMotion.Standard)),
+                label = "history-subtitle",
+            ) {
+                Text("Recently visited", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+            }
         }
         Spacer(Modifier.weight(1f))
         ClearPill(onClick = onClear)
@@ -190,7 +292,7 @@ private fun ClearPill(onClick: () -> Unit) {
         modifier = Modifier
             .height(40.dp)
             .pebbleFocus(shape = PebbleShape.Full, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Full)
+            .seaGlass(PebbleShape.Full, PebbleColors.GlassRose, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -208,18 +310,27 @@ private val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun HistoryRow(entry: HistoryEntry, onOpen: () -> Unit, onLongClick: () -> Unit) {
+private fun HistoryRow(
+    entry: HistoryEntry,
+    onOpen: () -> Unit,
+    onLongClick: () -> Unit,
+    onFocused: (() -> Unit)? = null,
+) {
     val host = UrlUtils.hostOf(entry.url) ?: entry.url
     val time = remember(entry.visitedAt) {
         LocalDateTime.ofInstant(Instant.ofEpochMilli(entry.visitedAt), ZoneId.systemDefault()).format(timeFmt)
     }
     Row(
         modifier = Modifier
+            .graphicsLayer {
+                // Reuse the glass tile while the list moves it across the screen.
+                compositingStrategy = CompositingStrategy.Offscreen
+            }
+            .onFocusChanged { if (it.isFocused) onFocused?.invoke() }
             .pebbleFocus(shape = PebbleShape.Md, lift = false)
             .fillMaxWidth()
             .height(72.dp)
-            .background(PebbleColors.Surface1, PebbleShape.Md)
-            .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
             .pebbleClickable(onClick = onOpen, onLongClick = onLongClick)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -265,16 +376,15 @@ private fun HistoryContextMenu(
                 modifier = Modifier
                     .width(540.dp)
                     .padding(end = PebbleDimens.Sp4)
-                    .background(PebbleColors.Surface1, PebbleShape.Lg)
-                    .border(1.dp, PebbleColors.OutlineFaint, PebbleShape.Lg)
+                    .seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 12.dp)
                     .padding(18.dp),
             ) {
-                HistoryWebViewPreview(
-                    url = entry.url,
+                WebsitePreview(
+                    host = host,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(220.dp)
-                        .background(PebbleColors.Surface3, RoundedCornerShape(10.dp))
+                        .seaGlass(RoundedCornerShape(10.dp), PebbleColors.GlassLagoon, 1.dp)
                         .clip(RoundedCornerShape(10.dp)),
                 )
                 Spacer(Modifier.height(14.dp))
@@ -327,7 +437,7 @@ private fun MenuRow(
             .fillMaxWidth()
             .height(56.dp)
             .pebbleFocus(shape = PebbleShape.Md, lift = false, tight = true)
-            .background(PebbleColors.Surface2, PebbleShape.Md)
+            .seaGlass(PebbleShape.Md, if (danger) PebbleColors.GlassRose else PebbleColors.GlassLagoon, 3.dp)
             .pebbleClickable(onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -338,42 +448,6 @@ private fun MenuRow(
     }
 }
 
-@Composable
-private fun HistoryWebViewPreview(url: String, modifier: Modifier = Modifier) {
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.useWideViewPort = true
-                settings.loadWithOverviewMode = true
-                setInitialScale(50)
-                isFocusable = false
-                isFocusableInTouchMode = false
-                webViewClient = WebViewClient()
-                loadUrl(url)
-            }
-        },
-        update = { wv -> if (wv.url != url) wv.loadUrl(url) },
-        onRelease = { wv ->
-            wv.stopLoading()
-            wv.loadUrl("about:blank")
-            wv.onPause()
-            wv.removeAllViews()
-            wv.destroy()
-        },
-    )
-    DisposableEffect(lifecycle) {
-        val observer = object : DefaultLifecycleObserver {
-            override fun onPause(owner: LifecycleOwner) {}
-            override fun onResume(owner: LifecycleOwner) {}
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
-}
 
 private fun groupByDay(entries: List<HistoryEntry>): List<Pair<String, List<HistoryEntry>>> {
     val today = LocalDate.now()

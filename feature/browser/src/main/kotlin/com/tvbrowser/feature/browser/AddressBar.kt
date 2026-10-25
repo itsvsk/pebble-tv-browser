@@ -1,11 +1,12 @@
 package com.tvbrowser.feature.browser
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,12 +24,9 @@ import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Mouse
 import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.SwipeRightAlt
-import androidx.compose.material.icons.outlined.Tab
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +36,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -47,16 +47,19 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import com.tvbrowser.core.design.PebbleColors
+import com.tvbrowser.core.design.seaGlass
 import com.tvbrowser.core.design.PebbleDimens
 import com.tvbrowser.core.design.PebbleShape
 import com.tvbrowser.core.design.PebbleType
@@ -64,12 +67,15 @@ import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
 
 /**
- * Pebble browser chrome bar (92dp, surface).
- * Layout: [back][fwd][reload] · address-pill (lock + scheme + url + mode-chip) · [UA][cursor][star][tabs][overflow].
+ * Compact browser controls directly below the main top navigation.
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun AddressBar(
+    controlsFocusRequester: FocusRequester,
+    topNavFocusRequester: FocusRequester,
+    pointerPreferred: Boolean,
+    onResumePointer: () -> Unit,
     url: String,
     isBookmarked: Boolean,
     desktopUa: Boolean,
@@ -77,34 +83,49 @@ fun AddressBar(
     onBack: () -> Unit,
     onForward: () -> Unit,
     onReload: () -> Unit,
-    onHome: () -> Unit, // kept for API compat; rail handles Home now
-    onTabs: () -> Unit,
     onBookmark: () -> Unit,
     onToggleUa: () -> Unit,
-    cursorActive: Boolean,
-    onToggleCursor: () -> Unit,
-    onMenu: () -> Unit,
 ) {
     var text by remember(url) { mutableStateOf(url) }
     var editing by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    val bookmarkFocusRequester = remember { FocusRequester() }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(PebbleDimens.ChromeH)
-            .background(PebbleColors.Surface),
+            .height(58.dp)
+            .onPreviewKeyEvent { event ->
+                if (pointerPreferred && event.type == KeyEventType.KeyDown &&
+                    event.key == Key.DirectionDown
+                ) {
+                    onResumePointer()
+                    true
+                } else false
+            }
+            // The WebView is a later sibling; its initial white frame must stay below the controls.
+            .zIndex(1f)
+            .background(PebbleColors.GlassHigh),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = PebbleDimens.Sp4),
+                .padding(horizontal = PebbleDimens.Gutter),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2),
         ) {
-            RoundIcon(Icons.Outlined.ArrowBack, "Back", onClick = onBack)
-            RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward, enabled = false)
-            RoundIcon(Icons.Outlined.Refresh, "Reload", onClick = onReload)
+            RoundIcon(
+                Icons.Outlined.ArrowBack,
+                "Back",
+                onClick = onBack,
+                focusRequester = controlsFocusRequester,
+                onLeft = { bookmarkFocusRequester.requestFocus() },
+                onUp = { topNavFocusRequester.requestFocus() },
+            )
+            RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward,
+                onUp = { topNavFocusRequester.requestFocus() })
+            RoundIcon(Icons.Outlined.Refresh, "Reload", onClick = onReload,
+                onUp = { topNavFocusRequester.requestFocus() })
 
             Spacer(Modifier.width(PebbleDimens.Sp2))
 
@@ -119,7 +140,7 @@ fun AddressBar(
                     editing = false
                     focusManager.moveFocus(FocusDirection.Down)
                 },
-                desktopUa = desktopUa,
+                onUp = { topNavFocusRequester.requestFocus() },
                 modifier = Modifier.weight(1f),
             )
 
@@ -129,20 +150,17 @@ fun AddressBar(
                 imageVector = if (desktopUa) Icons.Outlined.DesktopWindows else Icons.Outlined.PhoneAndroid,
                 contentDescription = if (desktopUa) "Desktop site" else "Mobile site",
                 onClick = onToggleUa,
-            )
-            RoundIcon(
-                imageVector = if (cursorActive) Icons.Outlined.Mouse else Icons.Outlined.SwipeRightAlt,
-                contentDescription = if (cursorActive) "Cursor mode" else "D-pad mode",
-                onClick = onToggleCursor,
+                onUp = { topNavFocusRequester.requestFocus() },
             )
             RoundIcon(
                 imageVector = if (isBookmarked) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder,
                 contentDescription = "Bookmark",
                 onClick = onBookmark,
-                tint = if (isBookmarked) PebbleColors.PrimaryStrong else PebbleColors.OnSurfaceMuted,
+                tint = if (isBookmarked) PebbleColors.Primary else PebbleColors.OnSurfaceMuted,
+                focusRequester = bookmarkFocusRequester,
+                onRight = { controlsFocusRequester.requestFocus() },
+                onUp = { topNavFocusRequester.requestFocus() },
             )
-            RoundIcon(Icons.Outlined.Tab, "Tabs", onClick = onTabs)
-            RoundIcon(Icons.Outlined.MoreVert, "Menu", onClick = onMenu)
         }
     }
 
@@ -157,12 +175,29 @@ private fun RoundIcon(
     onClick: () -> Unit,
     enabled: Boolean = true,
     tint: androidx.compose.ui.graphics.Color = PebbleColors.OnSurfaceMuted,
+    focusRequester: FocusRequester? = null,
+    onLeft: (() -> Unit)? = null,
+    onRight: (() -> Unit)? = null,
+    onUp: (() -> Unit)? = null,
 ) {
+    val focusSource = remember { MutableInteractionSource() }
+    val focused by focusSource.collectIsFocusedAsState()
     Box(
         modifier = Modifier
-            .size(60.dp)
-            .pebbleFocus(shape = CircleShape, lift = false, tight = true)
-            .background(androidx.compose.ui.graphics.Color.Transparent, CircleShape)
+            .size(38.dp)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .then(if (onLeft != null || onRight != null || onUp != null) Modifier.onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.DirectionLeft -> if (onLeft != null) { onLeft(); true } else false
+                    Key.DirectionRight -> if (onRight != null) { onRight(); true } else false
+                    Key.DirectionUp -> if (onUp != null) { onUp(); true } else false
+                    else -> false
+                }
+            } else Modifier)
+            .pebbleFocus(shape = CircleShape, lift = false, tight = true, interactionSource = focusSource)
+            .seaGlass(CircleShape, if (focused) PebbleColors.GlassFocus else PebbleColors.GlassLagoon,
+                if (focused) 6.dp else 1.dp, emphasized = focused)
             .let { if (enabled) it.pebbleClickable(onClick) else it },
         contentAlignment = Alignment.Center,
     ) {
@@ -170,11 +205,10 @@ private fun RoundIcon(
             imageVector,
             contentDescription = contentDescription,
             tint = if (enabled) tint else PebbleColors.OnSurfaceFaint.copy(alpha = 0.5f),
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier.size(21.dp),
         )
     }
 }
-
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -185,22 +219,29 @@ private fun AddressPill(
     editing: Boolean,
     onEditingChange: (Boolean) -> Unit,
     onSubmit: () -> Unit,
-    desktopUa: Boolean,
+    onUp: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
-    val (scheme, host) = remember(url) { splitScheme(url) }
+    val editorFocusRequester = remember { FocusRequester() }
+    var editorHasFocus by remember { mutableStateOf(false) }
+    val host = remember(url) { url.substringAfter("://", url) }
+    val secure = url.startsWith("https://", ignoreCase = true)
+    LaunchedEffect(editing) {
+        if (editing) editorFocusRequester.requestFocus()
+    }
     Row(
         modifier = modifier
-            .height(60.dp)
+            .height(42.dp)
+            .testTag("browser-address")
             .pebbleFocus(shape = PebbleShape.Full, lift = false)
-            .background(PebbleColors.Surface2, PebbleShape.Full)
-            .padding(horizontal = 20.dp)
-            .onFocusChanged { onEditingChange(it.isFocused) }
+            .seaGlass(PebbleShape.Full, PebbleColors.GlassLagoon, 2.dp)
+            .pebbleClickable(onClick = { onEditingChange(true) }, onClickLabel = "Edit address")
+            .padding(horizontal = 16.dp)
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (e.key) {
-                    Key.DirectionUp -> { focusManager.moveFocus(FocusDirection.Up); true }
+                    Key.DirectionUp -> { onUp(); true }
                     Key.DirectionDown -> { focusManager.moveFocus(FocusDirection.Down); true }
                     else -> false
                 }
@@ -208,12 +249,12 @@ private fun AddressPill(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            Icons.Outlined.Lock,
-            contentDescription = "Secure",
-            tint = PebbleColors.OnSurfaceMuted,
+            if (secure) Icons.Outlined.Lock else Icons.Outlined.Public,
+            contentDescription = if (secure) "Secure site" else "Site security not verified",
+            tint = if (secure) PebbleColors.Primary else PebbleColors.Warn,
             modifier = Modifier.size(20.dp),
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(10.dp))
         if (editing) {
             BasicTextField(
                 value = text,
@@ -221,64 +262,39 @@ private fun AddressPill(
                 singleLine = true,
                 textStyle = TextStyle(
                     color = PebbleColors.OnSurface,
-                    fontSize = 23.sp,
+                    fontFamily = PebbleType.sans,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.W400,
                 ),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { onSubmit() }),
                 cursorBrush = SolidColor(PebbleColors.Primary),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f)
+                    .testTag("browser-address-editor")
+                    .focusRequester(editorFocusRequester)
+                    .onFocusChanged { state ->
+                        if (state.isFocused) editorHasFocus = true
+                        else if (editorHasFocus) {
+                            editorHasFocus = false
+                            onEditingChange(false)
+                        }
+                    },
                 decorationBox = { inner ->
                     if (text.isEmpty()) {
-                        Text("Search or type URL", style = PebbleType.TitleLg, color = PebbleColors.OnSurfaceFaint)
+                        Text("Search or type URL", style = PebbleType.Title, color = PebbleColors.OnSurfaceFaint)
                     }
                     inner()
                 },
             )
         } else {
-            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                if (scheme.isNotEmpty()) {
-                    Text(
-                        scheme,
-                        style = PebbleType.TitleLg,
-                        color = PebbleColors.OnSurfaceFaint,
-                        maxLines = 1,
-                    )
-                }
-                Text(
-                    host,
-                    style = PebbleType.Title,
-                    color = PebbleColors.OnSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            Text(
+                host,
+                style = PebbleType.Label,
+                color = PebbleColors.OnSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
         }
-        Spacer(Modifier.width(12.dp))
-        ModeChip(desktop = desktopUa)
     }
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun ModeChip(desktop: Boolean) {
-    Box(
-        modifier = Modifier
-            .height(28.dp)
-            .background(PebbleColors.Surface3, PebbleShape.Full)
-            .padding(horizontal = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            if (desktop) "DESKTOP" else "MOBILE",
-            style = PebbleType.Overline,
-            color = PebbleColors.OnSurfaceMuted,
-        )
-    }
-}
-
-private fun splitScheme(url: String): Pair<String, String> {
-    val idx = url.indexOf("://")
-    return if (idx > 0) (url.substring(0, idx + 3)) to url.substring(idx + 3)
-    else "" to url
 }

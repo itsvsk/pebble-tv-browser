@@ -31,7 +31,7 @@ Android TV web browser. Greenfield, single-developer (vishal.k@satsure.co).
 
 - **Remote nav**: hybrid. Default spatial focus. Long-press `KEYCODE_DPAD_CENTER` >500ms toggles virtual cursor overlay. Cursor arrows = move (8dp, accel to 32dp on repeat). CENTER = synthesize `MotionEvent` to WebView. Channel up/down = scroll.
 - **Tabs**: LRU `LinkedHashMap<String, WebView>(8, 0.75f, true)`. Max 8 live. Evicted tabs reload URL from `TabEntity` (no WebView state save — privacy + simplicity).
-- **Incognito v1**: single-process pragmatic. `setAcceptThirdPartyCookies=false`, `LOAD_NO_CACHE`, suppress History/Bookmark writes when `tab.isIncognito`. On close: `removeSessionCookies` + `WebStorage.deleteOrigin`. True isolation (`:incognito` process + `setDataDirectorySuffix`) = v2.
+- **Private browsing**: not exposed in the UI. Internal private-tab metadata stays in memory and suppresses history writes, but WebView cookies and site storage are shared with normal tabs. Do not advertise isolated private browsing or a private-only clear action until a separate WebView data directory and its lifecycle are implemented and verified.
 - **Adblock**: DIY EasyList host-based. Skipped `org.adblockplus:adblock-android` (stale, heavy .so). Ship `assets/easylist_min.txt` snapshot for first-run. Weekly refresh via WorkManager.
 - **Theme default**: Muted Teal / Charcoal. primary `#5FB0A8`, background `#0E1413`, surface `#171E1D`. 10-foot type scale: bodyMedium 18sp, headlineMedium 32sp, displayMedium 52sp.
 - **UA toggle**: mobile = system default; desktop = Chrome 120 Linux UA. On switch: set `userAgentString`, inject viewport meta via `evaluateJavascript`, reload.
@@ -39,8 +39,8 @@ Android TV web browser. Greenfield, single-developer (vishal.k@satsure.co).
 
 ## v1 scope
 
-IN: browsing, tabs, bookmarks, history, downloads, home, UA toggle, incognito, EasyList adblock.
-OUT: voice search, PiP, background play, sync, extensions, WebView state restore.
+IN: browsing, tabs, bookmarks, history, downloads, home, UA toggle, EasyList adblock.
+OUT: isolated private browsing, PiP, background play, sync, extensions, WebView state restore.
 
 ## Build / run
 
@@ -425,6 +425,9 @@ UNTESTED non-empty: History, Downloads, adblock score, UA toggle verify, tab per
 Screens MUST reference via `MaterialTheme.colorScheme.*` + `Dimens.*`. No hardcoded hex/dp in screen composables.
 
 ## Settings destructive-action confirm (2026-06-02 part 13)
+
+Historical implementation note: the private-data action described below was removed
+because it operated on storage shared with normal tabs. Only the history action remains.
 
 ```
 feature/settings/.../SettingsScreen.kt   + ConfirmDialog + DialogButton private composables

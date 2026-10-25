@@ -1,18 +1,22 @@
 package com.tvbrowser.feature.browser
 
 import android.view.ViewGroup
-import android.webkit.WebView
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import com.tvbrowser.core.adblock.AdBlockInterceptor
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tvbrowser.core.cursor.CursorController
 import com.tvbrowser.core.webview.TabConfig
 import com.tvbrowser.core.webview.TabManager
-import com.tvbrowser.core.webview.TabWebViewFactory
+import com.tvbrowser.core.webview.TabUiCallbacks
+import com.tvbrowser.core.webview.TabWebViewClient
 
 @Composable
 fun WebViewHost(
@@ -20,7 +24,6 @@ fun WebViewHost(
     initialUrl: String,
     config: TabConfig,
     tabManager: TabManager,
-    adBlock: AdBlockInterceptor,
     cursorController: CursorController,
     onPageStarted: (String) -> Unit,
     onPageFinished: (String, String?) -> Unit,
@@ -28,84 +31,59 @@ fun WebViewHost(
     onDownload: (url: String, ua: String?, contentDisposition: String?, mime: String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    AndroidView(
-        modifier = modifier.fillMaxSize(),
-        factory = { ctx ->
-            val wv = tabManager.getOrCreate(tabId, config).also { existing ->
-                if (existing.url.isNullOrEmpty()) existing.loadUrl(initialUrl)
-            }
-            attachCallbacks(wv, adBlock, config, onPageStarted, onPageFinished, onProgress, onDownload)
-            cursorController.attachTarget(wv)
-            wv.also {
-                (it.parent as? ViewGroup)?.removeView(it)
-            }
-        },
-        update = { wv ->
-            cursorController.attachTarget(wv)
-            attachCallbacks(wv, adBlock, config, onPageStarted, onPageFinished, onProgress, onDownload)
-        },
-    )
+    val callbackOwner = remember(tabId) { Any() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleObserver = remember(tabId) { arrayOfNulls<Pair<LifecycleOwner, LifecycleEventObserver>>(1) }
+    val latestPageStarted = rememberUpdatedState(onPageStarted)
+    val latestPageFinished = rememberUpdatedState(onPageFinished)
+    val latestProgress = rememberUpdatedState(onProgress)
+    val latestDownload = rememberUpdatedState(onDownload)
 
-    DisposableEffect(tabId) {
-        onDispose {
-            cursorController.attachTarget(null)
-        }
-    }
-
-    LaunchedEffect(tabId, initialUrl) {
-        val wv = tabManager.getOrCreate(tabId, config)
-        if (wv.url.isNullOrEmpty() && initialUrl.isNotEmpty()) {
-            wv.loadUrl(initialUrl)
-        }
-    }
-}
-
-private fun attachCallbacks(
-    wv: WebView,
-    adBlock: AdBlockInterceptor,
-    config: TabConfig,
-    onPageStarted: (String) -> Unit,
-    onPageFinished: (String, String?) -> Unit,
-    onProgress: (Int) -> Unit,
-    onDownload: (String, String?, String?, String?) -> Unit,
-) {
-    val client = wv.webViewClient
-    if (client is android.webkit.WebViewClient && client !is HostedWebViewClient) {
-        wv.webViewClient = HostedWebViewClient(adBlock, config, onPageStarted, onPageFinished)
-    }
-    wv.webChromeClient = object : android.webkit.WebChromeClient() {
-        override fun onProgressChanged(view: WebView, newProgress: Int) { onProgress(newProgress) }
-    }
-    wv.setDownloadListener { url, ua, contentDisposition, mime, _ ->
-        onDownload(url, ua, contentDisposition, mime)
-    }
-}
-
-private class HostedWebViewClient(
-    private val adBlock: AdBlockInterceptor,
-    private val config: TabConfig,
-    private val onPageStarted: (String) -> Unit,
-    private val onPageFinished: (String, String?) -> Unit,
-) : android.webkit.WebViewClient() {
-    override fun shouldInterceptRequest(
-        view: WebView,
-        request: android.webkit.WebResourceRequest,
-    ): android.webkit.WebResourceResponse? {
-        if (!config.adblockEnabled) return null
-        val url = request.url?.toString() ?: return null
-        return if (adBlock.shouldBlock(url)) {
-            android.webkit.WebResourceResponse(
-                "text/plain", "utf-8",
-                java.io.ByteArrayInputStream(ByteArray(0)),
-            )
-        } else null
-    }
-
-    override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-        onPageStarted(url)
-    }
-
-    override fun onPageFinished(view: WebView, url: String) {
-        onPageFinished(url, view.title)
+    key(tabId) {
+        AndroidView(
+            modifier = modifier.fillMaxSize(),
+            factory = {
+                val view = tabManager.getOrCreate(tabId, config)
+                (view.parent as? ViewGroup)?.removeView(view)
+                val client = view.webViewClient as TabWebViewClient
+                client.attach(
+                    callbackOwner,
+                    TabUiCallbacks(
+                        onPageStarted = { latestPageStarted.value(it) },
+                        onPageFinished = { url, title -> latestPageFinished.value(url, title) },
+                        onProgress = { latestProgress.value(it) },
+                        onDownload = { url, ua, disposition, mime ->
+                            latestDownload.value(url, ua, disposition, mime)
+                        },
+                    ),
+                )
+                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) view.onPause()
+                val observer = LifecycleEventObserver { _, event ->
+                    if (client.owns(callbackOwner)) {
+                        when (event) {
+                            Lifecycle.Event.ON_RESUME -> view.onResume()
+                            Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> view.onPause()
+                            else -> Unit
+                        }
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                lifecycleObserver[0] = lifecycleOwner to observer
+                cursorController.attachTarget(view)
+                if (view.url.isNullOrEmpty() && initialUrl.isNotEmpty()) view.loadUrl(initialUrl)
+                view
+            },
+            update = { view ->
+                (view.webViewClient as? TabWebViewClient)?.adblockEnabled = config.adblockEnabled
+            },
+            onRelease = { view ->
+                lifecycleObserver[0]?.let { (owner, observer) -> owner.lifecycle.removeObserver(observer) }
+                lifecycleObserver[0] = null
+                if ((view.webViewClient as? TabWebViewClient)?.detach(callbackOwner) == true) {
+                    cursorController.detachTarget(view)
+                    view.onPause()
+                }
+            },
+        )
     }
 }

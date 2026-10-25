@@ -23,12 +23,12 @@ dependencies {
     implementation(project(":core:design"))
     implementation(project(":core:db"))
     implementation(project(":core:webview"))
-    implementation(project(":core:adblock"))
     implementation(project(":core:cursor"))
     implementation(project(":core:downloads"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
