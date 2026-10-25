@@ -31,7 +31,7 @@ The last three commands prompt for values. Keep signing material outside the che
 
 1. Merge changes into `main` after CI and code review.
 2. Update local `main`, create an annotated version tag such as `v0.1.1`, and push it.
-3. Follow **Actions → Release APK**. Its reusable CI runs on the exact tagged commit before signing.
+3. Follow **Actions → Release APK**. CI runs on the exact tagged commit before signing; an Android TV emulator then checks startup and entry into Browse using the signed, optimized APK.
 4. Download the APK from the release and verify `SHA256SUMS`.
 
 Publication first uploads assets to a draft, then publishes the completed release. Assets include the signed `pebble-vX.Y.Z.apk`, `SHA256SUMS`, the public certificate, and an R8 mapping file for crash diagnosis.
