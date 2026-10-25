@@ -42,7 +42,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
         with:
           cache-provider: basic
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          cache-read-only: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) || startsWith(github.ref, 'refs/tags/') }}
       - name: Install build SDK
         run: sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
       - name: Lint all modules
@@ -106,7 +106,8 @@ jobs:
           target: android-tv
           arch: x86
           profile: tv_1080p
-          disable-animations: true
+          # CursorControllerScrollTest verifies the platform animator, so it must be enabled.
+          disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
             ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest --no-daemon --max-workers=2 --stacktrace
