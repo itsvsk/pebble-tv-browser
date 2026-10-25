@@ -329,7 +329,7 @@ private fun DefaultLocationCard(path: String) {
         Column(modifier = Modifier.weight(1f)) {
             Text("APP DOWNLOAD LOCATION", style = PebbleType.Overline, color = PebbleColors.OnSurfaceFaint)
             Spacer(Modifier.height(2.dp))
-            Text(path, style = PebbleType.Mono, color = PebbleColors.OnSurface, maxLines = 2)
+            Text(path, style = PebbleType.Mono, color = PebbleColors.OnSurface)
         }
     }
 }
