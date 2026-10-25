@@ -45,12 +45,16 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Install build SDK
         run: sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
-      - name: Lint, test and build both variants
+      - name: Lint all modules
         run: >-
-          ./gradlew lintDebug testDebugUnitTest
+          ./gradlew lintDebug --no-daemon --max-workers=2
+          -Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8" --stacktrace
+      - name: Unit tests and builds
+        run: >-
+          ./gradlew testDebugUnitTest
           :app:assembleDebug :app:assembleRelease
           :app:assembleDebugAndroidTest :core:db:assembleDebugAndroidTest
-          --no-daemon --stacktrace
+          --no-daemon --max-workers=2 --stacktrace
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -105,8 +109,8 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
-            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest --no-daemon --stacktrace
-            ./gradlew :core:db:connectedDebugAndroidTest --no-daemon --stacktrace
+            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest --no-daemon --max-workers=2 --stacktrace
+            ./gradlew :core:db:connectedDebugAndroidTest --no-daemon --max-workers=2 --stacktrace
       - name: Upload emulator test reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

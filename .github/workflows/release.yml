@@ -115,7 +115,8 @@ jobs:
         run: >-
           ./gradlew :app:assembleRelease
           -PpebbleVersionName="$PEBBLE_VERSION" -PrequireReleaseSigning=true
-          --no-daemon --no-configuration-cache --stacktrace
+          --no-daemon --no-configuration-cache --max-workers=2
+          -Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8" --stacktrace
       - name: Verify signature and prepare release assets
         env:
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
