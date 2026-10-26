@@ -1,129 +1,110 @@
-# Pebble TV Browser
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/hero-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/media/hero-light.svg">
+  <img src="docs/media/hero-light.svg" alt="Pebble — The web, from your sofa." width="1440" height="440">
+</picture>
 
-[![Android CI](https://github.com/itsvsk/pebble-tv-browser/actions/workflows/android-ci.yml/badge.svg)](https://github.com/itsvsk/pebble-tv-browser/actions/workflows/android-ci.yml)
-[![GitHub release](https://img.shields.io/github/v/release/itsvsk/pebble-tv-browser)](https://github.com/itsvsk/pebble-tv-browser/releases/latest)
+<p align="center">
+  <strong>A browser built for Android TV and the remote in your hand.</strong><br>
+  Search, explore, and return to your favorite sites in a calm Sea Glass interface.
+</p>
 
-A browser built for Android TV and a remote control. Pebble combines a Sea Glass interface, textured sand backgrounds, light and dark themes, and pointer navigation for browsing websites from the sofa.
+<p align="center">
+  <a href="https://github.com/itsvsk/pebble-tv-browser/releases/latest"><img src="docs/media/download.svg" alt="Download Pebble for Android TV (APK)" width="248" height="60"></a>
+</p>
 
-## Download and install
+<p align="center">
+  <a href="#try-it-on-your-tv">Installation</a>
+  &nbsp; · &nbsp; <a href="#built-for-your-remote">Remote controls</a>
+</p>
 
-Download the **APK** from [GitHub Releases](https://github.com/itsvsk/pebble-tv-browser/releases/latest). The source-code ZIP is for development, not installation.
+<p align="center">
+  <a href="https://github.com/itsvsk/pebble-tv-browser/releases/latest"><img src="https://img.shields.io/github/v/release/itsvsk/pebble-tv-browser?color=177963&label=Latest%20release" alt="Latest GitHub release"></a>
+  <a href="https://github.com/itsvsk/pebble-tv-browser/actions/workflows/android-ci.yml"><img src="https://github.com/itsvsk/pebble-tv-browser/actions/workflows/android-ci.yml/badge.svg" alt="Android CI status"></a>
+</p>
 
-Requires **Android TV 7.0 / API 24 or newer** and a current Android System WebView. Allow installation from your chosen file manager, then open the APK on the TV. Alternatively:
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/home-dark.webp">
+  <source media="(prefers-color-scheme: light)" srcset="docs/media/home-light.webp">
+  <img src="docs/media/home-light.webp" alt="Pebble Home with a search field and Speed Dials built from frequently visited websites." width="1920" height="1080">
+</picture>
 
-```sh
-adb connect TV_IP:DEBUGGING_PORT
-adb install -r pebble-v0.1.0.apk
-adb shell am start -n com.tvbrowser.app/com.tvbrowser.app.MainActivity
-```
+<p align="center"><sub>Real captures of Pebble v0.1.0 on an Android TV emulator, with an example browsing session.</sub></p>
 
-Releases include `SHA256SUMS` and the public signing certificate. Verify the APK with `sha256sum -c SHA256SUMS` on Linux or `shasum -a 256 -c SHA256SUMS` on macOS.
+## Built for your remote
 
-Official releases share one signing key for updates. An experimental APK signed with another key cannot be updated in place; uninstalling it removes its app data. Debug builds use `com.tvbrowser.app.debug` and can coexist with the release app.
+Move the pointer with the D-pad. Press OK to select a link. Keep pressing toward a page edge to scroll. Browser controls step out of the way while you explore; move up at the top of the page to bring them back.
 
-## Features
+<img src="docs/media/browse-dark.webp" alt="A webpage open in Pebble, with the pointer navigation indicator and browser controls visible." width="1920" height="1080">
 
-- **Sea Glass design:** shared glass controls, soft focus glows, textured backgrounds, and persistent System / Light / Dark appearance settings.
-- **Home:** search, URL entry, voice search when a speech service is available, and frequently visited Speed Dial sites.
-- **Browse:** pointer mode by default, edge scrolling, auto-hiding controls, back/forward/reload, and desktop/mobile page modes.
-- **Tabs:** persisted tabs with predictable remote navigation and lightweight site context menus.
-- **Library:** bookmarks and grouped browsing history with a compact header while scrolling.
-- **Downloads:** DownloadManager integration, progress and failure states, retry feedback, and the actual app-owned storage path.
-- **Ad blocking:** EasyList-based request filtering with background updates.
-- **Performance and accessibility:** cached backgrounds, inactive WebView pausing, isolated pointer/progress updates, and accessible actions on custom controls.
+<details>
+<summary><strong>A quick guide to the controls</strong></summary>
 
-## Remote controls
-
-| Control | Action |
+| On your remote | In Pebble |
 | --- | --- |
-| D-pad | Move focus or the browser pointer |
-| Select / OK | Activate an item; select the browser address field to edit it |
-| Hold Select | Open supported site, tab, bookmark, and history context menus |
-| Back | Return focus to the active top navigation item in native screens |
-| Pointer at a page edge + continued direction input | Scroll the webpage |
-| Up at the top of a webpage | Reveal browser controls and move focus upward |
+| **D-pad** | Move through the app or move the webpage pointer |
+| **OK / Select** | Open an item or activate a link |
+| **Hold Select** | Open supported site, tab, bookmark, and history context menus |
+| **Back** | Return focus to the active top navigation item on native screens |
+| **Keep pressing at a page edge** | Scroll the webpage in pointer mode |
+| **Up at the top of a page** | Reveal the browser controls and move focus upward |
 
-Top navigation wraps at both ends. Speed Dial moves between rows in reading order and returns to search at the first/last item boundary. The pointer/D-pad control in Browse changes navigation mode.
+Top navigation wraps at both ends. Browse starts in pointer mode; its navigation control lets you switch to D-pad mode. Select the browser address field when you want to edit a URL or search query.
 
-## Build locally
+</details>
 
-Install **JDK 17**, Android SDK Platform **35**, and Build Tools **34.0.0**. Open the project in Android Studio, or set `ANDROID_HOME` / create an untracked `local.properties` containing `sdk.dir`.
+## Pick up where you left off
 
-```sh
-git clone https://github.com/itsvsk/pebble-tv-browser.git
-cd pebble-tv-browser
-./gradlew :app:assembleDebug
-./gradlew :app:installDebug
-adb shell am start -n com.tvbrowser.app.debug/com.tvbrowser.app.MainActivity
-```
+Your most-visited pages become Speed Dials. Keep multiple tabs, save a bookmark, or find a page again in browsing history.
 
-The debug APK is at `app/build/outputs/apk/debug/app-debug.apk`. Run CI's static checks and builds locally:
-
-```sh
-./gradlew lintDebug testDebugUnitTest \
-  :app:assembleDebug :app:assembleRelease \
-  :app:assembleDebugAndroidTest :core:db:assembleDebugAndroidTest
-```
-
-Run deterministic integration checks on an Android TV emulator:
-
-```sh
-./gradlew :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest
-./gradlew :core:db:connectedDebugAndroidTest
-```
-
-`DownloadFailureTest` is a separate online integration check against a W3C missing-file URL; it is not part of the deterministic emulator CI suite.
-
-## GitHub Actions and releases
-
-| Automation | Trigger | Result |
-| --- | --- | --- |
-| [Android CI](.github/workflows/android-ci.yml) | PR into `main`, push to `main`, or manual run | Lint, unit tests, debug/release compilation, Android TV API 24 and 34 tests, reports, and debug APK artifact |
-| [Dependency review](.github/workflows/android-ci.yml) | PR into `main` | Checks dependency changes for high or critical known vulnerabilities |
-| [Release APK](.github/workflows/release.yml) | Push `vMAJOR.MINOR.PATCH`, or retry an existing tag manually from `main` | Re-runs CI, signs and verifies the APK, then publishes a GitHub Release |
-| [Dependabot](.github/dependabot.yml) | Weekly | Proposes Gradle and GitHub Actions dependency updates |
-
-Signing secrets live in the **`github-release`** environment, restricted to `main` and `v*` tags. PR jobs do not receive signing secrets. Actions are pinned to commit hashes; only the publishing job receives repository write permission.
-
-After merging changes into `main`, publish the next version:
-
-```sh
-git switch main
-git pull --ff-only
-git tag -a v0.1.1 -m "Pebble TV Browser 0.1.1"
-git push origin v0.1.1
-```
-
-The tag sets the APK version. `versionCode = major × 1,000,000 + minor × 1,000 + patch`; minor/patch are 0–999 and major is 0–2000. `0.0.0` and leading zeroes are rejected. Use increasing versions. The workflow requires a tagged commit from `main` and refuses to replace a published release.
-
-See [RELEASING.md](docs/RELEASING.md) for signing setup, retries, local release builds, and recovery. [CHANGELOG.md](CHANGELOG.md) describes user-facing changes.
-
-## Project structure and stack
-
-| Module | Purpose |
+| Keep your tabs together | Save a place to return to |
 | --- | --- |
-| `app` | Activity, navigation, application setup, integration tests |
-| `core/common` | Preferences, dispatchers, URL helpers |
-| `core/design` | Sea Glass themes, typography, focus, shared controls and shell |
-| `core/db` | Room schema, bookmarks, history, tabs, downloads |
-| `core/webview` | WebView lifecycle, tab manager, page modes and navigation guards |
-| `core/adblock` | EasyList parsing, request filtering and refresh work |
-| `core/cursor` | Pointer movement, scrolling and overlay |
-| `core/downloads` | DownloadManager integration and status updates |
-| `feature/*` | Home, Browser, Tabs, Bookmarks, History, Downloads and Settings |
+| <img src="docs/media/tabs-dark.webp" alt="Pebble's Tabs screen showing the open pages and the New tab action." width="960" height="540"> | <img src="docs/media/bookmarks-dark.webp" alt="Saved websites in Pebble's bookmarks library." width="960" height="540"> |
 
-Kotlin 2.0.21 · AGP 8.7.3 · Gradle 8.10.2 · Jetpack Compose · AndroidX TV · Hilt · Room · WorkManager · DataStore · Navigation Compose · Coil · OkHttp. Compile/target SDK: 35; minimum SDK: 24.
+| Make it yours | What you can do |
+| --- | --- |
+| **Search your way** | Enter a URL, search the web, or use voice search when a speech service is available |
+| **Choose the page view** | Switch between mobile and desktop website modes |
+| **Keep distractions down** | Use the built-in EasyList-based ad blocker |
+| **Manage downloads** | Follow progress and see failure states in the Downloads screen |
 
-## Current limitations
+## Two ways to feel at home
 
-- Private browsing is unavailable until cookies and site storage can be isolated from normal tabs.
-- Website compatibility depends on Android System WebView; native themes do not recolor websites.
-- The Room schema is version 1. Future changes require explicit migrations; destructive migration is disabled.
-- Performance still needs repeatable benchmarks across more TVs. Emulator functional checks do not establish physical-TV frame performance.
+Warm sand and sea-glass greens in Light. Deep sea-green surfaces and soft mint highlights in Dark. Choose either in Settings, or let Pebble follow your TV's appearance.
 
-[tasks/todo.md](tasks/todo.md) tracks remaining work. [SETUP.md](SETUP.md), [TEST_REPORT.md](TEST_REPORT.md), and [DESIGN.md](DESIGN.md) contain earlier notes and may describe superseded behavior.
+| Light | Dark |
+| --- | --- |
+| <img src="docs/media/home-light.webp" alt="Pebble's light theme with warm sand backgrounds and green glass controls." width="960" height="540"> | <img src="docs/media/home-dark.webp" alt="Pebble's dark theme with deep sea-green backgrounds and mint focus highlights." width="960" height="540"> |
 
-## License
+## Try it on your TV
 
-No application license has been selected yet. Bundled Plus Jakarta Sans uses the [SIL Open Font License](core/design/licenses/plus-jakarta-sans-OFL.txt).
+**Requires Android TV 7.0 or newer** and a current Android System WebView.
+
+1. **[Download the APK](https://github.com/itsvsk/pebble-tv-browser/releases/latest)** from the latest release. Choose the `.apk` file.
+2. **Transfer it to your TV** and open it with a file manager. Allow installation from that file manager if Android asks.
+3. **Launch Pebble** from your TV's app launcher and start browsing.
+
+Prefer ADB, or want to verify the download? See the [installation guide](docs/INSTALLING.md) for commands, checksums, and update compatibility.
+
+<details>
+<summary><strong>A few things to know before you start</strong></summary>
+
+- This is an early public release. Website compatibility depends on your TV's Android System WebView.
+- The native light and dark themes change Pebble's interface; websites keep their own appearance.
+- Private browsing is currently unavailable; it requires separate cookie and site-storage isolation.
+- Voice search needs an installed speech-recognition service.
+- Official release APKs share a signing key so future releases can update the app. Builds signed with a different key cannot update it in place.
+
+</details>
+
+## Help shape Pebble
+
+Found a website that behaves unexpectedly, or have an idea for better remote browsing? [Open an issue](https://github.com/itsvsk/pebble-tv-browser/issues). Include your TV model, Android version, and steps to reproduce when reporting a bug.
+
+For development, see the [build and architecture guide](docs/DEVELOPMENT.md), [release guide](docs/RELEASING.md), and [changelog](CHANGELOG.md).
+
+---
+
+Sea Glass-inspired design · Kotlin and Jetpack Compose for Android TV
+
+No application license has been selected yet. Plus Jakarta Sans is bundled under the [SIL Open Font License](core/design/licenses/plus-jakarta-sans-OFL.txt). [Artwork and screenshot sources](docs/media/README.md).
