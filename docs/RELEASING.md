@@ -63,6 +63,18 @@ Disable shell tracing while handling credentials. Missing or partial signing con
 
 ## CI maintenance
 
-Require the build and both Android TV test checks in `main` branch protection. Keep Codex review enabled, review Dependabot changes, and inspect uploaded reports when jobs fail. The live-network `DownloadFailureTest` is run separately from deterministic emulator CI.
+Require the build and both Android TV test checks in `main` branch protection. Keep Codex review enabled, review Dependabot changes, and inspect job logs when checks fail. The live-network `DownloadFailureTest` is run separately from deterministic emulator CI.
+
+## Billing controls
+
+Both workflows allow jobs only when the event repository is public and use standard `ubuntu-latest` runners. Private repositories skip these workflows; skipped checks do not provide test coverage. All existing lint, test, build, and release checks still run for the public repository.
+
+Actions artifact uploads and cross-job Gradle caches are disabled. Dependencies are downloaded on each job, so builds take longer. Build outputs and detailed reports exist only on the temporary runner; use job logs for CI diagnostics or reproduce locally for HTML reports. Published APKs, checksums, certificates, and mappings remain GitHub Release assets, which have no release bandwidth quota.
+
+For a billing-side hard stop, open **GitHub Settings → Billing and licensing → Budgets and alerts**. Create a product-level **Actions** budget scoped to `itsvsk/pebble-tv-browser`, set it to **$0**, and enable **Stop usage when budget limit is reached**. An alert-only budget does not block charges. Keep this control if payment methods or workflow settings change. Repository YAML cannot enforce account billing settings or reverse charges already accrued.
+
+When adopting this policy, delete pre-existing Actions artifacts and caches for this repository. Do not delete GitHub Release assets or signing secrets. Re-check the policy before adding a workflow, cache, artifact upload, paid runner, or external CI service.
+
+References: [Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [hard-stop budgets](https://docs.github.com/en/billing/how-tos/set-up-budgets), [release storage and bandwidth](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases).
 
 References: [GitHub Gradle CI](https://docs.github.com/en/actions/tutorials/build-and-test-code/java-with-gradle), [Android signing](https://developer.android.com/studio/publish/app-signing), [GitHub CLI releases](https://cli.github.com/manual/gh_release_create).

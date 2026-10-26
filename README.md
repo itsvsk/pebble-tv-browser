@@ -79,12 +79,14 @@ Run deterministic integration checks on an Android TV emulator:
 
 | Automation | Trigger | Result |
 | --- | --- | --- |
-| [Android CI](.github/workflows/android-ci.yml) | PR into `main`, push to `main`, or manual run | Lint, unit tests, debug/release compilation, Android TV API 24 and 34 tests, reports, and debug APK artifact |
+| [Android CI](.github/workflows/android-ci.yml) | PR into `main`, push to `main`, or manual run | Lint, unit tests, debug/release compilation, and Android TV API 24 and 34 tests |
 | [Dependency review](.github/workflows/android-ci.yml) | PR into `main` | Checks dependency changes for high or critical known vulnerabilities |
 | [Release APK](.github/workflows/release.yml) | Push `vMAJOR.MINOR.PATCH`, or retry an existing tag manually from `main` | Re-runs CI, signs and verifies the APK, then publishes a GitHub Release |
 | [Dependabot](.github/dependabot.yml) | Weekly | Proposes Gradle and GitHub Actions dependency updates |
 
 Signing secrets live in the **`github-release`** environment, restricted to `main` and `v*` tags. PR jobs do not receive signing secrets. Actions are pinned to commit hashes; only the publishing job receives repository write permission.
+
+CI uses standard Ubuntu runners and runs only for public repositories to avoid paid runner usage. Actions caches and artifact uploads are disabled to avoid storage charges; builds may take longer, and diagnostics remain in the job logs. Download installable APKs from GitHub Releases or build locally. Keep a repository-scoped **$0 Actions budget** with **Stop usage when budget limit is reached** enabled as an additional spending safeguard; see [billing controls](docs/RELEASING.md#billing-controls).
 
 After merging changes into `main`, publish the next version:
 
