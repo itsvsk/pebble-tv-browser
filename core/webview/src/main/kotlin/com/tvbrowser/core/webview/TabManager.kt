@@ -19,6 +19,7 @@ class TabManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tabRepo: TabRepository,
     private val adBlock: AdBlockInterceptor,
+    private val videoController: WebVideoController,
 ) {
     companion object { const val MAX_LIVE = 8 }
 
@@ -27,7 +28,10 @@ class TabManager @Inject constructor(
     private val live = object : LinkedHashMap<String, WebView>(MAX_LIVE, 0.75f, true) {
         override fun removeEldestEntry(eldest: Map.Entry<String, WebView>?): Boolean {
             val over = size > MAX_LIVE
-            if (over && eldest != null) eldest.value.destroy()
+            if (over && eldest != null) {
+                videoController.hide(eldest.value)
+                eldest.value.destroy()
+            }
             return over
         }
     }
@@ -43,6 +47,7 @@ class TabManager @Inject constructor(
             context = context,
             config = effectiveConfig,
             adBlock = adBlock,
+            videoController = videoController,
             onPageFinished = { url, title ->
                 if (effectiveConfig.isIncognito) {
                     privateTabs.updatePage(tabId, url, title)
@@ -61,13 +66,13 @@ class TabManager @Inject constructor(
 
     @Synchronized
     fun release(tabId: String) {
-        live.remove(tabId)?.destroy()
+        live.remove(tabId)?.let { videoController.hide(it); it.destroy() }
         privateTabs.remove(tabId)
     }
 
     @Synchronized
     fun destroyAll() {
-        live.values.forEach { it.destroy() }
+        live.values.forEach { videoController.hide(it); it.destroy() }
         live.clear()
         privateTabs.clear()
     }

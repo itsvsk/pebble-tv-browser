@@ -4,13 +4,19 @@
 
 ### Added
 
+- Web video fullscreen with remote controls, Back to exit, and restoration of the prior pointer state.
 - Clear the entire address from Browse and immediately type a replacement; the current page stays open until submission.
 - Download start, completion, and failure alerts, including completion handling outside the Downloads screen.
 - An "Open with" chooser for downloaded files, with file-type detection and temporary read access.
 
 ### Changed
 
+- Desktop site identification uses the installed WebView engine version and stays synchronized when reopening cached tabs.
 - Adopted the Tidal Lens logo with a textured Tumbled Jade finish across the app, Android TV launcher, and product artwork.
+
+### Fixed
+
+- Streaming pages such as Twitch collapsing against the top of the screen: WebViews now have bounded dimensions so percentage-height and viewport-height players fill their available space.
 
 ## 0.1.0
 

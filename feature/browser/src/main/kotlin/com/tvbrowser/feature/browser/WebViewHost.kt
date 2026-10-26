@@ -1,12 +1,14 @@
 package com.tvbrowser.feature.browser
 
 import android.view.ViewGroup
+import android.webkit.WebSettings
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -17,6 +19,7 @@ import com.tvbrowser.core.webview.TabConfig
 import com.tvbrowser.core.webview.TabManager
 import com.tvbrowser.core.webview.TabUiCallbacks
 import com.tvbrowser.core.webview.TabWebViewFactory
+import com.tvbrowser.core.webview.UserAgents
 
 @Composable
 fun WebViewHost(
@@ -31,6 +34,10 @@ fun WebViewHost(
     onDownload: (url: String, ua: String?, contentDisposition: String?, mime: String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val desiredUserAgent = remember(context, config.desktopUa) {
+        UserAgents.forMode(WebSettings.getDefaultUserAgent(context), config.desktopUa)
+    }
     val callbackOwner = remember(tabId) { Any() }
     val lifecycleOwner = LocalLifecycleOwner.current
     val lifecycleObserver = remember(tabId) { arrayOfNulls<Pair<LifecycleOwner, LifecycleEventObserver>>(1) }
@@ -75,6 +82,10 @@ fun WebViewHost(
             },
             update = { view ->
                 TabWebViewFactory.clientOf(view).adblockEnabled = config.adblockEnabled
+                if (view.settings.userAgentString != desiredUserAgent) {
+                    view.settings.userAgentString = desiredUserAgent
+                    view.reload()
+                }
             },
             onRelease = { view ->
                 lifecycleObserver[0]?.let { (owner, observer) -> owner.lifecycle.removeObserver(observer) }

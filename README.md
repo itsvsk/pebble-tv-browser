@@ -108,6 +108,8 @@ Pebble starts with no preinstalled Speed Dials. Visit a few sites and your frequ
 
 Website compatibility depends on your TV's Android System WebView. Keep it current, try switching between mobile and desktop mode, or toggle **Block ads & trackers** and reload the page. If the issue persists, [report it](https://github.com/itsvsk/pebble-tv-browser/issues) with the site address, TV model, and Android version.
 
+For video playback, fullscreen controls, and codec/DRM limits, see the [streaming guide](docs/STREAMING.md).
+
 </details>
 
 <details>

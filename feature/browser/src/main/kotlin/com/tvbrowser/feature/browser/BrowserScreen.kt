@@ -142,14 +142,7 @@ fun BrowserScreen(
             },
             onReload = { vm.tabManager.getOrCreate(tabId, vm.makeConfig()).reload() },
             onBookmark = { vm.toggleBookmark() },
-            onToggleUa = {
-                vm.toggleDesktopUa()
-                val wv = vm.tabManager.getOrCreate(tabId, vm.makeConfig())
-                wv.settings.userAgentString =
-                    if (!ui.desktopUa) com.tvbrowser.core.webview.UserAgents.DESKTOP
-                    else android.webkit.WebSettings.getDefaultUserAgent(context)
-                wv.reload()
-            },
+            onToggleUa = vm::toggleDesktopUa,
         )
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {

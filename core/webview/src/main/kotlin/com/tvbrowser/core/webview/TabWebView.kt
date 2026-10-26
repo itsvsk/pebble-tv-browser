@@ -2,6 +2,7 @@ package com.tvbrowser.core.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
 import android.webkit.WebResourceRequest
@@ -30,6 +31,7 @@ internal class TabCallbackRelay(
 ) {
     private var owner: Any? = null
     private var ui: TabUiCallbacks? = null
+    val hasUiOwner: Boolean get() = ui != null
 
     fun attach(owner: Any, callbacks: TabUiCallbacks) {
         this.owner = owner
@@ -60,14 +62,16 @@ class TabWebViewClient(
     private val adBlock: AdBlockInterceptor,
     adblockEnabled: Boolean,
     onPageFinished: (String, String?) -> Unit,
+    private val hideFullscreen: () -> Unit = {},
 ) : WebViewClient(), DownloadListener {
     private val callbacks = TabCallbackRelay(onPageFinished)
 
     @Volatile var adblockEnabled: Boolean = adblockEnabled
 
     fun attach(owner: Any, uiCallbacks: TabUiCallbacks) = callbacks.attach(owner, uiCallbacks)
-    fun detach(owner: Any): Boolean = callbacks.detach(owner)
+    fun detach(owner: Any): Boolean = callbacks.detach(owner).also { if (it) hideFullscreen() }
     fun owns(owner: Any): Boolean = callbacks.owns(owner)
+    val hasUiOwner: Boolean get() = callbacks.hasUiOwner
     fun onProgress(value: Int) = callbacks.progress(value)
 
     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
@@ -79,6 +83,7 @@ class TabWebViewClient(
     }
 
     override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+        hideFullscreen()
         callbacks.pageStarted(url)
     }
 
@@ -105,9 +110,14 @@ object TabWebViewFactory {
         context: Context,
         config: TabConfig,
         adBlock: AdBlockInterceptor,
+        videoController: WebVideoController,
         onPageFinished: (url: String, title: String?) -> Unit = { _, _ -> },
     ): WebView {
-        val wv = WebView(context)
+        val wv = WebView(context).apply {
+            // AndroidView otherwise supplies WRAP_CONTENT, giving Blink an unbounded
+            // height: streaming sites using 100%/100vh then collapse to zero pixels.
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        }
         wv.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -117,7 +127,7 @@ object TabWebViewFactory {
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             setSupportMultipleWindows(false)
             javaScriptCanOpenWindowsAutomatically = false
-            if (config.desktopUa) userAgentString = UserAgents.DESKTOP
+            userAgentString = UserAgents.forMode(WebSettings.getDefaultUserAgent(context), config.desktopUa)
             if (config.isIncognito) {
                 cacheMode = WebSettings.LOAD_NO_CACHE
                 saveFormData = false
@@ -129,10 +139,22 @@ object TabWebViewFactory {
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(wv, !config.isIncognito)
 
-        val client = TabWebViewClient(adBlock, config.adblockEnabled, onPageFinished)
+        val client = TabWebViewClient(adBlock, config.adblockEnabled, onPageFinished) { videoController.hide(wv) }
         wv.setTag(R.id.pebble_tab_webview_client, client)
         wv.webViewClient = client
         wv.webChromeClient = object : android.webkit.WebChromeClient() {
+            override fun onShowCustomView(view: android.view.View, callback: CustomViewCallback) {
+                if (!client.hasUiOwner || !wv.isAttachedToWindow || !wv.isShown) {
+                    callback.onCustomViewHidden()
+                    return
+                }
+                videoController.show(wv, view, callback)
+            }
+
+            override fun onHideCustomView() {
+                videoController.hide(wv)
+            }
+
             override fun onProgressChanged(view: WebView, newProgress: Int) {
                 client.onProgress(newProgress)
             }
