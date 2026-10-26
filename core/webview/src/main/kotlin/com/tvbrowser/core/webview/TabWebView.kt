@@ -96,6 +96,10 @@ class TabWebViewClient(
 
 object TabWebViewFactory {
 
+    /** The platform client getter is unavailable on Android 7; retain our owned client on the view. */
+    fun clientOf(view: WebView): TabWebViewClient =
+        view.getTag(R.id.pebble_tab_webview_client) as TabWebViewClient
+
     @SuppressLint("SetJavaScriptEnabled")
     fun create(
         context: Context,
@@ -126,6 +130,7 @@ object TabWebViewFactory {
         CookieManager.getInstance().setAcceptThirdPartyCookies(wv, !config.isIncognito)
 
         val client = TabWebViewClient(adBlock, config.adblockEnabled, onPageFinished)
+        wv.setTag(R.id.pebble_tab_webview_client, client)
         wv.webViewClient = client
         wv.webChromeClient = object : android.webkit.WebChromeClient() {
             override fun onProgressChanged(view: WebView, newProgress: Int) {

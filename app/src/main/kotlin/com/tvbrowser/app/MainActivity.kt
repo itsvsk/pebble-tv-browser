@@ -1,5 +1,6 @@
 package com.tvbrowser.app
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.KeyEvent
 import android.graphics.drawable.ColorDrawable
@@ -58,6 +59,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Activity's public callback is inherited through AndroidX Core's restricted base class.
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode != KeyEvent.KEYCODE_BACK && cursorController.handleKeyEvent(event)) return true
         return super.dispatchKeyEvent(event)

@@ -16,7 +16,7 @@ import com.tvbrowser.core.cursor.CursorController
 import com.tvbrowser.core.webview.TabConfig
 import com.tvbrowser.core.webview.TabManager
 import com.tvbrowser.core.webview.TabUiCallbacks
-import com.tvbrowser.core.webview.TabWebViewClient
+import com.tvbrowser.core.webview.TabWebViewFactory
 
 @Composable
 fun WebViewHost(
@@ -45,7 +45,7 @@ fun WebViewHost(
             factory = {
                 val view = tabManager.getOrCreate(tabId, config)
                 (view.parent as? ViewGroup)?.removeView(view)
-                val client = view.webViewClient as TabWebViewClient
+                val client = TabWebViewFactory.clientOf(view)
                 client.attach(
                     callbackOwner,
                     TabUiCallbacks(
@@ -74,12 +74,12 @@ fun WebViewHost(
                 view
             },
             update = { view ->
-                (view.webViewClient as? TabWebViewClient)?.adblockEnabled = config.adblockEnabled
+                TabWebViewFactory.clientOf(view).adblockEnabled = config.adblockEnabled
             },
             onRelease = { view ->
                 lifecycleObserver[0]?.let { (owner, observer) -> owner.lifecycle.removeObserver(observer) }
                 lifecycleObserver[0] = null
-                if ((view.webViewClient as? TabWebViewClient)?.detach(callbackOwner) == true) {
+                if (TabWebViewFactory.clientOf(view).detach(callbackOwner)) {
                     cursorController.detachTarget(view)
                     view.onPause()
                 }
