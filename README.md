@@ -105,6 +105,8 @@ For development, see the [build and architecture guide](docs/DEVELOPMENT.md), [r
 
 ---
 
-Sea Glass-inspired design · Kotlin and Jetpack Compose for Android TV
+Built with Kotlin and Jetpack Compose for Android TV.
+
+With thanks to [mttmcknn/sea-glass](https://github.com/mttmcknn/sea-glass) for the sea-glass design inspiration and the rendering model used to create Pebble's textured logo finish.
 
 No application license has been selected yet. Plus Jakarta Sans is bundled under the [SIL Open Font License](core/design/licenses/plus-jakarta-sans-OFL.txt). [Artwork and screenshot sources](docs/media/README.md).
