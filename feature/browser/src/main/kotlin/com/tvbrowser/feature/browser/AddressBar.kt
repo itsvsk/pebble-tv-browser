@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PhoneAndroid
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,6 +51,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -86,8 +90,9 @@ fun AddressBar(
     onBookmark: () -> Unit,
     onToggleUa: () -> Unit,
 ) {
-    var text by remember(url) { mutableStateOf(url) }
+    var text by remember(url) { mutableStateOf(TextFieldValue(url, TextRange(url.length))) }
     var editing by remember { mutableStateOf(false) }
+    var editorFocusRequest by remember { mutableIntStateOf(0) }
     val focusManager = LocalFocusManager.current
     val bookmarkFocusRequester = remember { FocusRequester() }
 
@@ -135,13 +140,27 @@ fun AddressBar(
                 onTextChange = { text = it },
                 editing = editing,
                 onEditingChange = { editing = it },
+                focusRequestKey = editorFocusRequest,
                 onSubmit = {
-                    onSubmit(text)
-                    editing = false
-                    focusManager.moveFocus(FocusDirection.Down)
+                    if (text.text.isNotBlank()) {
+                        onSubmit(text.text)
+                        editing = false
+                        focusManager.moveFocus(FocusDirection.Down)
+                    }
                 },
                 onUp = { topNavFocusRequester.requestFocus() },
                 modifier = Modifier.weight(1f),
+            )
+
+            RoundIcon(
+                Icons.Outlined.Close,
+                "Clear address",
+                onClick = {
+                    text = TextFieldValue("")
+                    editing = true
+                    editorFocusRequest++
+                },
+                onUp = { topNavFocusRequester.requestFocus() },
             )
 
             Spacer(Modifier.width(PebbleDimens.Sp2))
@@ -164,7 +183,6 @@ fun AddressBar(
         }
     }
 
-    LaunchedEffect(url) { text = url }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -214,10 +232,11 @@ private fun RoundIcon(
 @Composable
 private fun AddressPill(
     url: String,
-    text: String,
-    onTextChange: (String) -> Unit,
+    text: TextFieldValue,
+    onTextChange: (TextFieldValue) -> Unit,
     editing: Boolean,
     onEditingChange: (Boolean) -> Unit,
+    focusRequestKey: Int,
     onSubmit: () -> Unit,
     onUp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -227,7 +246,7 @@ private fun AddressPill(
     var editorHasFocus by remember { mutableStateOf(false) }
     val host = remember(url) { url.substringAfter("://", url) }
     val secure = url.startsWith("https://", ignoreCase = true)
-    LaunchedEffect(editing) {
+    LaunchedEffect(editing, focusRequestKey) {
         if (editing) editorFocusRequester.requestFocus()
     }
     Row(
@@ -280,7 +299,7 @@ private fun AddressPill(
                         }
                     },
                 decorationBox = { inner ->
-                    if (text.isEmpty()) {
+                    if (text.text.isEmpty()) {
                         Text("Search or type URL", style = PebbleType.Title, color = PebbleColors.OnSurfaceFaint)
                     }
                     inner()
