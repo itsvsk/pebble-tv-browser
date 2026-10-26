@@ -148,7 +148,7 @@ Navigation rules:
 ## SCREENS / VIEWS
 
 ### 1. Navigation rail (persistent, left, 116dp)
-- Top: round pebble logo mark (slate-blue radial gradient + soft glow), 52dp.
+- Logo: the approved [textured Tidal Lens mark](../docs/BRANDING.md) supersedes the prototype's round gradient mark. The rail layout below is historical.
 - Items (icon 28dp + 11sp label, 76×60dp pill): **Home** (`home`), **Tabs** (`tab`),
   **Saved** (`bookmark`), **History** (`history`), **Files** (`download`); pushed to bottom:
   **Settings** (`settings`).
@@ -256,9 +256,7 @@ Per ViewModel + StateFlow:
 ## ASSETS
 - **Icons**: Material Symbols (Outlined) — map to `androidx.compose.material.icons` equivalents
   or bundle the Material Symbols variable font. FILL flips 0→1 on active/selected.
-- **Logo**: the "pebble" mark is a CSS radial gradient + glow — recreate with a Compose radial
-  `Brush` (`primary-strong` → `primary`) on a circle with a soft outer glow; no raster asset
-  needed. No other imagery in the chrome.
+- **Logo**: use the approved [Tidal Lens brand assets](../docs/BRANDING.md). The app uses a static textured drawable rather than the historical prototype's gradient circle.
 - **Favicons**: real site favicons in production; rounded 12dp chip frame with a neutral
   fallback (`public` glyph on `surface-3`). The prototype's color-chip palette is demo-only.
 - **Fonts**: Roboto (+ Roboto Mono); Google Sans Text preferred for body if licensed. Currently
