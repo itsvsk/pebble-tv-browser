@@ -1,7 +1,7 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/media/hero-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="docs/media/hero-light.svg">
-  <img src="docs/media/hero-light.svg" alt="Pebble — The web, from your sofa." width="1440">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/hero-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/media/hero-light.png">
+  <img src="docs/media/hero-light.png" alt="Pebble — The web, from your sofa." width="1440">
 </picture>
 
 <p align="center">
@@ -29,7 +29,7 @@
   <img src="docs/media/home-light.webp" alt="Pebble Home with a search field and Speed Dials built from frequently visited websites." width="1920">
 </picture>
 
-<p align="center"><sub>Real captures of Pebble v0.1.0 on an Android TV emulator, with an example browsing session.</sub></p>
+<p align="center"><sub>Real captures of the current development build on an Android TV emulator, with an example browsing session. The new branding will ship in the next release.</sub></p>
 
 ## Built for your remote
 
@@ -101,7 +101,7 @@ Prefer ADB, or want to verify the download? See the [installation guide](docs/IN
 
 Found a website that behaves unexpectedly, or have an idea for better remote browsing? [Open an issue](https://github.com/itsvsk/pebble-tv-browser/issues). Include your TV model, Android version, and steps to reproduce when reporting a bug.
 
-For development, see the [build and architecture guide](docs/DEVELOPMENT.md), [release guide](docs/RELEASING.md), and [changelog](CHANGELOG.md).
+For development, see the [build and architecture guide](docs/DEVELOPMENT.md), [release guide](docs/RELEASING.md), and [changelog](CHANGELOG.md). Logo files and usage are in the [brand guide](docs/BRANDING.md).
 
 ---
 

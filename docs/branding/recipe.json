@@ -1,0 +1,33 @@
+{
+  "key": "02-tumbled-jade",
+  "name": "Tidal Lens / Tumbled Jade / subtle pebble texture",
+  "idea": "Rounded shoulders and a soft jade light-exit.",
+  "tag": "TACTILE / BALANCED",
+  "palette": {
+    "body": "#81B8A6",
+    "edge": "#DFFBEA",
+    "ink": "#17382F"
+  },
+  "settings": {
+    "frost": 0.65,
+    "grain": 0.5,
+    "thickness": 7,
+    "bulge": 0.58,
+    "elevation": 7,
+    "transmission": 0.58
+  },
+  "lightDegrees": 315,
+  "seed": 42,
+  "tumble": 0,
+  "pebbleRelief": {
+    "stoneSpacing": 1.35,
+    "mineralSpacing": 4.6,
+    "normalStrength": 0.025,
+    "toneStrength": 1.5,
+    "mineralToneStrength": 0.6,
+    "pitStrength": 5,
+    "seedXor": "0x37C1A682"
+  },
+  "heightSmoothingSigma": 2.4,
+  "rendererRevision": "db70d7197e8ee43ffaf4ef05db6a1b61cb59dec8"
+}
