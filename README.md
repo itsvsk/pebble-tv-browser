@@ -1,7 +1,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/media/hero-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/media/hero-light.svg">
-  <img src="docs/media/hero-light.svg" alt="Pebble — The web, from your sofa." width="1440" height="440">
+  <img src="docs/media/hero-light.svg" alt="Pebble — The web, from your sofa." width="1440">
 </picture>
 
 <p align="center">
@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/itsvsk/pebble-tv-browser/releases/latest"><img src="docs/media/download.svg" alt="Download Pebble for Android TV (APK)" width="248" height="60"></a>
+  <a href="https://github.com/itsvsk/pebble-tv-browser/releases/latest"><img src="docs/media/download.svg" alt="Download Pebble for Android TV (APK)" width="248"></a>
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/media/home-dark.webp">
   <source media="(prefers-color-scheme: light)" srcset="docs/media/home-light.webp">
-  <img src="docs/media/home-light.webp" alt="Pebble Home with a search field and Speed Dials built from frequently visited websites." width="1920" height="1080">
+  <img src="docs/media/home-light.webp" alt="Pebble Home with a search field and Speed Dials built from frequently visited websites." width="1920">
 </picture>
 
 <p align="center"><sub>Real captures of Pebble v0.1.0 on an Android TV emulator, with an example browsing session.</sub></p>
@@ -35,7 +35,7 @@
 
 Move the pointer with the D-pad. Press OK to select a link. Keep pressing toward a page edge to scroll. Browser controls step out of the way while you explore; move up at the top of the page to bring them back.
 
-<img src="docs/media/browse-dark.webp" alt="A webpage open in Pebble, with the pointer navigation indicator and browser controls visible." width="1920" height="1080">
+<img src="docs/media/browse-dark.webp" alt="A webpage open in Pebble, with the pointer navigation indicator and browser controls visible." width="1920">
 
 <details>
 <summary><strong>A quick guide to the controls</strong></summary>
@@ -59,7 +59,7 @@ Your most-visited pages become Speed Dials. Keep multiple tabs, save a bookmark,
 
 | Keep your tabs together | Save a place to return to |
 | --- | --- |
-| <img src="docs/media/tabs-dark.webp" alt="Pebble's Tabs screen showing the open pages and the New tab action." width="960" height="540"> | <img src="docs/media/bookmarks-dark.webp" alt="Saved websites in Pebble's bookmarks library." width="960" height="540"> |
+| <img src="docs/media/tabs-dark.webp" alt="Pebble's Tabs screen showing the open pages and the New tab action." width="960"> | <img src="docs/media/bookmarks-dark.webp" alt="Saved websites in Pebble's bookmarks library." width="960"> |
 
 | Make it yours | What you can do |
 | --- | --- |
@@ -74,7 +74,7 @@ Warm sand and sea-glass greens in Light. Deep sea-green surfaces and soft mint h
 
 | Light | Dark |
 | --- | --- |
-| <img src="docs/media/home-light.webp" alt="Pebble's light theme with warm sand backgrounds and green glass controls." width="960" height="540"> | <img src="docs/media/home-dark.webp" alt="Pebble's dark theme with deep sea-green backgrounds and mint focus highlights." width="960" height="540"> |
+| <img src="docs/media/home-light.webp" alt="Pebble's light theme with warm sand backgrounds and green glass controls." width="960"> | <img src="docs/media/home-dark.webp" alt="Pebble's dark theme with deep sea-green backgrounds and mint focus highlights." width="960"> |
 
 ## Try it on your TV
 
