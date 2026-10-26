@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- Clear the entire address from Browse and immediately type a replacement; the current page stays open until submission.
+- Download start, completion, and failure alerts, including completion handling outside the Downloads screen.
+- An "Open with" chooser for downloaded files, with file-type detection and temporary read access.
+
 ### Changed
 
 - Adopted the Tidal Lens logo with a textured Tumbled Jade finish across the app, Android TV launcher, and product artwork.

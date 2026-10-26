@@ -2,15 +2,20 @@ package com.tvbrowser.core.downloads
 
 import android.app.DownloadManager
 import android.content.Context
+import android.content.ClipData
+import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.webkit.CookieManager
 import android.webkit.URLUtil
+import android.webkit.MimeTypeMap
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.tvbrowser.core.db.entity.DownloadRecord
 import com.tvbrowser.core.db.repo.DownloadRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +25,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.io.IOException
 import javax.inject.Inject
@@ -87,9 +93,11 @@ class DownloadManagerRepo @Inject constructor(
         }
     }
 
-    suspend fun cancel(dmId: Long) {
-        remove(dmId)
-        repo.delete(dmId)
+    suspend fun cancel(dmId: Long) = withContext(Dispatchers.IO) {
+        enqueueMutex.withLock {
+            dm.remove(dmId)
+            repo.delete(dmId)
+        }
     }
 
     suspend fun remove(dmId: Long) = withContext(Dispatchers.IO) { dm.remove(dmId) }
@@ -101,13 +109,43 @@ class DownloadManagerRepo @Inject constructor(
             val uri = androidx.core.content.FileProvider.getUriForFile(
                 context, "${context.packageName}.fileprovider", file,
             )
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, record.mime ?: "*/*")
-                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
+            context.startActivity(downloadChooserIntent(uri, record.mime, record.filename))
         }.isSuccess
+    }
+
+    /** Called by DownloadManager's completion broadcast, even when Downloads is not visible. */
+    suspend fun refreshCompletion(dmId: Long): Boolean = withContext(Dispatchers.IO) {
+        enqueueMutex.withLock {
+            val record = repo.get(dmId) ?: return@withLock false
+            val status = dm.query(DownloadManager.Query().setFilterById(dmId))?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use null
+                recordStatus(cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)))
+            } ?: return@withLock false
+            if (status != DownloadRecord.STATUS_SUCCESS && status != DownloadRecord.STATUS_FAILED) {
+                return@withLock false
+            }
+            applyStatus(record, status)
+        }
+    }
+
+    // Serialized with enqueue/cancel so duplicate broadcasts and progress polling alert only once.
+    private suspend fun applyStatus(record: DownloadRecord, status: Int): Boolean {
+        if (status == record.status || record.status == DownloadRecord.STATUS_SUCCESS ||
+            record.status == DownloadRecord.STATUS_FAILED) return false
+        val message = when (status) {
+            DownloadRecord.STATUS_SUCCESS -> "Download complete: ${record.filename}. Open Downloads to view it."
+            DownloadRecord.STATUS_FAILED -> "Download failed: ${record.filename}. Check Downloads."
+            else -> null
+        }
+        // Updating the row restarts the screen's flatMapLatest collector. Finish the alert
+        // with the update so cancellation cannot consume a completion without displaying it.
+        withContext(NonCancellable) {
+            repo.updateStatus(record.dmId, status)
+            if (message != null) withContext(Dispatchers.Main) {
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
+        }
+        return true
     }
 
     fun observeProgress(records: Collection<DownloadRecord>): Flow<Map<Long, DownloadProgress>> = flow {
@@ -145,11 +183,26 @@ class DownloadManagerRepo @Inject constructor(
             for (record in records) {
                 val status = progress[record.dmId]?.statusCode?.let(::recordStatus)
                     ?: DownloadRecord.STATUS_FAILED
-                if (status != record.status) repo.updateStatus(record.dmId, status)
+                enqueueMutex.withLock {
+                    repo.get(record.dmId)?.let { latest -> applyStatus(latest, status) }
+                }
             }
             delay(1_000)
         }
     }.flowOn(Dispatchers.IO)
+}
+
+/** Always ask, even if a default player exists; grant access only to this file. */
+fun downloadChooserIntent(uri: Uri, mime: String?, filename: String): Intent {
+    val type = mime?.substringBefore(';')?.trim()?.takeUnless { it.isBlank() || it == "application/octet-stream" }
+        ?: MimeTypeMap.getSingleton().getMimeTypeFromExtension(filename.substringAfterLast('.', "").lowercase())
+        ?: "*/*"
+    val view = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, type)
+        clipData = ClipData.newRawUri(filename, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    return Intent.createChooser(view, "Open with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 }
 
 internal fun safeDownloadName(name: String): String {

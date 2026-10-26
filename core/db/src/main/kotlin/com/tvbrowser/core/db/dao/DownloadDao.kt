@@ -12,6 +12,9 @@ interface DownloadDao {
     @Query("SELECT * FROM downloads ORDER BY startedAt DESC")
     fun observeAll(): Flow<List<DownloadRecord>>
 
+    @Query("SELECT * FROM downloads WHERE dmId = :dmId")
+    suspend fun get(dmId: Long): DownloadRecord?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(record: DownloadRecord)
 

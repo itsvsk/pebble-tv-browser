@@ -490,7 +490,7 @@ private fun DownloadContextMenu(
                 Spacer(Modifier.height(16.dp))
                 if (success) {
                     MenuRow(
-                        label = "Open",
+                        label = "Open with…",
                         icon = Icons.Outlined.OpenInNew,
                         onClick = onOpen,
                         modifier = Modifier.focusRequester(firstFocus),

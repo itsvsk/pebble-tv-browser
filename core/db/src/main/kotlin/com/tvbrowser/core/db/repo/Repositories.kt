@@ -45,6 +45,7 @@ class TabRepository @Inject constructor(private val dao: TabDao) {
 @Singleton
 class DownloadRepository @Inject constructor(private val dao: DownloadDao) {
     fun all(): Flow<List<DownloadRecord>> = dao.observeAll()
+    suspend fun get(dmId: Long): DownloadRecord? = dao.get(dmId)
     suspend fun upsert(record: DownloadRecord) = dao.upsert(record)
     suspend fun updateStatus(dmId: Long, status: Int) = dao.updateStatus(dmId, status)
     suspend fun delete(dmId: Long) = dao.delete(dmId)

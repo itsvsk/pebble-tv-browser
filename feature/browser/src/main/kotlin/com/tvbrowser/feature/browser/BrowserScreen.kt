@@ -90,6 +90,8 @@ fun BrowserScreen(
         scope.launch {
             try {
                 entry.downloads().enqueue(request.url, request.userAgent, request.contentDisposition, request.mime)
+                android.widget.Toast.makeText(context, "Download started. See Downloads for progress.",
+                    android.widget.Toast.LENGTH_SHORT).show()
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 failedDownload = FailedDownload(request, downloadFailureMessage(error))

@@ -26,11 +26,11 @@ Run deterministic integration checks on an Android TV emulator:
 
 ```sh
 ./gradlew :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest
+  -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest,com.tvbrowser.app.DownloadActionsTest
 ./gradlew :core:db:connectedDebugAndroidTest
 ```
 
-`DownloadFailureTest` is a separate online integration check against a W3C missing-file URL; it is not part of the deterministic emulator CI suite.
+`DownloadFailureTest` separately checks real completion broadcasts and missing-file failures against W3C PDF URLs; it is not part of the deterministic emulator CI suite.
 
 ## GitHub Actions and releases
 
