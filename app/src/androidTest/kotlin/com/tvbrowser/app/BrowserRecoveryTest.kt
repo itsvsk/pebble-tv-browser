@@ -2,21 +2,25 @@ package com.tvbrowser.app
 
 import android.net.Uri
 import android.view.View
+import android.view.KeyEvent
 import android.view.ViewGroup
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
+import androidx.test.platform.app.InstrumentationRegistry
 import com.tvbrowser.core.webview.TabWebViewFactory
 import org.json.JSONTokener
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -35,7 +39,7 @@ class BrowserRecoveryTest {
     fun failedImageDoesNotReplaceAnOtherwiseUsablePageWithAnErrorPanel() {
         val browser = openFixture()
         compose.runOnUiThread {
-            TabWebViewFactory.clientOf(browser).onReceivedHttpError(browser, Request(false), httpFailure())
+            TabWebViewFactory.clientOf(browser).onReceivedHttpError(browser, Request(false, currentAddress(browser)), httpFailure())
         }
         compose.waitForIdle()
         compose.onNodeWithTag("browser-page-error").assertDoesNotExist()
@@ -59,7 +63,7 @@ class BrowserRecoveryTest {
         val browser = openFixture()
         compose.runOnUiThread {
             for (status in listOf(401, 403, 404, 429)) {
-                TabWebViewFactory.clientOf(browser).onReceivedHttpError(browser, Request(true),
+                TabWebViewFactory.clientOf(browser).onReceivedHttpError(browser, Request(true, currentAddress(browser)),
                     WebResourceResponse("text/html", "UTF-8", status, "Website response", emptyMap(), "Login page".byteInputStream()))
             }
         }
@@ -71,9 +75,10 @@ class BrowserRecoveryTest {
     @Test
     fun mainFrameHttpFailureOffersRetryAndReloadsTheOriginalAddress() {
         val browser = openFixture()
+        val failedAddress = currentAddress(browser)
         evaluate(browser, "window.reloadProbe = 'changed'; true")
         compose.runOnUiThread {
-            TabWebViewFactory.clientOf(browser).onReceivedHttpError(browser, Request(true), httpFailure())
+            TabWebViewFactory.clientOf(browser).onReceivedHttpError(browser, Request(true, currentAddress(browser)), httpFailure())
         }
         waitForError()
         compose.onNodeWithTag("browser-error-retry").assertIsDisplayed()
@@ -84,7 +89,36 @@ class BrowserRecoveryTest {
             evaluate(browser, "document.readyState === 'complete' && typeof window.reloadProbe === 'undefined'") == true
         }
         compose.onNodeWithTag("browser-page-error").assertDoesNotExist()
-        assertEquals("Retry must preserve the failed address", "about:blank", evaluate(browser, "location.href"))
+        assertEquals("Retry must preserve the failed native address", failedAddress, currentAddress(browser))
+    }
+
+    @Test
+    fun downFromErrorAddressEditorReturnsToRetryWithoutReactivatingThePointer() {
+        val browser = openFixture()
+        evaluate(browser, "window.reloadProbe = 'changed'; true")
+        compose.runOnUiThread {
+            TabWebViewFactory.clientOf(browser).onReceivedHttpError(browser, Request(true, currentAddress(browser)), httpFailure())
+        }
+        waitForError()
+        compose.onNodeWithTag("browser-error-edit").performClick()
+        compose.onNodeWithTag("browser-address-editor", useUnmergedTree = true).assertIsFocused()
+        val remote = InstrumentationRegistry.getInstrumentation()
+        // Exercise the Activity remote path after IME handling; a visible keyboard
+        // legitimately consumes D-pad input before the Activity receives it.
+        compose.runOnUiThread {
+            compose.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN))
+            compose.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_DOWN))
+        }
+        compose.waitForIdle()
+        compose.runOnUiThread {
+            assertFalse("Error actions must retain remote input", compose.activity.cursorController.state.value.active)
+        }
+        compose.onNodeWithTag("browser-error-retry").assertIsFocused()
+        remote.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.waitUntil(10_000) {
+            evaluate(browser, "document.readyState === 'complete' && typeof window.reloadProbe === 'undefined'") == true
+        }
+        compose.onNodeWithTag("browser-page-error").assertDoesNotExist()
     }
 
     @Test
@@ -105,6 +139,7 @@ class BrowserRecoveryTest {
     @SdkSuppress(minSdkVersion = 26)
     fun rendererLossKeepsNativeNavigationAndCreatesAFreshViewOnlyAfterRetry() {
         val oldBrowser = openFixture()
+        val failedAddress = currentAddress(oldBrowser)
         compose.runOnUiThread {
             val consumed = TabWebViewFactory.clientOf(oldBrowser).onRenderProcessGone(
                 oldBrowser,
@@ -126,7 +161,7 @@ class BrowserRecoveryTest {
         assertNotSame("A terminated WebView cannot be reused", oldBrowser, replacement)
         compose.waitUntil(10_000) { evaluate(replacement, "document.readyState === 'complete'") == true }
         compose.onNodeWithTag("browser-page-error").assertDoesNotExist()
-        assertEquals("about:blank", evaluate(replacement, "location.href"))
+        assertEquals(failedAddress, currentAddress(replacement))
     }
 
     private fun openFixture(): WebView {
@@ -141,7 +176,19 @@ class BrowserRecoveryTest {
         compose.waitUntil(10_000) {
             evaluate(browser, "document.readyState === 'complete' && !!document.getElementById('fixture')") == true
         }
+        compose.waitUntil(10_000) {
+            var finished = false
+            compose.runOnUiThread { finished = !browser.url.isNullOrBlank() && browser.progress == 100 }
+            finished
+        }
+        compose.waitForIdle()
         return browser
+    }
+
+    private fun currentAddress(browser: WebView): String {
+        var url: String? = null
+        compose.runOnUiThread { url = browser.url }
+        return checkNotNull(url)
     }
 
     private fun waitForBrowser(): WebView {
@@ -178,7 +225,7 @@ class BrowserRecoveryTest {
         "text/html", "UTF-8", 503, "Service Unavailable", emptyMap(), "Unavailable".byteInputStream(),
     )
 
-    private class Request(private val mainFrame: Boolean, private val url: String = "about:blank") : WebResourceRequest {
+    private class Request(private val mainFrame: Boolean, private val url: String) : WebResourceRequest {
         override fun getUrl(): Uri = Uri.parse(url)
         override fun isForMainFrame() = mainFrame
         override fun isRedirect() = false

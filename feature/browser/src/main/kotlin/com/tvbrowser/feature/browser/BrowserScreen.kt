@@ -86,6 +86,7 @@ fun BrowserScreen(
 
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val controlsFocusRequester = remember { FocusRequester() }
+    val errorRetryFocusRequester = remember { FocusRequester() }
     val currentOnWebNavigation by rememberUpdatedState(onWebNavigation)
     val currentOnShowChrome by rememberUpdatedState(onShowChrome)
     var focusControlsWhenShown by remember { mutableStateOf(false) }
@@ -117,7 +118,7 @@ fun BrowserScreen(
     }
 
     LaunchedEffect(tabId) { vm.bind(tabId) }
-    LaunchedEffect(ui.error) {
+    LaunchedEffect(ui.error, cursorMode.active) {
         if (ui.error != null) {
             entry.cursorController().setActive(false)
             currentOnShowChrome()
@@ -134,8 +135,11 @@ fun BrowserScreen(
         if (chromeVisible) AddressBar(
             controlsFocusRequester = controlsFocusRequester,
             topNavFocusRequester = topNavFocusRequester,
-            pointerPreferred = cursorMode.preferredActive,
-            onResumePointer = onResumePointer,
+            onNavigateDown = when {
+                ui.error != null -> { { errorRetryFocusRequester.requestFocus() } }
+                cursorMode.preferredActive -> onResumePointer
+                else -> null
+            },
             url = ui.url,
             isBookmarked = ui.isBookmarked,
             desktopUa = ui.desktopUa,
@@ -183,7 +187,7 @@ fun BrowserScreen(
             CursorOverlay(controller = entry.cursorController())
             if (ui.error == null) BrowserProgressIndicator(vm, Modifier.align(Alignment.TopCenter))
             ui.error?.let { error ->
-                PageErrorPanel(error, onRetry = vm::retryPage,
+                PageErrorPanel(error, errorRetryFocusRequester, onRetry = vm::retryPage,
                     onEdit = { currentOnShowChrome(); addressEditRequest++ }, onHome = onBackHome)
             }
         }

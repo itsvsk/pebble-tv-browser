@@ -50,8 +50,7 @@ internal fun PageMenu(ui: BrowserUi, media: TabMediaState, onDesktop: () -> Unit
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-internal fun PageErrorPanel(error: WebPageError, onRetry: () -> Unit, onEdit: () -> Unit, onHome: () -> Unit) {
-    val focus = remember { FocusRequester() }
+internal fun PageErrorPanel(error: WebPageError, focus: FocusRequester, onRetry: () -> Unit, onEdit: () -> Unit, onHome: () -> Unit) {
     Box(Modifier.fillMaxSize().background(PebbleColors.Bg).testTag("browser-page-error"), contentAlignment = Alignment.Center) {
         Column(Modifier.widthIn(max = 520.dp).seaGlass(PebbleShape.Lg, PebbleColors.GlassLagoon, 8.dp).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,8 +80,7 @@ import com.tvbrowser.core.design.pebbleFocus
 fun AddressBar(
     controlsFocusRequester: FocusRequester,
     topNavFocusRequester: FocusRequester,
-    pointerPreferred: Boolean,
-    onResumePointer: () -> Unit,
+    onNavigateDown: (() -> Unit)?,
     url: String,
     isBookmarked: Boolean,
     desktopUa: Boolean,
@@ -97,19 +97,26 @@ fun AddressBar(
     var text by remember(url) { mutableStateOf(TextFieldValue(url, TextRange(url.length))) }
     var editing by remember { mutableStateOf(false) }
     var editorFocusRequest by remember { mutableIntStateOf(0) }
+    var downNavigationRequest by remember { mutableIntStateOf(0) }
+    val currentNavigateDown by rememberUpdatedState(onNavigateDown)
     val focusManager = LocalFocusManager.current
     val menuFocusRequester = remember { FocusRequester() }
     LaunchedEffect(editRequest) { if (editRequest > 0) { editing = true; editorFocusRequest++ } }
+    LaunchedEffect(downNavigationRequest) {
+        // Remove the editor before handing focus to the page or its recovery actions.
+        if (downNavigationRequest > 0) currentNavigateDown?.invoke()
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(58.dp)
             .onPreviewKeyEvent { event ->
-                if (pointerPreferred && event.type == KeyEventType.KeyDown &&
+                if (onNavigateDown != null && event.type == KeyEventType.KeyDown &&
                     event.key == Key.DirectionDown
                 ) {
-                    onResumePointer()
+                    editing = false
+                    downNavigationRequest++
                     true
                 } else false
             }
