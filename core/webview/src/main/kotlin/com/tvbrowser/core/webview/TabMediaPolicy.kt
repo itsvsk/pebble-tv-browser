@@ -32,6 +32,7 @@ internal fun applyTabMediaPolicy(view: WebView, state: TabMediaState, foreground
                     if (!d.__pebbleMediaGuard) {
                         d.__pebbleMediaGuard = enforce;
                         d.addEventListener('play', enforce, true);
+                        d.addEventListener('volumechange', enforce, true);
                     }
                     var media = d.querySelectorAll('video,audio');
                     for (var i = 0; i < media.length; i++) enforce({target:media[i]});

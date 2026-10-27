@@ -80,6 +80,32 @@ class TabMediaPolicyTest {
     }
 
     @Test
+    fun siteVolumeChangesCannotOverrideTheTabsFallbackMute() = withMedia { manager, browser, id ->
+        startPlayback(browser)
+        instrumentation.runOnMainSync { manager.setTabMuted(id, true) }
+        await("The DOM fallback must mute the playing media") {
+            evaluate(browser, "document.getElementById('media').muted") == true
+        }
+        evaluate(browser, """
+            window.volumeProbeSettled = false;
+            var media = document.getElementById('media');
+            media.addEventListener('volumechange', function settled() {
+                media.removeEventListener('volumechange', settled);
+                setTimeout(function() { window.volumeProbeSettled = true; }, 50);
+            });
+            media.muted = false;
+            true;
+        """.trimIndent())
+        await("The site's volume change must be processed") { evaluate(browser, "window.volumeProbeSettled") == true }
+        assertTrue("The tab mute must survive a site changing volume without another play event",
+            evaluate(browser, "document.getElementById('media').muted") == true)
+        instrumentation.runOnMainSync { manager.setTabMuted(id, false) }
+        await("Explicit unmute must not be trapped by the volume-change guard") {
+            evaluate(browser, "document.getElementById('media').muted") == false
+        }
+    }
+
+    @Test
     fun explicitMuteSurvivesForegroundChangesAndUnmuteRestoresTheUserChoice() = withMedia { manager, browser, id ->
         startPlayback(browser)
         instrumentation.runOnMainSync {
