@@ -27,7 +27,7 @@ Browse the web from your sofa, with controls made for your TV remote and a calm 
   <a href="https://github.com/itsvsk/pebble-tv-browser/actions/workflows/android-ci.yml"><img src="https://github.com/itsvsk/pebble-tv-browser/actions/workflows/android-ci.yml/badge.svg" alt="Android CI status"></a>
 </p>
 
-**Development preview:** Real Android TV emulator captures with the new branding and an example browsing session. Speed Dials start empty and fill as you browse. The [v0.1.0 release](https://github.com/itsvsk/pebble-tv-browser/releases/tag/v0.1.0) uses the previous logo.
+**A look inside Pebble:** Real Android TV emulator captures with the Tidal Lens logo and an example browsing session. Speed Dials start empty and fill as you browse.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/media/home-dark.webp">
@@ -57,15 +57,16 @@ Move the pointer with the **D-pad** and press **OK / Select** to activate a link
 ## Make yourself at home
 
 - **Return to favorite pages:** Speed Dials grow from your browsing history; bookmarks keep sites you choose to save.
-- **Keep pages open:** Switch between tabs and find previously visited pages in History.
+- **Keep pages open:** Switch between tabs, reopen recently closed tabs, and find previously visited pages in History.
 - **Search your way:** Enter a URL or search query, or use voice search when a speech-recognition service is available.
-- **Adjust website behavior:** Try mobile or desktop mode and toggle **Block ads & trackers** when needed.
-- **Follow your downloads:** Get start, completion, and failure alerts, check progress in Downloads, and choose an app when opening a saved file.
+- **Adjust website behavior:** Save mobile/desktop mode and **Block ads & trackers** choices for each website. Browse's **Page options** also controls tab mute and background playback.
+- **Recover and keep going:** Retry failed pages, edit their address, or return Home using remote-friendly controls.
+- **Follow your downloads:** Get start, completion, and failure alerts, retry failed downloads, check progress in Downloads, and choose an app when opening a saved file.
 - **Choose your surroundings:** Use the warm sand and sea-glass Light theme, the deep green Dark theme, or follow your TV's appearance. Themes change Pebble's interface; websites keep their own appearance.
 
 ## Gallery
 
-Expand a capture to see it at full width. These show the same development build and example session as the Home preview above.
+Expand a capture to see it at full width. These show the same example session as the Home preview above.
 
 <details>
 <summary><strong>Tabs — switch between open pages</strong></summary>

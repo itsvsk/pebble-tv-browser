@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.1 — 2026-10-28
+
 ### Added
 
 - Browse page options with per-tab mute and a session-only background-playback opt-in; inactive media pauses by default without automatically resuming.

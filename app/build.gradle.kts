@@ -6,7 +6,7 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-val pebbleVersionName = providers.gradleProperty("pebbleVersionName").orElse("0.1.0").get()
+val pebbleVersionName = providers.gradleProperty("pebbleVersionName").orElse("0.1.1").get()
 require(Regex("(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)").matches(pebbleVersionName)) {
     "pebbleVersionName must be MAJOR.MINOR.PATCH without leading zeroes"
 }

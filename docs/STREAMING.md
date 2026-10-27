@@ -15,6 +15,8 @@ See the [dated social and entertainment compatibility report](qa/platform-compat
 
 See the [QoL implementation report](qa/qol-implementation-2026-10-27.md) for media controls, website preferences, download retry, and renderer recovery checks.
 
+The [physical TV validation](qa/tv-qol-2026-10-28.md) records HLS/fullscreen and DASH live playback, remote controls, download alerts, and the remaining verification limits on Android 14.
+
 ## Twitch layout fix
 
 The native WebView previously received `WRAP_CONTENT` dimensions from Compose. Twitch could report a normal `window.innerHeight` while its percentage-height page root and `100vh` video container computed to zero height. The stream could play behind a blank or compressed page.
