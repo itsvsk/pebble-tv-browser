@@ -20,14 +20,14 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.UUID
 
-/** Creates a genuine v1 file from the exported schema, then lets Room validate the upgrade. */
+/** Creates genuine legacy files from exported schemas, then lets Room validate each upgrade. */
 @RunWith(AndroidJUnit4::class)
 class DatabaseMigrationTest {
     @Test
     fun versionOneUpgradePreservesAllUserDataAndPersistsTheNewFailureReason() = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
-        val name = "migration-one-to-two-${UUID.randomUUID()}.db"
+        val name = "migration-one-to-three-${UUID.randomUUID()}.db"
         val schema = instrumentation.context.assets.open("com.tvbrowser.core.db.AppDatabase/1.json")
             .bufferedReader().use { JSONObject(it.readText()).getJSONObject("database") }
         val bookmark = Bookmark("legacy-bookmark", "https://example.com/article", "Saved article",
@@ -40,7 +40,7 @@ class DatabaseMigrationTest {
         val runningDownload = DownloadRecord(42L, "https://example.com/stream", "stream", "/fixture/stream",
             totalBytes = -1L, status = DownloadRecord.STATUS_RUNNING, startedAt = 66L)
         try {
-            createVersionOne(context, name, schema) { database ->
+            createLegacyDatabase(context, name, schema) { database ->
                 database.execSQL("INSERT INTO bookmarks (id, url, title, faviconUrl, folder, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
                     arrayOf(bookmark.id, bookmark.url, bookmark.title, bookmark.faviconUrl, bookmark.folder, bookmark.createdAt))
                 database.execSQL("INSERT INTO history (id, url, title, visitedAt) VALUES (?, ?, ?, ?)",
@@ -56,7 +56,7 @@ class DatabaseMigrationTest {
 
             val migrated = openCurrent(context, name)
             try {
-                assertEquals("Opening must actually upgrade the seeded v1 file", 2, migrated.openHelper.writableDatabase.version)
+                assertEquals("Opening must actually upgrade the seeded v1 file", 3, migrated.openHelper.writableDatabase.version)
                 assertEquals(bookmark, migrated.bookmarkDao().observeAll().first().single())
                 assertEquals(history, migrated.historyDao().observeRecent().first().single())
                 assertEquals(tab, migrated.tabDao().get(tab.id))
@@ -97,13 +97,42 @@ class DatabaseMigrationTest {
         }
     }
 
+    @Test
+    fun versionTwoUpgradePreservesFailureReasonsAndPersistsTheInitiatingUserAgent() = runBlocking {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val name = "migration-two-to-three-${UUID.randomUUID()}.db"
+        val schema = instrumentation.context.assets.open("com.tvbrowser.core.db.AppDatabase/2.json")
+            .bufferedReader().use { JSONObject(it.readText()).getJSONObject("database") }
+        val legacy = DownloadRecord(91L, "https://example.com/desktop-file", "file.bin", "/fixture/file.bin",
+            status = DownloadRecord.STATUS_FAILED, startedAt = 12L, failureReason = DownloadManager.ERROR_HTTP_DATA_ERROR)
+        val desktopAgent = "Mozilla/5.0 (X11; Linux x86_64) Chrome/155.0.8059.46"
+        try {
+            createLegacyDatabase(context, name, schema) { database ->
+                database.execSQL("INSERT INTO downloads (dmId, url, filename, localPath, mime, totalBytes, status, startedAt, failureReason) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    arrayOf(legacy.dmId, legacy.url, legacy.filename, legacy.localPath, legacy.mime,
+                        legacy.totalBytes, legacy.status, legacy.startedAt, legacy.failureReason))
+            }
+            val migrated = openCurrent(context, name)
+            try {
+                assertEquals(3, migrated.openHelper.writableDatabase.version)
+                assertEquals("The prior failure reason and metadata must be retained", legacy, migrated.downloadDao().get(legacy.dmId))
+                assertNull("An old transfer has no known initiating user agent", migrated.downloadDao().get(legacy.dmId)!!.userAgent)
+                migrated.downloadDao().upsert(legacy.copy(userAgent = desktopAgent))
+            } finally { migrated.close() }
+            val reopened = openCurrent(context, name)
+            try { assertEquals(legacy.copy(userAgent = desktopAgent), reopened.downloadDao().get(legacy.dmId)) }
+            finally { reopened.close() }
+        } finally { context.deleteDatabase(name) }
+    }
+
     private fun openCurrent(context: Context, name: String): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, name)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .build()
 
-    private fun createVersionOne(context: Context, name: String, schema: JSONObject, seed: (SQLiteDatabase) -> Unit) {
-        assertEquals("This fixture must remain the exported v1 schema", 1, schema.getInt("version"))
+    private fun createLegacyDatabase(context: Context, name: String, schema: JSONObject, seed: (SQLiteDatabase) -> Unit) {
+        assertTrue("Fixtures must use an exported legacy schema", schema.getInt("version") in 1..2)
         val file = context.getDatabasePath(name)
         check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs())
         SQLiteDatabase.openOrCreateDatabase(file, null).use { database ->

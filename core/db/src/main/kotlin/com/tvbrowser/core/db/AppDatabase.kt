@@ -25,7 +25,7 @@ import javax.inject.Singleton
 @Database(
     entities = [Bookmark::class, HistoryEntry::class, TabEntity::class, DownloadRecord::class],
     views = [MostVisitedView::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -33,6 +33,11 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE downloads ADD COLUMN failureReason INTEGER DEFAULT NULL")
+            }
+        }
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE downloads ADD COLUMN userAgent TEXT DEFAULT NULL")
             }
         }
     }
@@ -50,7 +55,7 @@ object DbModule {
     @Provides @Singleton
     fun database(@ApplicationContext ctx: Context): AppDatabase =
         Room.databaseBuilder(ctx, AppDatabase::class.java, "tv_browser.db")
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .build()
 
     @Provides fun bookmarkDao(db: AppDatabase): BookmarkDao = db.bookmarkDao()

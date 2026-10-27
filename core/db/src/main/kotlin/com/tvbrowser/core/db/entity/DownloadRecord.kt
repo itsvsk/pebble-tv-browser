@@ -15,6 +15,7 @@ data class DownloadRecord(
     val status: Int = STATUS_PENDING,
     val startedAt: Long = System.currentTimeMillis(),
     @ColumnInfo(defaultValue = "NULL") val failureReason: Int? = null,
+    @ColumnInfo(defaultValue = "NULL") val userAgent: String? = null,
 ) {
     companion object {
         const val STATUS_PENDING = 0

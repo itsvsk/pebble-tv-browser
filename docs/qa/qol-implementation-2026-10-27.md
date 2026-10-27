@@ -12,7 +12,7 @@ Implements items 1–5 from the [review](qol-review-2026-10-27.md). All testing 
 
 ## Storage and compatibility
 
-Room schema **2** adds nullable `downloads.failureReason`. The explicit version 1-to-2 migration preserves the existing bookmark, history, tab and download data. Existing failed records without a historic reason use the generic failure explanation. Destructive migration remains disabled.
+Room schema **2** adds nullable `downloads.failureReason`. Release review adds schema **3** with nullable `downloads.userAgent`, so Retry preserves the initiating Desktop/Mobile identity while reading fresh cookies. Legacy rows with no recorded user agent use the current default. Explicit 1-to-2 and 2-to-3 migrations preserve existing user data, including schema 2 development installations. Existing failed records without a historic reason use the generic failure explanation. Destructive migration remains disabled.
 
 No playback SDK, animation framework, paid service or production dependency was added. Existing WebKit is also referenced by instrumentation tests to inspect engine mute. The mute path checks `MUTE_AUDIO` support; renderer callbacks are scoped to supported Android versions. API 24 remains a CI target, but this local runtime pass used API 34.
 

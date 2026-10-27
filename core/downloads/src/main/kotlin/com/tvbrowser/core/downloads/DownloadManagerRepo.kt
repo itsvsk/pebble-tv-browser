@@ -83,6 +83,7 @@ class DownloadManagerRepo @Inject constructor(
                         DownloadRecord(
                             dmId = id, url = url, filename = dest.name, localPath = dest.absolutePath,
                             mime = mime, status = DownloadRecord.STATUS_RUNNING,
+                            userAgent = userAgent?.takeIf { it.isNotBlank() },
                         )
                     )
                 } catch (error: Exception) {
@@ -103,7 +104,9 @@ class DownloadManagerRepo @Inject constructor(
         require(record.status == DownloadRecord.STATUS_FAILED) { "Only failed downloads can be retried" }
         withContext(NonCancellable) {
             val id = withContext(Dispatchers.Main) {
-                enqueue(record.url, WebSettings.getDefaultUserAgent(context), null, record.mime, filenameHint = record.filename)
+                // Keep the initiating Desktop/Mobile identity; credentials are still refreshed.
+                enqueue(record.url, record.userAgent ?: WebSettings.getDefaultUserAgent(context),
+                    null, record.mime, filenameHint = record.filename)
             }
             try {
                 withContext(Dispatchers.IO) { repo.delete(dmId) }

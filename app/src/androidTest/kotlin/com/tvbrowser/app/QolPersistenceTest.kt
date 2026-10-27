@@ -130,7 +130,8 @@ class QolPersistenceTest {
         val oldId = -41L
         val old = DownloadRecord(oldId, url, "old-file.bin", "/fixture/old-file.bin",
             mime = "application/octet-stream", status = DownloadRecord.STATUS_FAILED,
-            failureReason = DownloadManager.ERROR_HTTP_DATA_ERROR)
+            failureReason = DownloadManager.ERROR_HTTP_DATA_ERROR,
+            userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/155.0.8059.46 Safari/537.36")
         try {
             repository.upsert(old)
             val results = coroutineScope {
@@ -146,6 +147,7 @@ class QolPersistenceTest {
             assertEquals(replacementId, record.dmId)
             assertEquals(url, record.url)
             assertEquals(old.mime, record.mime)
+            assertEquals("Retry must retain the initiating desktop identity", old.userAgent, record.userAgent)
             assertTrue("Retry must preserve the original filename", record.filename.startsWith("old-file"))
             assertEquals(DownloadRecord.STATUS_RUNNING, record.status)
             assertNull("A new request must not retain the old failure", record.failureReason)
