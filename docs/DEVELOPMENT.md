@@ -26,7 +26,7 @@ Run deterministic integration checks on an Android TV emulator:
 
 ```sh
 ./gradlew :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest,com.tvbrowser.app.DownloadActionsTest,com.tvbrowser.app.StreamingLayoutTest,com.tvbrowser.app.FullscreenVideoTest
+  -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest,com.tvbrowser.app.DownloadActionsTest,com.tvbrowser.app.StreamingLayoutTest,com.tvbrowser.app.FullscreenVideoTest,com.tvbrowser.app.NestedWebScrollTest,com.tvbrowser.app.NestedCallbackLifetimeTest,com.tvbrowser.app.ExternalAppLinkTest
 ./gradlew :core:db:connectedDebugAndroidTest
 ```
 

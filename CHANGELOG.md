@@ -16,6 +16,8 @@
 
 ### Fixed
 
+- Pointer edge scrolling now reaches nested social feeds and chat panels; Up yields to browser controls only after the inner feed reaches its top.
+- App-only redirects such as Facebook's `fb://` links no longer replace a usable website with an unsupported-scheme error.
 - Streaming pages such as Twitch collapsing against the top of the screen: WebViews now have bounded dimensions so percentage-height and viewport-height players fill their available space.
 
 ## 0.1.0

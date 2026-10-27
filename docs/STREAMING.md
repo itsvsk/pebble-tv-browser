@@ -2,6 +2,8 @@
 
 Pebble uses the TV's Android System WebView and the streaming site's original player. Keep System WebView updated. Pebble does not transcode streams or replace a site's player with an external playback engine.
 
+See the [dated social and entertainment compatibility report](qa/platform-compatibility-2026-10-27.md) for public-site observations and known limitations. A rendered landing page or poster does not establish playback support.
+
 | Playback path | Handling |
 | --- | --- |
 | HTML video/audio, including MP4 | Rendered by WebView; codec support depends on the engine and TV decoder. |

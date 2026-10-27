@@ -110,7 +110,7 @@ jobs:
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
-            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest,com.tvbrowser.app.DownloadActionsTest,com.tvbrowser.app.StreamingLayoutTest,com.tvbrowser.app.FullscreenVideoTest --no-daemon --max-workers=2 --stacktrace
+            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest,com.tvbrowser.app.DownloadActionsTest,com.tvbrowser.app.StreamingLayoutTest,com.tvbrowser.app.FullscreenVideoTest,com.tvbrowser.app.NestedWebScrollTest,com.tvbrowser.app.NestedCallbackLifetimeTest,com.tvbrowser.app.ExternalAppLinkTest --no-daemon --max-workers=2 --stacktrace
             ./gradlew :core:db:connectedDebugAndroidTest --no-daemon --max-workers=2 --stacktrace
       - name: Upload emulator test reports
         if: always()
