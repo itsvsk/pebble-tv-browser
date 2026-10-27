@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -89,12 +90,16 @@ fun AddressBar(
     onReload: () -> Unit,
     onBookmark: () -> Unit,
     onToggleUa: () -> Unit,
+    onPageMenu: () -> Unit = {},
+    editRequest: Int = 0,
+    modeEnabled: Boolean = true,
 ) {
     var text by remember(url) { mutableStateOf(TextFieldValue(url, TextRange(url.length))) }
     var editing by remember { mutableStateOf(false) }
     var editorFocusRequest by remember { mutableIntStateOf(0) }
     val focusManager = LocalFocusManager.current
-    val bookmarkFocusRequester = remember { FocusRequester() }
+    val menuFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(editRequest) { if (editRequest > 0) { editing = true; editorFocusRequest++ } }
 
     Box(
         modifier = Modifier
@@ -124,7 +129,7 @@ fun AddressBar(
                 "Back",
                 onClick = onBack,
                 focusRequester = controlsFocusRequester,
-                onLeft = { bookmarkFocusRequester.requestFocus() },
+                onLeft = { menuFocusRequester.requestFocus() },
                 onUp = { topNavFocusRequester.requestFocus() },
             )
             RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward,
@@ -169,6 +174,7 @@ fun AddressBar(
                 imageVector = if (desktopUa) Icons.Outlined.DesktopWindows else Icons.Outlined.PhoneAndroid,
                 contentDescription = if (desktopUa) "Desktop site" else "Mobile site",
                 onClick = onToggleUa,
+                enabled = modeEnabled,
                 onUp = { topNavFocusRequester.requestFocus() },
             )
             RoundIcon(
@@ -176,10 +182,13 @@ fun AddressBar(
                 contentDescription = "Bookmark",
                 onClick = onBookmark,
                 tint = if (isBookmarked) PebbleColors.Primary else PebbleColors.OnSurfaceMuted,
-                focusRequester = bookmarkFocusRequester,
-                onRight = { controlsFocusRequester.requestFocus() },
+
                 onUp = { topNavFocusRequester.requestFocus() },
             )
+            RoundIcon(Icons.Outlined.MoreVert, "Page options", onClick = onPageMenu,
+                focusRequester = menuFocusRequester,
+                onRight = { controlsFocusRequester.requestFocus() },
+                onUp = { topNavFocusRequester.requestFocus() })
         }
     }
 

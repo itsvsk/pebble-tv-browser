@@ -41,10 +41,23 @@ class StreamingLayoutTest {
                 <style>html,body,#root {margin:0;width:100%;height:100%} #player {width:100%;height:100%}
                 #viewport {position:fixed;height:100vh;width:1px} button {position:fixed;top:0;right:0;bottom:0;left:0}</style></head>
                 <body><main id="root"><video id="player" controls></video></main><div id="viewport"></div>
-                <button onclick="var v=document.getElementById('player'); (v.requestFullscreen || v.webkitRequestFullscreen).call(v)">Enter fullscreen</button></body></html>
+                <button onclick="window.clicked=true; var v=document.getElementById('player'); Promise.resolve((v.requestFullscreen || v.webkitRequestFullscreen).call(v)).then(function(){ window.requestResult='entered'; }, function(e){ window.requestResult=String(e); })">Enter fullscreen</button></body></html>
             """.trimIndent(), "text/html", "UTF-8", null)
         }
         compose.waitUntil(10_000) { evaluate(webView).optBoolean("ready") }
+        // DOM readiness can precede removal of the previous native error panel.
+        // Wait for both Compose and Chromium to draw before sending a real screen tap.
+        compose.waitForIdle()
+        compose.onNodeWithTag("browser-page-error").assertDoesNotExist()
+        val rendered = CountDownLatch(1)
+        compose.runOnUiThread {
+            webView.postVisualStateCallback(0, object : WebView.VisualStateCallback() {
+                override fun onComplete(requestId: Long) {
+                    webView.postOnAnimation { webView.postOnAnimation { rendered.countDown() } }
+                }
+            })
+        }
+        assertTrue("Fullscreen fixture must be rendered before tapping", rendered.await(5, TimeUnit.SECONDS))
         val location = IntArray(2)
         var x = 0f
         var y = 0f
@@ -59,7 +72,11 @@ class StreamingLayoutTest {
             val event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, x, y, 0)
             try { instrumentation.sendPointerSync(event) } finally { event.recycle() }
         }
-        compose.waitUntil(10_000) { compose.activity.videoController.fullscreen.value != null }
+        try {
+            compose.waitUntil(10_000) { compose.activity.videoController.fullscreen.value != null }
+        } catch (failure: androidx.compose.ui.test.ComposeTimeoutException) {
+            throw AssertionError("Fullscreen request diagnostics: ${evaluate(webView)}", failure)
+        }
         compose.onNodeWithTag("browser-fullscreen-video").assertIsDisplayed()
         compose.runOnUiThread {
             val view = compose.activity.videoController.fullscreen.value!!.view
@@ -129,6 +146,7 @@ class StreamingLayoutTest {
                 """
                     JSON.stringify({
                         ready: document.readyState === 'complete' && !!document.getElementById('viewport'),
+                        url: location.href, title: document.title, clicked: !!window.clicked, requestResult: window.requestResult || null,
                         fullscreen: !!(document.fullscreenElement || document.webkitFullscreenElement),
                         innerHeight: innerHeight,
                         rootHeight: document.getElementById('root') ? document.getElementById('root').getBoundingClientRect().height : 0,
