@@ -10,8 +10,10 @@ See the [dated social and entertainment compatibility report](qa/platform-compat
 | Live streams using MediaSource, HLS, or DASH | The site's player and WebView negotiate playback. A direct playlist URL does not open a separate native streaming player. |
 | Fullscreen video | The webpage's fullscreen button opens a full-window player above Pebble's bars. Native player controls receive D-pad input; Back returns to the page and restores pointer state. |
 | DRM or subscription services | Not guaranteed. Playback depends on device certification, the service's WebView policy, codecs, and protected-media permissions. Pebble does not automatically grant protected-media identification, camera, or microphone access. |
-| Background media | WebView lifecycle processing is paused when the browser leaves the foreground, but explicit audio/video suspension is not currently managed. This does not guarantee that every site's audio stops. |
+| Background media | Inactive tabs pause HTML audio/video by default and engine-mute when supported. Page options offers per-tab mute and a session-only background-playback opt-in. Returning does not automatically resume paused media. DOM pause across cross-origin players is best effort; provider-supported engine mute protects their audio. Service and OS background policies can still suspend playback. |
 | Downloaded media | Opening a completed download offers Android's app chooser with temporary access to the selected file. |
+
+See the [QoL implementation report](qa/qol-implementation-2026-10-27.md) for media controls, website preferences, download retry, and renderer recovery checks.
 
 ## Twitch layout fix
 

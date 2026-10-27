@@ -4,6 +4,11 @@
 
 ### Added
 
+- Browse page options with per-tab mute and a session-only background-playback opt-in; inactive media pauses by default without automatically resuming.
+- Exact-host Desktop/Mobile and ad-blocking preferences, with a reset to global defaults.
+- Failed-download Retry actions and persisted, readable failure reasons; database upgrades preserve existing data.
+- Native page-failure actions and explicit recovery from a terminated WebView renderer.
+- Reopen recently closed normal tabs during the current session (up to 10 URLs/titles).
 - Web video fullscreen with remote controls, Back to exit, and restoration of the prior pointer state.
 - Clear the entire address from Browse and immediately type a replacement; the current page stays open until submission.
 - Download start, completion, and failure alerts, including completion handling outside the Downloads screen.
