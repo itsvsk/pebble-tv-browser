@@ -83,6 +83,7 @@ class NestedWebScrollTest {
                 after = evaluate(browser)
                 after.getInt("feedY") < seeded.getInt("feedY") || handoffs.get() > 0
             }
+            after = awaitSettledFeed(browser)
             assertEquals("Chrome must not capture Up while the nested feed can still scroll", 0, handoffs.get())
             assertTrue("The first Up should move toward the top", after.getInt("feedY") < seeded.getInt("feedY"))
 
@@ -94,6 +95,7 @@ class NestedWebScrollTest {
                     after = evaluate(browser)
                     after.getInt("feedY") < previousY || handoffs.get() > 0
                 }
+                after = awaitSettledFeed(browser)
                 assertEquals("Chrome handoff must wait until the feed has reached its top", 0, handoffs.get())
             }
             assertEquals("Repeated Up must reach the nested top", 0, after.getInt("feedY"))
@@ -193,6 +195,23 @@ class NestedWebScrollTest {
             })
         }
         assertTrue("The fixture must be rendered before injecting wheel input", drawn.await(5, TimeUnit.SECONDS))
+    }
+
+    private fun awaitSettledFeed(browser: WebView): JSONObject {
+        // A wheel can keep moving after the first DOM delta. A second Up at the real
+        // top is a valid handoff, even if the previous sample still showed overflow.
+        awaitVisualUpdate(browser)
+        var previous = Double.NaN
+        var unchanged = 0
+        var sample = JSONObject()
+        waitUntil("The nested wheel animation did not settle") {
+            sample = evaluate(browser)
+            val position = sample.getDouble("feedY")
+            unchanged = if (position == previous) unchanged + 1 else 0
+            previous = position
+            unchanged >= 3
+        }
+        return sample
     }
 
     private fun closeFixture(browser: WebView, controller: CursorController) {
