@@ -8,6 +8,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.webkit.WebView
+import android.webkit.WebSettings
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -69,6 +70,7 @@ class CursorController private constructor(
     private var pointerUpHandoffInProgress = false
     private var upKeyHeld = false
     private var scrollContextGeneration = 0L
+    private var webHorizontalWheelSign = 1f
     private val layoutListener = View.OnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
         if (targetView === view) updateViewport(view)
     }
@@ -80,6 +82,10 @@ class CursorController private constructor(
         lastScrollFrameMs = 0L
         targetView?.removeOnLayoutChangeListener(layoutListener)
         targetView = view
+        // Use the engine's default identity, independent of a website's Desktop/Mobile override.
+        webHorizontalWheelSign = if (view is WebView) {
+            horizontalWheelSignForUserAgent(WebSettings.getDefaultUserAgent(view.context))
+        } else 1f
         view?.let { v ->
             v.addOnLayoutChangeListener(layoutListener)
             v.post {
@@ -300,7 +306,7 @@ class CursorController private constructor(
                         if (generation != scrollContextGeneration || targetView !== view || view.url != pageUrl ||
                             !_state.value.active) return@findNestedScrollTarget
                         val target = point ?: (state.x to state.y)
-                        dispatchPointerWheel(view, target.first, target.second, motion.scrollX, motion.scrollY)
+                        dispatchPointerWheel(view, target.first, target.second, motion.scrollX, motion.scrollY, webHorizontalWheelSign)
                     }
                 }
             }

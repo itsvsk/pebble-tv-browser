@@ -69,7 +69,7 @@ internal fun findNestedScrollTarget(
 }
 
 /** A real mouse-wheel event also reaches scroll areas inside cross-origin frames. */
-internal fun dispatchPointerWheel(view: View, x: Float, y: Float, deltaX: Int, deltaY: Int) {
+internal fun dispatchPointerWheel(view: View, x: Float, y: Float, deltaX: Int, deltaY: Int, horizontalSign: Float = 1f) {
     val config = ViewConfiguration.get(view.context)
     val fallback = TypedValue().let { value ->
         if (view.context.theme.resolveAttribute(android.R.attr.listPreferredItemHeight, value, true))
@@ -85,7 +85,7 @@ internal fun dispatchPointerWheel(view: View, x: Float, y: Float, deltaX: Int, d
         this.x = x.coerceIn(if (maxX > 0) 1f else 0f, maxX)
         this.y = y.coerceIn(if (maxY > 0) 1f else 0f, maxY)
         setAxisValue(MotionEvent.AXIS_VSCROLL, -deltaY / vertical)
-        setAxisValue(MotionEvent.AXIS_HSCROLL, deltaX / horizontal)
+        setAxisValue(MotionEvent.AXIS_HSCROLL, horizontalSign * deltaX / horizontal)
     }
     val now = SystemClock.uptimeMillis()
     val event = MotionEvent.obtain(now, now, MotionEvent.ACTION_SCROLL, 1,
