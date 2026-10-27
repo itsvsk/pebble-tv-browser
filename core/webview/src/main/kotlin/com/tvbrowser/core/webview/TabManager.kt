@@ -67,7 +67,12 @@ class TabManager @Inject constructor(
         updateMedia(tabId)
     }
     private fun updateMedia(tabId: String) {
-        live[tabId]?.let { applyTabMediaPolicy(it, mediaState(tabId), tabId in foregroundTabs) }
+        live[tabId]?.let { view ->
+            val state = mediaState(tabId)
+            val foreground = tabId in foregroundTabs
+            if (foreground || state.backgroundPlayback) view.onResume() else view.onPause()
+            applyTabMediaPolicy(view, state, foreground)
+        }
     }
 
     private val live = object : LinkedHashMap<String, WebView>(MAX_LIVE, 0.75f, true) {

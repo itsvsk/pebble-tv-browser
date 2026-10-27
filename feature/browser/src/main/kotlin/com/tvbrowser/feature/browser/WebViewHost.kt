@@ -67,14 +67,13 @@ fun WebViewHost(
                         },
                     ),
                 )
-                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) view.onPause()
+                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) tabManager.setTabForeground(tabId, false)
                 val observer = LifecycleEventObserver { _, event ->
                     if (client.owns(callbackOwner) && tabManager.isLiveView(tabId, view)) {
                         when (event) {
-                            Lifecycle.Event.ON_RESUME -> { view.onResume(); tabManager.setTabForeground(tabId, true) }
+                            Lifecycle.Event.ON_RESUME -> tabManager.setTabForeground(tabId, true)
                             Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
                                 tabManager.setTabForeground(tabId, false)
-                                view.onPause()
                             }
                             else -> Unit
                         }
@@ -101,7 +100,6 @@ fun WebViewHost(
                     cursorController.detachTarget(view)
                     if (tabManager.isLiveView(tabId, view)) {
                         tabManager.setTabForeground(tabId, false)
-                        view.onPause()
                     }
                 }
             },
