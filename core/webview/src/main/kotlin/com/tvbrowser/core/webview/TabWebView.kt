@@ -2,6 +2,7 @@ package com.tvbrowser.core.webview
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.Uri
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
@@ -10,6 +11,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import com.tvbrowser.core.adblock.AdBlockInterceptor
 
 class TabConfig(
@@ -73,6 +75,18 @@ class TabWebViewClient(
     fun owns(owner: Any): Boolean = callbacks.owns(owner)
     val hasUiOwner: Boolean get() = callbacks.hasUiOwner
     fun onProgress(value: Int) = callbacks.progress(value)
+
+    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+        if (isWebDocumentScheme(request.url.scheme)) return false
+        if (request.isForMainFrame && request.hasGesture()) {
+            Toast.makeText(view.context, "This link requires another app. Try the website's desktop mode.", Toast.LENGTH_LONG).show()
+        }
+        return true
+    }
+
+    @Deprecated("Compatibility with older WebView providers")
+    override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
+        !isWebDocumentScheme(Uri.parse(url).scheme)
 
     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
         if (!adblockEnabled) return null
