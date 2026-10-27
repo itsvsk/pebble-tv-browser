@@ -39,7 +39,7 @@ class StreamingLayoutTest {
             webView.loadDataWithBaseURL("https://pebble.invalid/fullscreen-fixture", """
                 <!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
                 <style>html,body,#root {margin:0;width:100%;height:100%} #player {width:100%;height:100%}
-                #viewport {position:fixed;height:100vh;width:1px} button {position:fixed;top:0;right:0;bottom:0;left:0}</style></head>
+                #viewport {position:fixed;height:100vh;width:1px} button {position:fixed;top:0;left:0;width:100%;height:100%}</style></head>
                 <body><main id="root"><video id="player" controls></video></main><div id="viewport"></div>
                 <button onclick="window.clicked=true; var v=document.getElementById('player'); Promise.resolve((v.requestFullscreen || v.webkitRequestFullscreen).call(v)).then(function(){ window.requestResult='entered'; }, function(e){ window.requestResult=String(e); })">Enter fullscreen</button></body></html>
             """.trimIndent(), "text/html", "UTF-8", null)

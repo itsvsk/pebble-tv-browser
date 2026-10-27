@@ -16,7 +16,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
-import androidx.test.platform.app.InstrumentationRegistry
 import com.tvbrowser.core.webview.TabWebViewFactory
 import org.json.JSONTokener
 import org.junit.Assert.assertEquals
@@ -29,6 +28,7 @@ import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import java.net.ServerSocket
 
 /** Feed platform failure callbacks to the real client; fixtures never need a live server. */
 @RunWith(AndroidJUnit4::class)
@@ -102,7 +102,6 @@ class BrowserRecoveryTest {
         waitForError()
         compose.onNodeWithTag("browser-error-edit").performClick()
         compose.onNodeWithTag("browser-address-editor", useUnmergedTree = true).assertIsFocused()
-        val remote = InstrumentationRegistry.getInstrumentation()
         // Exercise the Activity remote path after IME handling; a visible keyboard
         // legitimately consumes D-pad input before the Activity receives it.
         compose.runOnUiThread {
@@ -114,7 +113,10 @@ class BrowserRecoveryTest {
             assertFalse("Error actions must retain remote input", compose.activity.cursorController.state.value.active)
         }
         compose.onNodeWithTag("browser-error-retry").assertIsFocused()
-        remote.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.runOnUiThread {
+            compose.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER))
+            compose.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_CENTER))
+        }
         compose.waitUntil(10_000) {
             evaluate(browser, "document.readyState === 'complete' && typeof window.reloadProbe === 'undefined'") == true
         }
@@ -124,10 +126,11 @@ class BrowserRecoveryTest {
     @Test
     fun mainFrameNetworkFailureShowsTheSameRecoverableNativeActions() {
         val browser = openFixture()
+        val closedPort = ServerSocket(0).use { it.localPort }
         compose.runOnUiThread {
-            // .invalid is reserved and cannot resolve to a public website. This exercises
-            // the platform network-error callback without a server or SSL bypass.
-            browser.loadUrl("https://pebble.invalid/offline-fixture")
+            // A refused local connection exercises the platform callback without waiting
+            // for external DNS or accepting an untrusted TLS certificate.
+            browser.loadUrl("https://127.0.0.1:$closedPort/offline-fixture")
         }
         waitForError()
         compose.onNodeWithTag("browser-error-edit").assertIsDisplayed()
