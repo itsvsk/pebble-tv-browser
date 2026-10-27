@@ -55,6 +55,20 @@ class BrowserRecoveryTest {
     }
 
     @Test
+    fun authenticationResponseKeepsTheWebsiteContentAccessible() {
+        val browser = openFixture()
+        compose.runOnUiThread {
+            for (status in listOf(401, 403, 404, 429)) {
+                TabWebViewFactory.clientOf(browser).onReceivedHttpError(browser, Request(true),
+                    WebResourceResponse("text/html", "UTF-8", status, "Website response", emptyMap(), "Login page".byteInputStream()))
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("browser-page-error").assertDoesNotExist()
+        assertEquals("usable", evaluate(browser, "document.getElementById('fixture').textContent"))
+    }
+
+    @Test
     fun mainFrameHttpFailureOffersRetryAndReloadsTheOriginalAddress() {
         val browser = openFixture()
         evaluate(browser, "window.reloadProbe = 'changed'; true")

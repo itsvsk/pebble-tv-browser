@@ -151,7 +151,8 @@ class TabWebViewClient(
     }
 
     override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
-        if (request.isForMainFrame && isCurrentDocument(view, request.url.toString()) && response.statusCode >= 400) {
+        // Keep website-provided sign-in, challenge and not-found responses accessible.
+        if (request.isForMainFrame && isCurrentDocument(view, request.url.toString()) && response.statusCode in 500..599) {
             reportError(WebPageError(request.url.toString(), "This website returned HTTP ${response.statusCode}."))
         }
     }
