@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Environment
 import android.webkit.CookieManager
 import android.webkit.URLUtil
+import android.webkit.WebSettings
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -39,6 +40,7 @@ class DownloadManagerRepo @Inject constructor(
 
     private val dm by lazy { ContextCompat.getSystemService(context, DownloadManager::class.java)!! }
     private val enqueueMutex = Mutex()
+    private val retryMutex = Mutex()
 
     /** The app-owned folder used for new downloads; it may be unavailable when storage is unmounted. */
     fun defaultDirectory(): File? = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
@@ -49,6 +51,7 @@ class DownloadManagerRepo @Inject constructor(
         contentDisposition: String?,
         mime: String?,
         targetDir: File? = null,
+        filenameHint: String? = null,
     ): Long {
         val scheme = Uri.parse(url).scheme
         require(scheme == "http" || scheme == "https") { "Only HTTP and HTTPS downloads are supported" }
@@ -60,7 +63,7 @@ class DownloadManagerRepo @Inject constructor(
             try {
                 val dir = targetDir ?: defaultDirectory() ?: throw IOException("Download storage is unavailable")
                 if (!dir.isDirectory && !dir.mkdirs()) throw IOException("Download folder is unavailable")
-                val filename = safeDownloadName(URLUtil.guessFileName(url, contentDisposition, mime))
+                val filename = safeDownloadName(filenameHint ?: URLUtil.guessFileName(url, contentDisposition, mime))
                 val occupiedPaths = repo.all().first().mapTo(HashSet()) { it.localPath }
                 val dest = uniqueDownloadFile(dir, filename, occupiedPaths)
 
@@ -93,6 +96,26 @@ class DownloadManagerRepo @Inject constructor(
         }
     }
 
+    /** A retry is a fresh request with current cookies, never persisted credentials. */
+    suspend fun retry(dmId: Long): Long = retryMutex.withLock {
+        val record = withContext(Dispatchers.IO) { repo.get(dmId) }
+            ?: throw IOException("This download is no longer in the list")
+        require(record.status == DownloadRecord.STATUS_FAILED) { "Only failed downloads can be retried" }
+        withContext(NonCancellable) {
+            val id = withContext(Dispatchers.Main) {
+                enqueue(record.url, WebSettings.getDefaultUserAgent(context), null, record.mime, filenameHint = record.filename)
+            }
+            try {
+                withContext(Dispatchers.IO) { repo.delete(dmId) }
+            } catch (error: Exception) {
+                cancel(id)
+                throw error
+            }
+            withContext(Dispatchers.IO) { runCatching { dm.remove(dmId) } }
+            id
+        }
+    }
+
     suspend fun cancel(dmId: Long) = withContext(Dispatchers.IO) {
         enqueueMutex.withLock {
             dm.remove(dmId)
@@ -117,19 +140,24 @@ class DownloadManagerRepo @Inject constructor(
     suspend fun refreshCompletion(dmId: Long): Boolean = withContext(Dispatchers.IO) {
         enqueueMutex.withLock {
             val record = repo.get(dmId) ?: return@withLock false
-            val status = dm.query(DownloadManager.Query().setFilterById(dmId))?.use { cursor ->
+            val outcome = dm.query(DownloadManager.Query().setFilterById(dmId))?.use { cursor ->
                 if (!cursor.moveToFirst()) return@use null
-                recordStatus(cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)))
+                recordStatus(cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))) to
+                    cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
             } ?: return@withLock false
+            val (status, reason) = outcome
             if (status != DownloadRecord.STATUS_SUCCESS && status != DownloadRecord.STATUS_FAILED) {
                 return@withLock false
             }
-            applyStatus(record, status)
+            applyStatus(record, status, reason)
         }
     }
 
     // Serialized with enqueue/cancel so duplicate broadcasts and progress polling alert only once.
-    private suspend fun applyStatus(record: DownloadRecord, status: Int): Boolean {
+    private suspend fun applyStatus(record: DownloadRecord, status: Int, reason: Int?): Boolean {
+        if (status == DownloadRecord.STATUS_FAILED && record.status == status && record.failureReason == null && reason != null) {
+            repo.updateStatus(record.dmId, status, reason)
+        }
         if (status == record.status || record.status == DownloadRecord.STATUS_SUCCESS ||
             record.status == DownloadRecord.STATUS_FAILED) return false
         val message = when (status) {
@@ -140,7 +168,7 @@ class DownloadManagerRepo @Inject constructor(
         // Updating the row restarts the screen's flatMapLatest collector. Finish the alert
         // with the update so cancellation cannot consume a completion without displaying it.
         withContext(NonCancellable) {
-            repo.updateStatus(record.dmId, status)
+            repo.updateStatus(record.dmId, status, if (status == DownloadRecord.STATUS_FAILED) reason else null)
             if (message != null) withContext(Dispatchers.Main) {
                 Toast.makeText(context, message, Toast.LENGTH_LONG).show()
             }
@@ -184,7 +212,7 @@ class DownloadManagerRepo @Inject constructor(
                 val status = progress[record.dmId]?.statusCode?.let(::recordStatus)
                     ?: DownloadRecord.STATUS_FAILED
                 enqueueMutex.withLock {
-                    repo.get(record.dmId)?.let { latest -> applyStatus(latest, status) }
+                    repo.get(record.dmId)?.let { latest -> applyStatus(latest, status, progress[record.dmId]?.reason) }
                 }
             }
             delay(1_000)

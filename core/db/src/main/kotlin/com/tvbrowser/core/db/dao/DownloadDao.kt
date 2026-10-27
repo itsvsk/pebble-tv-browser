@@ -18,8 +18,8 @@ interface DownloadDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(record: DownloadRecord)
 
-    @Query("UPDATE downloads SET status = :status WHERE dmId = :dmId")
-    suspend fun updateStatus(dmId: Long, status: Int)
+    @Query("UPDATE downloads SET status = :status, failureReason = :failureReason WHERE dmId = :dmId")
+    suspend fun updateStatus(dmId: Long, status: Int, failureReason: Int? = null)
 
     @Query("DELETE FROM downloads WHERE dmId = :dmId")
     suspend fun delete(dmId: Long)

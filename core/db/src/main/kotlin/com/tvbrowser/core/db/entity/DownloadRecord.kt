@@ -1,6 +1,7 @@
 package com.tvbrowser.core.db.entity
 
 import androidx.room.Entity
+import androidx.room.ColumnInfo
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "downloads")
@@ -13,6 +14,7 @@ data class DownloadRecord(
     val totalBytes: Long = -1,
     val status: Int = STATUS_PENDING,
     val startedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(defaultValue = "NULL") val failureReason: Int? = null,
 ) {
     companion object {
         const val STATUS_PENDING = 0

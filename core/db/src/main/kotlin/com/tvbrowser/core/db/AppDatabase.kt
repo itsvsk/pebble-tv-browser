@@ -2,6 +2,8 @@ package com.tvbrowser.core.db
 
 import android.content.Context
 import androidx.room.Database
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.tvbrowser.core.db.dao.BookmarkDao
@@ -23,10 +25,18 @@ import javax.inject.Singleton
 @Database(
     entities = [Bookmark::class, HistoryEntry::class, TabEntity::class, DownloadRecord::class],
     views = [MostVisitedView::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
+    companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE downloads ADD COLUMN failureReason INTEGER DEFAULT NULL")
+            }
+        }
+    }
+
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun historyDao(): HistoryDao
     abstract fun tabDao(): TabDao
@@ -40,6 +50,7 @@ object DbModule {
     @Provides @Singleton
     fun database(@ApplicationContext ctx: Context): AppDatabase =
         Room.databaseBuilder(ctx, AppDatabase::class.java, "tv_browser.db")
+            .addMigrations(AppDatabase.MIGRATION_1_2)
             .build()
 
     @Provides fun bookmarkDao(db: AppDatabase): BookmarkDao = db.bookmarkDao()

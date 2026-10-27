@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -34,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -112,6 +114,23 @@ class DownloadsViewModel @Inject constructor(
         }
     }
 
+    private val _retrying = MutableStateFlow<Set<Long>>(emptySet())
+    val retrying = _retrying.asStateFlow()
+    fun retry(record: DownloadRecord) {
+        if (record.dmId in _retrying.value) return
+        _retrying.value += record.dmId
+        viewModelScope.launch {
+            try {
+                dmRepo.retry(record.dmId)
+                dismissMenu()
+            } catch (error: kotlinx.coroutines.CancellationException) { throw error
+            } catch (error: Exception) {
+                _operationError.value = "Could not restart this download. Check storage or reopen the source page for a fresh link."
+                dismissMenu()
+            } finally { _retrying.value -= record.dmId }
+        }
+    }
+
     fun dismissError() { _operationError.value = null }
 
     fun deleteRecord(record: DownloadRecord) {
@@ -132,6 +151,7 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
     val progress by vm.progress.collectAsState()
     val menuRecord by vm.selectedForMenu.collectAsState()
     val operationError by vm.operationError.collectAsState()
+    val retrying by vm.retrying.collectAsState()
     var filter by remember { mutableStateOf("All") }
 
     val visibleRecords = records.filter { matchesFilter(it, filter) }
@@ -218,6 +238,8 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
     menuRecord?.let { record ->
         DownloadContextMenu(
             record = record,
+            retrying = record.dmId in retrying,
+            onRetry = { filter = "All"; vm.retry(record) },
             onOpen = {
                 vm.dismissMenu()
                 vm.open(record)
@@ -427,7 +449,7 @@ private fun FailedCard(record: DownloadRecord, onLongClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(record.filename, style = PebbleType.Body, color = PebbleColors.OnSurface, maxLines = 1)
             Spacer(Modifier.height(4.dp))
-            Text("Failed", style = PebbleType.LabelSm, color = PebbleColors.Danger)
+            Text(com.tvbrowser.core.downloads.downloadFailureMessage(record.failureReason), style = PebbleType.LabelSm, color = PebbleColors.Danger)
         }
     }
 }
@@ -436,6 +458,8 @@ private fun FailedCard(record: DownloadRecord, onLongClick: () -> Unit) {
 @Composable
 private fun DownloadContextMenu(
     record: DownloadRecord,
+    retrying: Boolean,
+    onRetry: () -> Unit,
     onOpen: () -> Unit,
     onCancel: () -> Unit,
     onDelete: () -> Unit,
@@ -511,12 +535,17 @@ private fun DownloadContextMenu(
                         modifier = Modifier.focusRequester(firstFocus),
                     )
                 } else {
+                    Text(com.tvbrowser.core.downloads.downloadFailureMessage(record.failureReason),
+                        style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+                    MenuRow(label = if (retrying) "Retrying…" else "Retry download",
+                        icon = Icons.Outlined.Refresh, onClick = { if (!retrying) onRetry() },
+                        modifier = Modifier.focusRequester(firstFocus).testTag("download-retry"))
+                    Spacer(Modifier.height(8.dp))
                     MenuRow(
                         label = "Remove from list",
                         icon = Icons.Outlined.DeleteOutline,
                         onClick = onDelete,
                         danger = true,
-                        modifier = Modifier.focusRequester(firstFocus),
                     )
                 }
             }
