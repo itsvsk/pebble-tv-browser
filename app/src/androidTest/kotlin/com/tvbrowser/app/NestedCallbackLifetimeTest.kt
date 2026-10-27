@@ -72,6 +72,31 @@ class NestedCallbackLifetimeTest {
     }
 
     @Test
+    fun staleWheelProbeCannotScrollAfterItsViewportChanges() {
+        val controller = CursorController(animationsEnabled = false)
+        val browser = attachBrowser(controller)
+        try {
+            instrumentation.runOnMainSync {
+                controller.setPreferredActive(true)
+                sendDown(controller, KeyEvent.KEYCODE_DPAD_RIGHT)
+                sendDown(controller, KeyEvent.KEYCODE_DPAD_RIGHT)
+                assertEquals(1, browser.pendingCount)
+
+                // Keep the same view, URL and mode; only the native viewport changes.
+                browser.layout(0, 0, 200, 200)
+                assertEquals(200, controller.state.value.viewportW)
+                assertEquals(200, controller.state.value.viewportH)
+                browser.completeNext("[50,50]")
+
+                assertEquals("Coordinates probed before a resize must not inject scrolling afterward", 0, browser.wheelEvents)
+                assertTrue(controller.state.value.active)
+            }
+        } finally {
+            closeBrowser(browser, controller)
+        }
+    }
+
+    @Test
     fun heldEdgeRepeatsKeepTheirCallbacksWhileTheContextIsUnchanged() {
         val controller = CursorController(animationsEnabled = false)
         val browser = attachBrowser(controller)

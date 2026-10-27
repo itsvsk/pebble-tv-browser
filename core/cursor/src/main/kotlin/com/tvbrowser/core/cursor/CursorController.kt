@@ -116,6 +116,10 @@ class CursorController private constructor(
 
     private fun updateViewport(view: View) {
         if (view.width <= 0 || view.height <= 0) return
+        // Pending web probes use coordinates from the previous viewport.
+        if (view.width != _state.value.viewportW || view.height != _state.value.viewportH) {
+            scrollContextGeneration++
+        }
         _state.value = _state.value.withViewport(
             view.width,
             view.height,
