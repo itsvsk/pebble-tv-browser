@@ -23,6 +23,10 @@
 
 ### Fixed
 
+- Keep native error actions reachable when navigating Down from the address editor.
+- Retain a download's initiating Desktop/Mobile user agent when retrying, including after restarting the app.
+- Enforce tab mute when a website changes player volume, including on older WebViews without engine mute support.
+- Normalize horizontal pointer scrolling across older and current Chromium WebView providers.
 - Discard stale pointer-scroll probes after the browser viewport resizes, so earlier hit-test coordinates cannot affect the resized page.
 - Pointer edge scrolling now reaches nested social feeds and chat panels; Up yields to browser controls only after the inner feed reaches its top.
 - App-only redirects such as Facebook's `fb://` links no longer replace a usable website with an unsupported-scheme error.
