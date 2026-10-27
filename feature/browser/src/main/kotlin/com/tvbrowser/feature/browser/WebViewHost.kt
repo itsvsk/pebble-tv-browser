@@ -32,6 +32,7 @@ fun WebViewHost(
     onPageFinished: (String, String?) -> Unit,
     onProgress: (Int) -> Unit,
     onDownload: (url: String, ua: String?, contentDisposition: String?, mime: String?) -> Unit,
+    onPageError: (com.tvbrowser.core.webview.WebPageError) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -45,6 +46,7 @@ fun WebViewHost(
     val latestPageFinished = rememberUpdatedState(onPageFinished)
     val latestProgress = rememberUpdatedState(onProgress)
     val latestDownload = rememberUpdatedState(onDownload)
+    val latestError = rememberUpdatedState(onPageError)
 
     key(tabId) {
         AndroidView(
@@ -57,6 +59,7 @@ fun WebViewHost(
                     callbackOwner,
                     TabUiCallbacks(
                         onPageStarted = { latestPageStarted.value(it) },
+                        onPageError = { latestError.value(it) },
                         onPageFinished = { url, title -> latestPageFinished.value(url, title) },
                         onProgress = { latestProgress.value(it) },
                         onDownload = { url, ua, disposition, mime ->
@@ -66,10 +69,13 @@ fun WebViewHost(
                 )
                 if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) view.onPause()
                 val observer = LifecycleEventObserver { _, event ->
-                    if (client.owns(callbackOwner)) {
+                    if (client.owns(callbackOwner) && tabManager.isLiveView(tabId, view)) {
                         when (event) {
-                            Lifecycle.Event.ON_RESUME -> view.onResume()
-                            Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> view.onPause()
+                            Lifecycle.Event.ON_RESUME -> { view.onResume(); tabManager.setTabForeground(tabId, true) }
+                            Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                                tabManager.setTabForeground(tabId, false)
+                                view.onPause()
+                            }
                             else -> Unit
                         }
                     }
@@ -80,7 +86,8 @@ fun WebViewHost(
                 if (view.url.isNullOrEmpty() && initialUrl.isNotEmpty()) view.loadUrl(initialUrl)
                 view
             },
-            update = { view ->
+            update = update@ { view ->
+                if (!tabManager.isLiveView(tabId, view)) return@update
                 TabWebViewFactory.clientOf(view).adblockEnabled = config.adblockEnabled
                 if (view.settings.userAgentString != desiredUserAgent) {
                     view.settings.userAgentString = desiredUserAgent
@@ -92,7 +99,10 @@ fun WebViewHost(
                 lifecycleObserver[0] = null
                 if (TabWebViewFactory.clientOf(view).detach(callbackOwner)) {
                     cursorController.detachTarget(view)
-                    view.onPause()
+                    if (tabManager.isLiveView(tabId, view)) {
+                        tabManager.setTabForeground(tabId, false)
+                        view.onPause()
+                    }
                 }
             },
         )

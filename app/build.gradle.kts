@@ -122,4 +122,5 @@ dependencies {
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
     androidTestImplementation(libs.room.runtime)
+    androidTestImplementation(libs.webkit)
 }

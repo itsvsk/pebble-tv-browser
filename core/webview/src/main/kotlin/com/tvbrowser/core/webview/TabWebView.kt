@@ -11,6 +11,9 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.WebResourceError
+import android.webkit.RenderProcessGoneDetail
+import androidx.annotation.RequiresApi
 import android.widget.Toast
 import com.tvbrowser.core.adblock.AdBlockInterceptor
 
@@ -25,6 +28,7 @@ class TabUiCallbacks(
     val onPageFinished: (String, String?) -> Unit,
     val onProgress: (Int) -> Unit,
     val onDownload: (String, String?, String?, String?) -> Unit,
+    val onPageError: (WebPageError) -> Unit = {},
 )
 
 /** Keeps tab persistence independent of whichever browser screen currently owns the WebView. */
@@ -33,11 +37,13 @@ internal class TabCallbackRelay(
 ) {
     private var owner: Any? = null
     private var ui: TabUiCallbacks? = null
+    private var error: WebPageError? = null
     val hasUiOwner: Boolean get() = ui != null
 
     fun attach(owner: Any, callbacks: TabUiCallbacks) {
         this.owner = owner
         ui = callbacks
+        error?.let(callbacks.onPageError)
     }
 
     fun detach(owner: Any): Boolean {
@@ -49,7 +55,8 @@ internal class TabCallbackRelay(
 
     fun owns(owner: Any): Boolean = this.owner === owner
 
-    fun pageStarted(url: String) { ui?.onPageStarted?.invoke(url) }
+    fun pageStarted(url: String) { error = null; ui?.onPageStarted?.invoke(url) }
+    fun pageError(value: WebPageError) { error = value; ui?.onPageError?.invoke(value) }
     fun pageFinished(url: String, title: String?) {
         persistPageFinished(url, title)
         ui?.onPageFinished?.invoke(url, title)
@@ -65,8 +72,15 @@ class TabWebViewClient(
     adblockEnabled: Boolean,
     onPageFinished: (String, String?) -> Unit,
     private val hideFullscreen: () -> Unit = {},
+    private val persistError: (WebPageError) -> Unit = {},
+    private val configureNavigation: (WebView, String) -> Unit = { _, _ -> },
+    private val rendererGone: (WebView) -> Unit = { view ->
+        (view.parent as? ViewGroup)?.removeView(view)
+        view.destroy()
+    },
 ) : WebViewClient(), DownloadListener {
     private val callbacks = TabCallbackRelay(onPageFinished)
+    private var documentUrl: String? = null
 
     @Volatile var adblockEnabled: Boolean = adblockEnabled
 
@@ -77,7 +91,10 @@ class TabWebViewClient(
     fun onProgress(value: Int) = callbacks.progress(value)
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-        if (isWebDocumentScheme(request.url.scheme)) return false
+        if (isWebDocumentScheme(request.url.scheme)) {
+            if (request.isForMainFrame) configureNavigation(view, request.url.toString())
+            return false
+        }
         if (request.isForMainFrame && request.hasGesture()) {
             Toast.makeText(view.context, "This link requires another app. Try the website's desktop mode.", Toast.LENGTH_LONG).show()
         }
@@ -97,15 +114,53 @@ class TabWebViewClient(
     }
 
     override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+        documentUrl = url
         hideFullscreen()
+        configureNavigation(view, url)
         callbacks.pageStarted(url)
     }
 
     override fun onPageFinished(view: WebView, url: String) {
+        if (!isCurrentDocument(view, url)) return
         if (GoogleResultsFocusGuard.appliesTo(url)) {
             view.evaluateJavascript(GoogleResultsFocusGuard.script, null)
         }
         callbacks.pageFinished(url, view.title)
+    }
+
+    private fun isCurrentDocument(view: WebView, url: String): Boolean {
+        val current = view.url?.takeUnless { it.startsWith("chrome-error:") } ?: documentUrl ?: return true
+        return Uri.parse(current).normalizeScheme().buildUpon().fragment(null).build() ==
+            Uri.parse(url).normalizeScheme().buildUpon().fragment(null).build()
+    }
+
+    private fun reportError(error: WebPageError) {
+        hideFullscreen()
+        persistError(error)
+        callbacks.pageError(error)
+    }
+
+    override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+        if (request.isForMainFrame && isCurrentDocument(view, request.url.toString())) reportError(WebPageError(request.url.toString(),
+            when (error.errorCode) {
+                ERROR_HOST_LOOKUP, ERROR_CONNECT -> "Could not connect to this website. Check your connection and try again."
+                ERROR_TIMEOUT -> "This website took too long to respond."
+                ERROR_FAILED_SSL_HANDSHAKE -> "A secure connection could not be established."
+                else -> "This page could not be loaded."
+            }))
+    }
+
+    override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
+        if (request.isForMainFrame && isCurrentDocument(view, request.url.toString()) && response.statusCode >= 400) {
+            reportError(WebPageError(request.url.toString(), "This website returned HTTP ${response.statusCode}."))
+        }
+    }
+
+    @RequiresApi(26)
+    override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+        reportError(WebPageError(view.url.orEmpty(), "This page stopped responding. Reload it to continue.", rendererGone = true))
+        rendererGone(view)
+        return true
     }
 
     override fun onDownloadStart(url: String, userAgent: String?, contentDisposition: String?, mimeType: String?, contentLength: Long) {
@@ -126,6 +181,12 @@ object TabWebViewFactory {
         adBlock: AdBlockInterceptor,
         videoController: WebVideoController,
         onPageFinished: (url: String, title: String?) -> Unit = { _, _ -> },
+        onPageError: (WebPageError) -> Unit = {},
+        onNavigation: (WebView, String) -> Unit = { _, _ -> },
+        onRendererGone: (WebView) -> Unit = { view ->
+            (view.parent as? ViewGroup)?.removeView(view)
+            view.destroy()
+        },
     ): WebView {
         val wv = WebView(context).apply {
             // AndroidView otherwise supplies WRAP_CONTENT, giving Blink an unbounded
@@ -153,7 +214,8 @@ object TabWebViewFactory {
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(wv, !config.isIncognito)
 
-        val client = TabWebViewClient(adBlock, config.adblockEnabled, onPageFinished) { videoController.hide(wv) }
+        val client = TabWebViewClient(adBlock, config.adblockEnabled, onPageFinished,
+            hideFullscreen = { videoController.hide(wv) }, persistError = onPageError, configureNavigation = onNavigation, rendererGone = onRendererGone)
         wv.setTag(R.id.pebble_tab_webview_client, client)
         wv.webViewClient = client
         wv.webChromeClient = object : android.webkit.WebChromeClient() {
