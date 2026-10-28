@@ -106,10 +106,16 @@ jobs:
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=pebble_ci
           pactl set-default-sink pebble_ci
+          pactl set-default-source pebble_ci.monitor
+          pactl load-module module-native-protocol-unix socket="$RUNNER_TEMP/pebble-pulse.sock"
+          pactl --server="unix:$RUNNER_TEMP/pebble-pulse.sock" info
+          echo "QEMU_PA_SERVER=unix:$RUNNER_TEMP/pebble-pulse.sock" >> "$GITHUB_ENV"
       - name: Run remote navigation, scrolling and persistence tests
         # Android 7 FastMixer crashes with disabled audio; a silent host sink keeps its clock alive.
         env:
           QEMU_AUDIO_DRV: pa
+          QEMU_PA_SINK: pebble_ci
+          QEMU_PA_SOURCE: pebble_ci.monitor
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
           api-level: ${{ matrix.api }}

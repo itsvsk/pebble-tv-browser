@@ -24,6 +24,7 @@
 ### Fixed
 
 - Keep native error actions reachable when navigating Down from the address editor.
+- Recover failed provisional loads when WebView still reports the previous page's URL, while rejecting stale failures.
 - Retain a download's initiating Desktop/Mobile user agent when retrying, including after restarting the app.
 - Enforce tab mute when a website changes player volume, including on older WebViews without engine mute support.
 - Normalize horizontal pointer scrolling across older and current Chromium WebView providers.
