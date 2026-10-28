@@ -33,7 +33,7 @@ class BrowserMediaLifecycleTest {
         compose.onNodeWithTag("top-nav-tabs").performClick()
         compose.waitUntil(10_000) { state(browser).optBoolean("paused") }
         compose.onNodeWithTag("top-nav-browser").performClick()
-        compose.waitUntil(10_000) { state(browser).optBoolean("foreground") }
+        compose.waitUntil(10_000) { hostAttached(browser) }
         assertTrue(state(browser).getBoolean("paused"))
     }
 
@@ -44,10 +44,14 @@ class BrowserMediaLifecycleTest {
             play(browser)
             val before = state(browser).getDouble("time")
             compose.onNodeWithTag("top-nav-tabs").performClick()
-            compose.waitUntil(10_000) {
-                val sample = state(browser)
-                !sample.optBoolean("foreground", true) && !sample.optBoolean("paused", true) &&
-                    kotlin.math.abs(sample.optDouble("time") - before) > 0.15
+            try {
+                compose.waitUntil(10_000) {
+                    val sample = state(browser)
+                    !hostAttached(browser) && !sample.optBoolean("paused", true) &&
+                        kotlin.math.abs(sample.optDouble("time") - before) > 0.15
+                }
+            } catch (failure: Throwable) {
+                throw AssertionError("Host playback before=$before state=${state(browser)} attached=${hostAttached(browser)}", failure)
             }
         } finally {
             // Stop the fixture even if navigation cleanup itself fails, avoiding audio-focus
@@ -88,10 +92,16 @@ class BrowserMediaLifecycleTest {
     private fun state(browser: WebView): JSONObject {
         val result = evaluate(browser, """
             (function() { var v=document.getElementById('media'); return JSON.stringify({
-            ready: document.readyState === 'complete' && !!v, foreground: document.visibilityState === 'visible',
+            ready: document.readyState === 'complete' && !!v,
             paused: !v || v.paused, time: v ? v.currentTime : 0 }); })()
         """.trimIndent())
         return if (result is String) JSONObject(result) else JSONObject()
+    }
+    private fun hostAttached(browser: WebView): Boolean {
+        // Old WebViews can report document.visibilityState="visible" after native detach.
+        var attached = false
+        compose.runOnUiThread { attached = browser.parent != null && browser.isAttachedToWindow }
+        return attached
     }
     private fun evaluate(browser: WebView, script: String): Any? {
         val result = AtomicReference<String>()

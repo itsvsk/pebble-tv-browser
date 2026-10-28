@@ -132,8 +132,9 @@ jobs:
           profile: tv_1080p
           # CursorControllerScrollTest verifies the platform animator, so it must be enabled.
           disable-animations: false
-          emulator-options: -gpu swiftshader_indirect -no-snapshot -no-boot-anim
+          emulator-options: -gpu swiftshader_indirect -no-snapshot -no-boot-anim ${{ matrix.api == 24 && '-writable-system' || '' }}
           script: |
+            if [ '${{ matrix.api }}' = 24 ]; then bash .github/scripts/configure-api24-audio.sh; fi
             adb shell dumpsys webviewupdate
             ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest,com.tvbrowser.app.DownloadActionsTest,com.tvbrowser.app.StreamingLayoutTest,com.tvbrowser.app.FullscreenVideoTest,com.tvbrowser.app.NestedWebScrollTest,com.tvbrowser.app.NestedCallbackLifetimeTest,com.tvbrowser.app.ExternalAppLinkTest,com.tvbrowser.app.ResponsiveViewportTest,com.tvbrowser.app.TabMediaPolicyTest,com.tvbrowser.app.BrowserRecoveryTest,com.tvbrowser.app.QolPersistenceTest,com.tvbrowser.app.PageOptionsTest,com.tvbrowser.app.BrowserMediaLifecycleTest --no-daemon --max-workers=2 --stacktrace
             ./gradlew :core:db:connectedDebugAndroidTest --no-daemon --max-workers=2 --stacktrace

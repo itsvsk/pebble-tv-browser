@@ -8,6 +8,8 @@ import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebResourceError
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -154,12 +156,34 @@ class BrowserRecoveryTest {
     fun mainFrameNetworkFailureShowsTheSameRecoverableNativeActions() {
         val browser = openFixture()
         val closedPort = ServerSocket(0).use { it.localPort }
+        val events = mutableListOf<String>()
         compose.runOnUiThread {
+            val client = TabWebViewFactory.clientOf(browser)
+            browser.webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                    events += "start=$url native=${view.url}"
+                    client.onPageStarted(view, url, favicon)
+                }
+                override fun onPageFinished(view: WebView, url: String) {
+                    events += "finish=$url native=${view.url}"
+                    client.onPageFinished(view, url)
+                }
+                override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                    events += "error=${request.url} main=${request.isForMainFrame} code=${error.errorCode} native=${view.url}"
+                    client.onReceivedError(view, request, error)
+                }
+            }
             // A refused local connection exercises the platform callback without waiting
             // for external DNS or accepting an untrusted TLS certificate.
             browser.loadUrl("https://127.0.0.1:$closedPort/offline-fixture")
         }
-        waitForError()
+        try {
+            waitForError()
+        } catch (failure: Throwable) {
+            var trace = ""
+            compose.runOnUiThread { trace = events.joinToString("; ") }
+            throw AssertionError("Native recovery callbacks: $trace", failure)
+        }
         compose.onNodeWithTag("browser-error-edit").assertIsDisplayed()
         compose.onNodeWithTag("browser-error-home").assertIsDisplayed()
         compose.onNodeWithTag("top-nav-browser").assertIsDisplayed()
