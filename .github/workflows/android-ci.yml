@@ -99,10 +99,18 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Start silent audio backend for media tests
+      - name: Start virtual display and silent audio for media tests
         run: |
           sudo apt-get update -qq
-          sudo apt-get install --yes --no-install-recommends pulseaudio pulseaudio-utils
+          sudo apt-get install --yes --no-install-recommends xvfb x11-utils pulseaudio pulseaudio-utils \
+            libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-xinerama0 libxkbcommon-x11-0
+          Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp > "$RUNNER_TEMP/pebble-xvfb.log" 2>&1 &
+          for attempt in {1..20}; do
+            if DISPLAY=:99 xdpyinfo > /dev/null 2>&1; then break; fi
+            sleep 0.5
+          done
+          DISPLAY=:99 xdpyinfo > /dev/null
+          echo 'DISPLAY=:99' >> "$GITHUB_ENV"
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=pebble_ci
           pactl set-default-sink pebble_ci
@@ -111,7 +119,7 @@ jobs:
           pactl --server="unix:$RUNNER_TEMP/pebble-pulse.sock" info
           echo "QEMU_PA_SERVER=unix:$RUNNER_TEMP/pebble-pulse.sock" >> "$GITHUB_ENV"
       - name: Run remote navigation, scrolling and persistence tests
-        # Android 7 FastMixer crashes with disabled audio; a silent host sink keeps its clock alive.
+        # -no-window selects a headless binary with stub audio. Xvfb keeps the real audio clock.
         env:
           QEMU_AUDIO_DRV: pa
           QEMU_PA_SINK: pebble_ci
@@ -124,7 +132,7 @@ jobs:
           profile: tv_1080p
           # CursorControllerScrollTest verifies the platform animator, so it must be enabled.
           disable-animations: false
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim
+          emulator-options: -gpu swiftshader_indirect -no-snapshot -no-boot-anim
           script: |
             adb shell dumpsys webviewupdate
             ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest,com.tvbrowser.app.DownloadActionsTest,com.tvbrowser.app.StreamingLayoutTest,com.tvbrowser.app.FullscreenVideoTest,com.tvbrowser.app.NestedWebScrollTest,com.tvbrowser.app.NestedCallbackLifetimeTest,com.tvbrowser.app.ExternalAppLinkTest,com.tvbrowser.app.ResponsiveViewportTest,com.tvbrowser.app.TabMediaPolicyTest,com.tvbrowser.app.BrowserRecoveryTest,com.tvbrowser.app.QolPersistenceTest,com.tvbrowser.app.PageOptionsTest,com.tvbrowser.app.BrowserMediaLifecycleTest --no-daemon --max-workers=2 --stacktrace
