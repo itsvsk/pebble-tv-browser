@@ -4,6 +4,9 @@ import com.tvbrowser.core.db.entity.DownloadRecord
 import com.tvbrowser.core.db.AppDatabase
 import com.tvbrowser.core.db.repo.DownloadRepository
 import com.tvbrowser.core.downloads.DownloadManagerRepo
+import com.tvbrowser.feature.browser.BrowserEntryPoint
+import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.delay
 import androidx.room.Room
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.collect
@@ -19,6 +22,34 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class DownloadFailureTest {
+    @Test
+    fun successfulDownloadIsRecordedByBroadcastWithoutProgressPolling() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val manager = EntryPointAccessors.fromApplication(app, BrowserEntryPoint::class.java).downloads()
+        // A separate read connection verifies the real receiver's database write without
+        // observing progress (which used to be the only way completion was recorded).
+        val database = Room.databaseBuilder(app, AppDatabase::class.java, "tv_browser.db").build()
+        val id = manager.enqueue(
+            "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+            null, null, "application/pdf",
+        )
+        try {
+            withTimeout(60_000) {
+                while (true) {
+                    val status = database.downloadDao().get(id)?.status
+                    if (status == DownloadRecord.STATUS_SUCCESS || status == DownloadRecord.STATUS_FAILED) {
+                        assertEquals(DownloadRecord.STATUS_SUCCESS, status)
+                        break
+                    }
+                    delay(250)
+                }
+            }
+        } finally {
+            manager.cancel(id)
+            database.close()
+        }
+    }
+
     @Test
     fun missingDownloadBecomesFailed() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext

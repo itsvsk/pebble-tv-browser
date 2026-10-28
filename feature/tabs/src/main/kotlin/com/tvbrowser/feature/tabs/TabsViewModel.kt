@@ -23,6 +23,8 @@ class TabsViewModel @Inject constructor(
     private val bookmarks: BookmarkRepository,
 ) : ViewModel() {
 
+    val recentlyClosed = tabManager.recentlyClosed
+
     val tabs: StateFlow<List<TabEntity>> = tabRepo.persisted()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -42,9 +44,12 @@ class TabsViewModel @Inject constructor(
 
     fun close(tab: TabEntity) {
         viewModelScope.launch {
-            tabManager.release(tab.id)
-            tabRepo.delete(tab.id)
+            tabManager.closeTab(tab.id)
         }
+    }
+
+    fun reopen(onReady: (String) -> Unit) {
+        viewModelScope.launch { tabManager.reopenClosedTab()?.let(onReady) }
     }
 
     fun toggleBookmark(tab: TabEntity) {

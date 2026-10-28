@@ -11,6 +11,7 @@ ksp {
 
 android {
     namespace = "com.tvbrowser.core.db"
+    sourceSets["androidTest"].assets.srcDir("$projectDir/schemas")
     compileSdk = 35
     defaultConfig {
         minSdk = 24

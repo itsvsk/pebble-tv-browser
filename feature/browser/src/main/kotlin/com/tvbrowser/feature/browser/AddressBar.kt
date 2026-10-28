@@ -22,16 +22,20 @@ import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +53,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,8 +80,7 @@ import com.tvbrowser.core.design.pebbleFocus
 fun AddressBar(
     controlsFocusRequester: FocusRequester,
     topNavFocusRequester: FocusRequester,
-    pointerPreferred: Boolean,
-    onResumePointer: () -> Unit,
+    onNavigateDown: (() -> Unit)?,
     url: String,
     isBookmarked: Boolean,
     desktopUa: Boolean,
@@ -85,21 +90,33 @@ fun AddressBar(
     onReload: () -> Unit,
     onBookmark: () -> Unit,
     onToggleUa: () -> Unit,
+    onPageMenu: () -> Unit = {},
+    editRequest: Int = 0,
+    modeEnabled: Boolean = true,
 ) {
-    var text by remember(url) { mutableStateOf(url) }
+    var text by remember(url) { mutableStateOf(TextFieldValue(url, TextRange(url.length))) }
     var editing by remember { mutableStateOf(false) }
+    var editorFocusRequest by remember { mutableIntStateOf(0) }
+    var downNavigationRequest by remember { mutableIntStateOf(0) }
+    val currentNavigateDown by rememberUpdatedState(onNavigateDown)
     val focusManager = LocalFocusManager.current
-    val bookmarkFocusRequester = remember { FocusRequester() }
+    val menuFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(editRequest) { if (editRequest > 0) { editing = true; editorFocusRequest++ } }
+    LaunchedEffect(downNavigationRequest) {
+        // Remove the editor before handing focus to the page or its recovery actions.
+        if (downNavigationRequest > 0) currentNavigateDown?.invoke()
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(58.dp)
             .onPreviewKeyEvent { event ->
-                if (pointerPreferred && event.type == KeyEventType.KeyDown &&
+                if (onNavigateDown != null && event.type == KeyEventType.KeyDown &&
                     event.key == Key.DirectionDown
                 ) {
-                    onResumePointer()
+                    editing = false
+                    downNavigationRequest++
                     true
                 } else false
             }
@@ -119,7 +136,7 @@ fun AddressBar(
                 "Back",
                 onClick = onBack,
                 focusRequester = controlsFocusRequester,
-                onLeft = { bookmarkFocusRequester.requestFocus() },
+                onLeft = { menuFocusRequester.requestFocus() },
                 onUp = { topNavFocusRequester.requestFocus() },
             )
             RoundIcon(Icons.Outlined.ArrowForward, "Forward", onClick = onForward,
@@ -135,13 +152,27 @@ fun AddressBar(
                 onTextChange = { text = it },
                 editing = editing,
                 onEditingChange = { editing = it },
+                focusRequestKey = editorFocusRequest,
                 onSubmit = {
-                    onSubmit(text)
-                    editing = false
-                    focusManager.moveFocus(FocusDirection.Down)
+                    if (text.text.isNotBlank()) {
+                        onSubmit(text.text)
+                        editing = false
+                        focusManager.moveFocus(FocusDirection.Down)
+                    }
                 },
                 onUp = { topNavFocusRequester.requestFocus() },
                 modifier = Modifier.weight(1f),
+            )
+
+            RoundIcon(
+                Icons.Outlined.Close,
+                "Clear address",
+                onClick = {
+                    text = TextFieldValue("")
+                    editing = true
+                    editorFocusRequest++
+                },
+                onUp = { topNavFocusRequester.requestFocus() },
             )
 
             Spacer(Modifier.width(PebbleDimens.Sp2))
@@ -150,6 +181,7 @@ fun AddressBar(
                 imageVector = if (desktopUa) Icons.Outlined.DesktopWindows else Icons.Outlined.PhoneAndroid,
                 contentDescription = if (desktopUa) "Desktop site" else "Mobile site",
                 onClick = onToggleUa,
+                enabled = modeEnabled,
                 onUp = { topNavFocusRequester.requestFocus() },
             )
             RoundIcon(
@@ -157,14 +189,16 @@ fun AddressBar(
                 contentDescription = "Bookmark",
                 onClick = onBookmark,
                 tint = if (isBookmarked) PebbleColors.Primary else PebbleColors.OnSurfaceMuted,
-                focusRequester = bookmarkFocusRequester,
-                onRight = { controlsFocusRequester.requestFocus() },
+
                 onUp = { topNavFocusRequester.requestFocus() },
             )
+            RoundIcon(Icons.Outlined.MoreVert, "Page options", onClick = onPageMenu,
+                focusRequester = menuFocusRequester,
+                onRight = { controlsFocusRequester.requestFocus() },
+                onUp = { topNavFocusRequester.requestFocus() })
         }
     }
 
-    LaunchedEffect(url) { text = url }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -214,10 +248,11 @@ private fun RoundIcon(
 @Composable
 private fun AddressPill(
     url: String,
-    text: String,
-    onTextChange: (String) -> Unit,
+    text: TextFieldValue,
+    onTextChange: (TextFieldValue) -> Unit,
     editing: Boolean,
     onEditingChange: (Boolean) -> Unit,
+    focusRequestKey: Int,
     onSubmit: () -> Unit,
     onUp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -227,7 +262,7 @@ private fun AddressPill(
     var editorHasFocus by remember { mutableStateOf(false) }
     val host = remember(url) { url.substringAfter("://", url) }
     val secure = url.startsWith("https://", ignoreCase = true)
-    LaunchedEffect(editing) {
+    LaunchedEffect(editing, focusRequestKey) {
         if (editing) editorFocusRequester.requestFocus()
     }
     Row(
@@ -280,7 +315,7 @@ private fun AddressPill(
                         }
                     },
                 decorationBox = { inner ->
-                    if (text.isEmpty()) {
+                    if (text.text.isEmpty()) {
                         Text("Search or type URL", style = PebbleType.Title, color = PebbleColors.OnSurfaceFaint)
                     }
                     inner()

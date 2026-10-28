@@ -14,11 +14,11 @@ import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Version 1 baseline. Add migration tests from this schema before increasing AppDatabase.version. */
+/** Current-schema close/reopen check; DatabaseMigrationTest covers upgrades from exported v1. */
 @RunWith(AndroidJUnit4::class)
 class DatabasePersistenceTest {
     @Test
-    fun versionOneUserDataSurvivesCloseAndReopen() = runBlocking {
+    fun currentSchemaUserDataSurvivesCloseAndReopen() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "room-version-one-persistence-test.db"
         context.deleteDatabase(name)

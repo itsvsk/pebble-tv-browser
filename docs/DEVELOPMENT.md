@@ -26,11 +26,11 @@ Run deterministic integration checks on an Android TV emulator:
 
 ```sh
 ./gradlew :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest
+  -Pandroid.testInstrumentationRunnerArguments.class=com.tvbrowser.app.TopNavFocusTest,com.tvbrowser.app.CursorControllerScrollTest,com.tvbrowser.app.DownloadActionsTest,com.tvbrowser.app.StreamingLayoutTest,com.tvbrowser.app.FullscreenVideoTest,com.tvbrowser.app.NestedWebScrollTest,com.tvbrowser.app.NestedCallbackLifetimeTest,com.tvbrowser.app.ExternalAppLinkTest,com.tvbrowser.app.ResponsiveViewportTest,com.tvbrowser.app.TabMediaPolicyTest,com.tvbrowser.app.BrowserRecoveryTest,com.tvbrowser.app.QolPersistenceTest,com.tvbrowser.app.PageOptionsTest,com.tvbrowser.app.BrowserMediaLifecycleTest
 ./gradlew :core:db:connectedDebugAndroidTest
 ```
 
-`DownloadFailureTest` is a separate online integration check against a W3C missing-file URL; it is not part of the deterministic emulator CI suite.
+`DownloadFailureTest` separately checks real completion broadcasts and missing-file failures against W3C PDF URLs; it is not part of the deterministic emulator CI suite.
 
 ## GitHub Actions and releases
 
@@ -75,4 +75,4 @@ Kotlin 2.0.21 · AGP 8.7.3 · Gradle 8.10.2 · Jetpack Compose · AndroidX TV ·
 
 ## Project notes
 
-[tasks/todo.md](../tasks/todo.md) tracks remaining work. [SETUP.md](../SETUP.md), [TEST_REPORT.md](../TEST_REPORT.md), and [DESIGN.md](../DESIGN.md) are historical notes and may describe superseded behavior. The Room schema is version 1; future changes require explicit migrations, and destructive migration is disabled. Emulator functional checks do not establish physical-TV frame performance.
+[tasks/todo.md](../tasks/todo.md) tracks remaining work. [SETUP.md](../SETUP.md), [TEST_REPORT.md](../TEST_REPORT.md), and [DESIGN.md](../DESIGN.md) are historical notes and may describe superseded behavior. The Room schema is version 2, with an explicit version 1-to-2 migration preserving existing data; future changes require explicit migrations, and destructive migration is disabled. Emulator functional checks do not establish physical-TV frame performance.

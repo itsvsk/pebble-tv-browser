@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material.icons.outlined.BookmarkRemove
@@ -93,6 +94,7 @@ fun TabsOverviewScreen(
     vm: TabsViewModel = hiltViewModel(),
 ) {
     val tabs by vm.tabs.collectAsState()
+    val recentlyClosed by vm.recentlyClosed.collectAsState()
     val bookmarkedUrls by vm.bookmarkedUrls.collectAsState()
     val menuTab by vm.selectedForMenu.collectAsState()
     val currentTabId = tabs.maxByOrNull { it.lastActiveAt }?.id
@@ -117,6 +119,10 @@ fun TabsOverviewScreen(
         }
     }
 
+    LaunchedEffect(recentlyClosed) {
+        if (recentlyClosed != null) { withFrameNanos { }; newTabFocusRequester.requestFocus() }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -132,6 +138,8 @@ fun TabsOverviewScreen(
                     onDown = focusFirstTab,
                     onNewTab = { vm.newTab(onNewTab) },
                     onCloseAll = { if (tabs.isNotEmpty()) showCloseAll = true },
+                    canReopen = recentlyClosed != null,
+                    onReopen = { vm.reopen(onOpenTab) },
                 )
             }
             Spacer(Modifier.height(PebbleDimens.Sp4))
@@ -185,7 +193,7 @@ fun TabsOverviewScreen(
     if (showCloseAll) {
         ConfirmDialog(
             title = "Close all tabs?",
-            message = "This will close all ${tabs.size} open tabs. This cannot be undone.",
+            message = "This will close all ${tabs.size} open tabs. Up to 10 recent tabs can be reopened during this session.",
             confirmLabel = "Close all",
             onConfirm = {
                 val snapshot = tabs.toList()
@@ -277,6 +285,8 @@ private fun Header(
     onDown: () -> Unit,
     onNewTab: () -> Unit,
     onCloseAll: () -> Unit,
+    canReopen: Boolean,
+    onReopen: () -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Active Tabs", style = PebbleType.Display, color = PebbleColors.OnSurface)
@@ -284,6 +294,10 @@ private fun Header(
         Text("$count", style = PebbleType.Label, color = PebbleColors.OnPrimaryContainer,
             modifier = Modifier.seaGlass(PebbleShape.Full, PebbleColors.GlassMint, 2.dp, emphasized = true).padding(horizontal = 10.dp, vertical = 3.dp))
         Spacer(Modifier.weight(1f))
+        if (canReopen) {
+            Pill(label = "Reopen tab", icon = Icons.Outlined.Refresh, primary = false, onClick = onReopen)
+            Spacer(Modifier.width(PebbleDimens.Sp3))
+        }
         Pill(
             label = "New tab", icon = Icons.Outlined.Add, primary = true,
             focusRequester = newTabFocusRequester, onUp = onUp, onDown = onDown,

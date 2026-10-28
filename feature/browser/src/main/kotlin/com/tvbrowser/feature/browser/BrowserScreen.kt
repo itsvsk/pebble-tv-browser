@@ -79,8 +79,14 @@ fun BrowserScreen(
         EntryPointAccessors.fromApplication(context.applicationContext, BrowserEntryPoint::class.java)
     }
     val ui by vm.ui.collectAsState()
+    val mediaStates by vm.tabManager.mediaStates.collectAsState()
+    val media = mediaStates[tabId] ?: com.tvbrowser.core.webview.TabMediaState()
+    var showPageMenu by remember { mutableStateOf(false) }
+    var addressEditRequest by remember { mutableStateOf(0) }
+
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val controlsFocusRequester = remember { FocusRequester() }
+    val errorRetryFocusRequester = remember { FocusRequester() }
     val currentOnWebNavigation by rememberUpdatedState(onWebNavigation)
     val currentOnShowChrome by rememberUpdatedState(onShowChrome)
     var focusControlsWhenShown by remember { mutableStateOf(false) }
@@ -90,6 +96,8 @@ fun BrowserScreen(
         scope.launch {
             try {
                 entry.downloads().enqueue(request.url, request.userAgent, request.contentDisposition, request.mime)
+                android.widget.Toast.makeText(context, "Download started. See Downloads for progress.",
+                    android.widget.Toast.LENGTH_SHORT).show()
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 failedDownload = FailedDownload(request, downloadFailureMessage(error))
@@ -110,6 +118,12 @@ fun BrowserScreen(
     }
 
     LaunchedEffect(tabId) { vm.bind(tabId) }
+    LaunchedEffect(ui.error, cursorMode.active) {
+        if (ui.error != null) {
+            entry.cursorController().setActive(false)
+            currentOnShowChrome()
+        }
+    }
     LaunchedEffect(chromeVisible, focusControlsWhenShown) {
         if (chromeVisible && focusControlsWhenShown) {
             controlsFocusRequester.requestFocus()
@@ -121,37 +135,40 @@ fun BrowserScreen(
         if (chromeVisible) AddressBar(
             controlsFocusRequester = controlsFocusRequester,
             topNavFocusRequester = topNavFocusRequester,
-            pointerPreferred = cursorMode.preferredActive,
-            onResumePointer = onResumePointer,
+            onNavigateDown = when {
+                ui.error != null -> { { errorRetryFocusRequester.requestFocus() } }
+                cursorMode.preferredActive -> onResumePointer
+                else -> null
+            },
             url = ui.url,
             isBookmarked = ui.isBookmarked,
             desktopUa = ui.desktopUa,
             onSubmit = { input ->
                 val target = vm.submitOmnibox(input)
-                vm.tabManager.getOrCreate(tabId, vm.makeConfig()).loadUrl(target)
+                vm.tabManager.navigate(tabId, target, vm.makeConfig())
             },
             onBack = {
-                val wv = vm.tabManager.getOrCreate(tabId, vm.makeConfig())
-                if (wv.canGoBack()) wv.goBack() else onBackHome()
+                if (ui.error?.rendererGone == true) onBackHome() else {
+                    val wv = vm.tabManager.getOrCreate(tabId, vm.makeConfig())
+                    if (wv.canGoBack()) wv.goBack() else onBackHome()
+                }
             },
             onForward = {
-                val wv = vm.tabManager.getOrCreate(tabId, vm.makeConfig())
-                if (wv.canGoForward()) wv.goForward()
+                if (ui.error?.rendererGone != true) {
+                    val wv = vm.tabManager.getOrCreate(tabId, vm.makeConfig())
+                    if (wv.canGoForward()) wv.goForward()
+                }
             },
-            onReload = { vm.tabManager.getOrCreate(tabId, vm.makeConfig()).reload() },
+            onReload = { if (ui.error != null) vm.retryPage() else vm.tabManager.getOrCreate(tabId, vm.makeConfig()).reload() },
             onBookmark = { vm.toggleBookmark() },
-            onToggleUa = {
-                vm.toggleDesktopUa()
-                val wv = vm.tabManager.getOrCreate(tabId, vm.makeConfig())
-                wv.settings.userAgentString =
-                    if (!ui.desktopUa) com.tvbrowser.core.webview.UserAgents.DESKTOP
-                    else android.webkit.WebSettings.getDefaultUserAgent(context)
-                wv.reload()
-            },
+            onToggleUa = vm::toggleDesktopUa,
+            onPageMenu = { entry.cursorController().setActive(false); showPageMenu = true },
+            editRequest = addressEditRequest,
+            modeEnabled = ui.siteHost != null,
         )
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            if (ui.url.isNotEmpty()) {
+            if (ui.url.isNotEmpty() && ui.error?.rendererGone != true) {
                 WebViewHost(
                     tabId = tabId,
                     initialUrl = ui.url,
@@ -161,15 +178,24 @@ fun BrowserScreen(
                     onPageStarted = { vm.onPageStarted(it) },
                     onPageFinished = { url, title -> vm.onPageFinished(url, title) },
                     onProgress = { vm.onProgress(it) },
+                    onPageError = vm::onPageError,
                     onDownload = { url, ua, cd, mime ->
                         startDownload(BrowserDownloadRequest(url, ua, cd, mime))
                     },
                 )
             }
             CursorOverlay(controller = entry.cursorController())
-            BrowserProgressIndicator(vm, Modifier.align(Alignment.TopCenter))
+            if (ui.error == null) BrowserProgressIndicator(vm, Modifier.align(Alignment.TopCenter))
+            ui.error?.let { error ->
+                PageErrorPanel(error, errorRetryFocusRequester, onRetry = vm::retryPage,
+                    onEdit = { currentOnShowChrome(); addressEditRequest++ }, onHome = onBackHome)
+            }
         }
     }
+    if (showPageMenu) PageMenu(ui, media, vm::toggleDesktopUa, vm::toggleSiteAdblock, vm::resetSite,
+        onMute = { vm.tabManager.setTabMuted(tabId, !media.muted) },
+        onBackground = { vm.tabManager.setTabBackgroundPlayback(tabId, !media.backgroundPlayback) },
+        onDismiss = { showPageMenu = false })
     failedDownload?.let { failed ->
         DownloadFailureDialog(
             message = failed.message,

@@ -7,6 +7,8 @@ import android.provider.Settings
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.webkit.WebView
+import android.webkit.WebSettings
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,16 +68,24 @@ class CursorController private constructor(
     private var pointerTouchDownTime = 0L
     private var pointerTouchDown = false
     private var pointerUpHandoffInProgress = false
+    private var upKeyHeld = false
+    private var scrollContextGeneration = 0L
+    private var webHorizontalWheelSign = 1f
     private val layoutListener = View.OnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
         if (targetView === view) updateViewport(view)
     }
 
     fun attachTarget(view: View?) {
+        scrollContextGeneration++
         if (targetView !== view && pointerTouchDown) dispatchTouch(MotionEvent.ACTION_CANCEL)
         scrollAnimator?.cancel()
         lastScrollFrameMs = 0L
         targetView?.removeOnLayoutChangeListener(layoutListener)
         targetView = view
+        // Use the engine's default identity, independent of a website's Desktop/Mobile override.
+        webHorizontalWheelSign = if (view is WebView) {
+            horizontalWheelSignForUserAgent(WebSettings.getDefaultUserAgent(view.context))
+        } else 1f
         view?.let { v ->
             v.addOnLayoutChangeListener(layoutListener)
             v.post {
@@ -87,6 +97,7 @@ class CursorController private constructor(
 
     fun detachTarget(view: View) {
         if (targetView === view) {
+            scrollContextGeneration++
             if (pointerTouchDown) dispatchTouch(MotionEvent.ACTION_CANCEL)
             scrollAnimator?.cancel()
             lastScrollFrameMs = 0L
@@ -104,12 +115,17 @@ class CursorController private constructor(
     }
 
     private fun updateMode(active: Boolean, preferredActive: Boolean) {
+        if (active != _state.value.active || preferredActive != _state.value.preferredActive) scrollContextGeneration++
         if (!active && pointerTouchDown) dispatchTouch(MotionEvent.ACTION_CANCEL)
         _state.value = _state.value.copy(active = active, preferredActive = preferredActive)
     }
 
     private fun updateViewport(view: View) {
         if (view.width <= 0 || view.height <= 0) return
+        // Pending web probes use coordinates from the previous viewport.
+        if (view.width != _state.value.viewportW || view.height != _state.value.viewportH) {
+            scrollContextGeneration++
+        }
         _state.value = _state.value.withViewport(
             view.width,
             view.height,
@@ -130,6 +146,7 @@ class CursorController private constructor(
         val code = event.keyCode
         val action = event.action
         val view = targetView
+        if (code == KeyEvent.KEYCODE_DPAD_UP) upKeyHeld = action != KeyEvent.ACTION_UP
 
         if (pointerUpHandoffInProgress && code == KeyEvent.KEYCODE_DPAD_UP) {
             if (action == KeyEvent.ACTION_UP) pointerUpHandoffInProgress = false
@@ -139,6 +156,25 @@ class CursorController private constructor(
             view != null && focusControls != null &&
             shouldReturnToControlsFromPointer(_state.value, view?.canScrollVertically(-1) == true)
         ) {
+            if (view is WebView) {
+                val state = _state.value
+                val generation = scrollContextGeneration
+                val pageUrl = view.url
+                val scrollY = planCursorMotion(state, CursorDirection.Up, event.repeatCount).scrollY
+                findNestedScrollTarget(view, state.x, state.y, 0, scrollY) { point ->
+                    if (generation != scrollContextGeneration || targetView !== view || view.url != pageUrl ||
+                        !_state.value.active || _state.value.y > 0f) return@findNestedScrollTarget
+                    if (point != null) {
+                        dispatchPointerWheel(view, point.first, point.second, 0, scrollY)
+                    } else {
+                        pointerUpHandoffInProgress = upKeyHeld
+                        scrollAnimator?.cancel()
+                        setActive(false)
+                        focusControls?.invoke()
+                    }
+                }
+                return true
+            }
             pointerUpHandoffInProgress = true
             scrollAnimator?.cancel()
             setActive(false)
@@ -262,6 +298,17 @@ class CursorController private constructor(
                 val scrollX = motion.scrollX.takeIf { view.canScrollHorizontally(it.sign()) } ?: 0
                 val scrollY = motion.scrollY.takeIf { view.canScrollVertically(it.sign()) } ?: 0
                 if (scrollX != 0 || scrollY != 0) animateWebScroll(view, scrollX, scrollY)
+                else if (view is WebView) {
+                    val state = _state.value
+                    val generation = scrollContextGeneration
+                    val pageUrl = view.url
+                    findNestedScrollTarget(view, state.x, state.y, motion.scrollX, motion.scrollY) { point ->
+                        if (generation != scrollContextGeneration || targetView !== view || view.url != pageUrl ||
+                            !_state.value.active) return@findNestedScrollTarget
+                        val target = point ?: (state.x to state.y)
+                        dispatchPointerWheel(view, target.first, target.second, motion.scrollX, motion.scrollY, webHorizontalWheelSign)
+                    }
+                }
             }
         }
     }

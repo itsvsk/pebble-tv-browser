@@ -7,6 +7,9 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
@@ -78,5 +81,20 @@ class TopNavFocusTest {
         compose.onNodeWithTag("browser-address-editor", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithTag("browser-address").assertHasClickAction().performClick()
         compose.onNodeWithTag("browser-address-editor", useUnmergedTree = true).assertIsFocused()
+    }
+
+    @Test
+    fun clearAddressStartsAnEmptyFocusedEditorWithoutNavigating() {
+        compose.onNodeWithTag("top-nav-browser").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("browser-address").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("browser-address").performClick()
+        compose.onNodeWithTag("browser-address-editor", useUnmergedTree = true)
+            .performTextReplacement("https://example.com/a-long-address?query=pebble")
+        compose.onNodeWithContentDescription("Clear address").performClick()
+        compose.onNodeWithTag("browser-address-editor", useUnmergedTree = true)
+            .assertTextEquals("").assertIsFocused()
+        compose.onNodeWithTag("browser-address").assertExists()
     }
 }
