@@ -29,4 +29,10 @@ The regression failed before the address-request fix and passed afterward. An ad
 
 ## Limits
 
-These are functional checks, not a frame-timing benchmark or certification of every website. Audible speaker output cannot be established from screenshots. DRM and subscription services were not certified. Failed-download retry, migration and other media lifecycle cases retain their existing automated coverage; they were not all repeated on the physical TV during this pass. The two new fixes have not been published to GitHub or released as a new version.
+These are functional checks, not a frame-timing benchmark or certification of every website. Audible speaker output cannot be established from screenshots. DRM and subscription services were not certified. Failed-download retry, migration and other media lifecycle cases retain their existing automated coverage; they were not all repeated on the physical TV during this pass. These fixes have not been published to GitHub or released as a new version.
+
+## Follow-up: Tabs entry focus
+
+The reported jump to New tab reproduced when session reopen history already existed: entering Tabs replayed its initial recently-closed state as a new close action. Source commit `029bea3` ignores the initial state and retains focus recovery for subsequent closes. The regression failed before the change; all six `TopNavFocusTest` cases passed afterward. Tabs lint and optimized release compilation also passed.
+
+The updated locally signed build was installed in place on the same TV (APK SHA-256 `25f9559d931264b78db0147ed8c94aa484fb3d72f8dc91e34e27a799fd12cf46`). A temporary seventh tab was created and closed. Closing it focused New tab, while leaving for Home and returning to Tabs with Reopen tab available kept focus on the top-bar Tabs title. Down then explicitly entered New tab, and Up returned to the top-bar Tabs title. All six original tabs remained, and Pebble was left on Home. This follow-up has not been pushed or released publicly.
