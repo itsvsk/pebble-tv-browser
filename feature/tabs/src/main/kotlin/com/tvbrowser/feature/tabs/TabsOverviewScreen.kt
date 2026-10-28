@@ -300,7 +300,7 @@ private fun Header(
             modifier = Modifier.seaGlass(PebbleShape.Full, PebbleColors.GlassMint, 2.dp, emphasized = true).padding(horizontal = 10.dp, vertical = 3.dp))
         Spacer(Modifier.weight(1f))
         if (canReopen) {
-            Pill(label = "Reopen tab", icon = Icons.Outlined.Refresh, primary = false, onClick = onReopen)
+            Pill(label = "Reopen tab", icon = Icons.Outlined.Refresh, primary = false, onUp = onUp, onClick = onReopen)
             Spacer(Modifier.width(PebbleDimens.Sp3))
         }
         Pill(
@@ -310,7 +310,7 @@ private fun Header(
             onClick = onNewTab,
         )
         Spacer(Modifier.width(PebbleDimens.Sp3))
-        Pill(label = "Close all", icon = Icons.Outlined.Close, primary = false, onClick = onCloseAll)
+        Pill(label = "Close all", icon = Icons.Outlined.Close, primary = false, onUp = onUp, onClick = onCloseAll)
     }
 }
 
