@@ -164,6 +164,7 @@ fun BrowserScreen(
             onToggleUa = vm::toggleDesktopUa,
             onPageMenu = { entry.cursorController().setActive(false); showPageMenu = true },
             editRequest = addressEditRequest,
+            onEditRequestHandled = { addressEditRequest = 0 },
             modeEnabled = ui.siteHost != null,
         )
 

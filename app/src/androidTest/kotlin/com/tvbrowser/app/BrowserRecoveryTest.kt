@@ -15,6 +15,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
@@ -122,7 +123,7 @@ class BrowserRecoveryTest {
     }
 
     @Test
-    fun downFromErrorAddressEditorReturnsToRetryWithoutReactivatingThePointer() {
+    fun downFromErrorEditorReturnsToRetryAndDoesNotReplayWhenControlsReturn() {
         val browser = openFixture()
         evaluate(browser, "window.reloadProbe = 'changed'; true")
         compose.runOnUiThread {
@@ -150,6 +151,29 @@ class BrowserRecoveryTest {
             evaluate(browser, "document.readyState === 'complete' && typeof window.reloadProbe === 'undefined'") == true
         }
         compose.onNodeWithTag("browser-page-error").assertDoesNotExist()
+        compose.runOnUiThread {
+            compose.activity.cursorController.setActive(true)
+            browser.requestFocus()
+            compose.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN))
+            compose.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_DOWN))
+        }
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("browser-address").fetchSemanticsNodes().isEmpty()
+        }
+        compose.runOnUiThread {
+            compose.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MENU))
+            compose.activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MENU))
+        }
+        compose.onNodeWithTag("browser-address").assertIsDisplayed()
+        compose.onNodeWithTag("browser-address-editor", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Back").assertIsFocused()
+        compose.runOnUiThread {
+            TabWebViewFactory.clientOf(browser).onReceivedHttpError(browser,
+                Request(true, currentAddress(browser)), httpFailure())
+        }
+        waitForError()
+        compose.onNodeWithTag("browser-error-edit").performClick()
+        compose.onNodeWithTag("browser-address-editor", useUnmergedTree = true).assertIsFocused()
     }
 
     @Test
