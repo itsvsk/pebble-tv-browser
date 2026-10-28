@@ -1,0 +1,68 @@
+{
+  "canvas": [
+    1280,
+    640
+  ],
+  "safe_area": [
+    84,
+    84,
+    1196,
+    556
+  ],
+  "elements": [
+    {
+      "text": "Pebble",
+      "bounds": [
+        117.01,
+        174.62,
+        530.12,
+        271.51
+      ],
+      "weight": 700,
+      "size": 126
+    },
+    {
+      "text": "The web,",
+      "bounds": [
+        112.56,
+        315.39,
+        317.68,
+        360.63
+      ],
+      "weight": 400,
+      "size": 51
+    },
+    {
+      "text": "from your sofa.",
+      "bounds": [
+        113.28,
+        377.39,
+        461.65,
+        427.22
+      ],
+      "weight": 400,
+      "size": 51
+    },
+    {
+      "text": "A browser for Android TV",
+      "bounds": [
+        114.29,
+        470.32,
+        416.0,
+        490.31
+      ],
+      "weight": 500,
+      "size": 26
+    },
+    {
+      "logo_source": "docs/branding/pebble-logo.png",
+      "image_bounds": [
+        766,
+        112,
+        1182,
+        528
+      ],
+      "changed": false
+    }
+  ]
+}
