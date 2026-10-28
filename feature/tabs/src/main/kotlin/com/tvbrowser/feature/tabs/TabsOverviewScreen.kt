@@ -83,6 +83,8 @@ import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -119,8 +121,11 @@ fun TabsOverviewScreen(
         }
     }
 
-    LaunchedEffect(recentlyClosed) {
-        if (recentlyClosed != null) { withFrameNanos { }; newTabFocusRequester.requestFocus() }
+    LaunchedEffect(vm) {
+        // Existing reopen history must not pull focus into the page when Tabs opens.
+        vm.recentlyClosed.drop(1).collectLatest { closed ->
+            if (closed != null) { withFrameNanos { }; newTabFocusRequester.requestFocus() }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

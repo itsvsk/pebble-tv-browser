@@ -10,6 +10,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
@@ -65,6 +68,37 @@ class TopNavFocusTest {
         compose.onNodeWithTag("tabs-list-first").assertIsFocused()
 
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_UP)
+        compose.onNodeWithTag("tabs-new-tab").assertIsFocused()
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_UP)
+        compose.onNodeWithTag("top-nav-tabs").assertIsFocused()
+    }
+
+    @Test
+    fun returningToTabsWithClosedHistoryKeepsFocusOnTopBarUntilDown() {
+        compose.onNodeWithTag("top-nav-tabs").performClick()
+        compose.onNodeWithTag("tabs-new-tab").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("browser-address").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("top-nav-tabs").performClick()
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("tabs-list-first").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("tabs-list-first").performSemanticsAction(SemanticsActions.OnLongClick) { it() }
+        compose.onNodeWithText("Close tab").performClick()
+        compose.onNodeWithTag("tabs-new-tab").assertIsFocused()
+        compose.onNodeWithText("Reopen tab").assertExists()
+
+        compose.onNodeWithTag("top-nav-home").performClick()
+        compose.onNodeWithTag("top-nav-tabs").performClick()
+        compose.onNodeWithTag("top-nav-tabs").assertIsFocused()
+
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_RIGHT)
+        compose.onNodeWithTag("top-nav-saved").assertIsFocused()
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_LEFT)
+        compose.onNodeWithTag("top-nav-tabs").assertIsFocused()
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_DOWN)
         compose.onNodeWithTag("tabs-new-tab").assertIsFocused()
         instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_UP)
         compose.onNodeWithTag("top-nav-tabs").assertIsFocused()
