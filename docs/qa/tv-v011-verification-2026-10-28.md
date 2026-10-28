@@ -36,3 +36,9 @@ These are functional checks, not a frame-timing benchmark or certification of ev
 The reported jump to New tab reproduced when session reopen history already existed: entering Tabs replayed its initial recently-closed state as a new close action. Source commit `029bea3` ignores the initial state and retains focus recovery for subsequent closes. The regression failed before the change; all six `TopNavFocusTest` cases passed afterward. Tabs lint and optimized release compilation also passed.
 
 The updated locally signed build was installed in place on the same TV (APK SHA-256 `25f9559d931264b78db0147ed8c94aa484fb3d72f8dc91e34e27a799fd12cf46`). A temporary seventh tab was created and closed. Closing it focused New tab, while leaving for Home and returning to Tabs with Reopen tab available kept focus on the top-bar Tabs title. Down then explicitly entered New tab, and Up returned to the top-bar Tabs title. All six original tabs remained, and Pebble was left on Home. This follow-up has not been pushed or released publicly.
+
+## Follow-up: Up from Reopen tab
+
+Source commit `b91bc46` explicitly routes Up from Reopen tab and Close all to Tabs in the top bar, matching New tab. The remote-input regression failed at the Reopen tab Up assertion before the fix. All six top-navigation tests passed afterward, including Up from both header actions; Tabs lint and optimized release compilation passed.
+
+The matching development-signed update was installed in place (APK SHA-256 `56d9997e7913a7dadd165f78ab743c111de8a26563e58c23687f2184166b8168`). On the TV, a temporary tab was created and closed, Left focused Reopen tab, and Up focused the top-bar Tabs title. All six original tabs remained, and Pebble was returned to Home. No public release was changed.
