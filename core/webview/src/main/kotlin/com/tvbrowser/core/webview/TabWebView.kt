@@ -80,7 +80,7 @@ class TabWebViewClient(
     },
 ) : WebViewClient(), DownloadListener {
     private val callbacks = TabCallbackRelay(onPageFinished)
-    private var documentUrl: String? = null
+    private val documents = PageDocumentState()
 
     @Volatile var adblockEnabled: Boolean = adblockEnabled
 
@@ -92,7 +92,10 @@ class TabWebViewClient(
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
         if (isWebDocumentScheme(request.url.scheme)) {
-            if (request.isForMainFrame) configureNavigation(view, request.url.toString())
+            if (request.isForMainFrame) {
+                documents.started(request.url.toString(), view.url)
+                configureNavigation(view, request.url.toString())
+            }
             return false
         }
         if (request.isForMainFrame && request.hasGesture()) {
@@ -114,13 +117,14 @@ class TabWebViewClient(
     }
 
     override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-        documentUrl = url
+        documents.started(url, view.url)
         hideFullscreen()
         configureNavigation(view, url)
         callbacks.pageStarted(url)
     }
 
     override fun onPageFinished(view: WebView, url: String) {
+        documents.finished(url)
         if (!isCurrentDocument(view, url)) return
         if (GoogleResultsFocusGuard.appliesTo(url)) {
             view.evaluateJavascript(GoogleResultsFocusGuard.script, null)
@@ -128,11 +132,7 @@ class TabWebViewClient(
         callbacks.pageFinished(url, view.title)
     }
 
-    private fun isCurrentDocument(view: WebView, url: String): Boolean {
-        val current = view.url?.takeUnless { it.startsWith("chrome-error:") } ?: documentUrl ?: return true
-        return Uri.parse(current).normalizeScheme().buildUpon().fragment(null).build() ==
-            Uri.parse(url).normalizeScheme().buildUpon().fragment(null).build()
-    }
+    private fun isCurrentDocument(view: WebView, url: String): Boolean = documents.isCurrent(url, view.url)
 
     private fun reportError(error: WebPageError) {
         hideFullscreen()

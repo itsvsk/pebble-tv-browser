@@ -59,6 +59,33 @@ class BrowserRecoveryTest {
     }
 
     @Test
+    fun failedProvisionalNavigationShowsRecoveryWhileNativeUrlStillNamesThePreviousPage() {
+        val browser = openFixture()
+        val pendingUrl = "https://pending.pebble.invalid/article"
+        compose.runOnUiThread {
+            val client = TabWebViewFactory.clientOf(browser)
+            client.onPageStarted(browser, pendingUrl, null)
+            client.onReceivedHttpError(browser, Request(true, pendingUrl), httpFailure())
+        }
+        waitForError()
+        compose.onNodeWithTag("browser-error-retry").assertIsDisplayed()
+        compose.onNodeWithTag("browser-error-edit").assertIsDisplayed()
+    }
+
+    @Test
+    fun previousPageFailureCannotReplaceANewerPendingNavigation() {
+        val browser = openFixture()
+        val previousUrl = currentAddress(browser)
+        compose.runOnUiThread {
+            val client = TabWebViewFactory.clientOf(browser)
+            client.onPageStarted(browser, "https://pending.pebble.invalid/new-page", null)
+            client.onReceivedHttpError(browser, Request(true, previousUrl), httpFailure())
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("browser-page-error").assertDoesNotExist()
+    }
+
+    @Test
     fun authenticationResponseKeepsTheWebsiteContentAccessible() {
         val browser = openFixture()
         compose.runOnUiThread {
