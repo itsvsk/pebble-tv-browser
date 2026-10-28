@@ -120,6 +120,7 @@ class TabManager @Inject constructor(
             adBlock = adBlock,
             videoController = videoController,
             onNavigation = { view, url -> clearPageError(tabId); prepareNavigation(view, url) },
+            onDocumentAvailable = { updateMedia(tabId) },
             onPageError = { pageErrors[tabId] = it },
             onRendererGone = ::discardCrashedView,
             onPageFinished = { url, title ->

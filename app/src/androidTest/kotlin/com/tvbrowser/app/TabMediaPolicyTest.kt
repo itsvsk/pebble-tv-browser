@@ -3,6 +3,9 @@ package com.tvbrowser.app
 import android.os.SystemClock
 import android.view.ViewGroup
 import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.widget.FrameLayout
 import androidx.room.Room
 import androidx.test.ext.junit.rules.ActivityScenarioRule
@@ -14,6 +17,7 @@ import com.tvbrowser.core.adblock.AdBlockInterceptor
 import com.tvbrowser.core.db.AppDatabase
 import com.tvbrowser.core.db.repo.TabRepository
 import com.tvbrowser.core.webview.TabManager
+import com.tvbrowser.core.webview.TabWebViewFactory
 import org.json.JSONObject
 import org.json.JSONTokener
 import org.junit.Assert.assertFalse
@@ -102,6 +106,59 @@ class TabMediaPolicyTest {
         instrumentation.runOnMainSync { manager.setTabMuted(id, false) }
         await("Explicit unmute must not be trapped by the volume-change guard") {
             evaluate(browser, "document.getElementById('media').muted") == false
+        }
+    }
+
+    @Test
+    fun mutedNavigationCannotAutoplayAudiblyWhileAResourceIsStillLoading() = withMedia { manager, browser, id ->
+        val resourceRequested = CountDownLatch(1)
+        val releaseResource = CountDownLatch(1)
+        instrumentation.runOnMainSync {
+            manager.setTabMuted(id, true)
+            val client = TabWebViewFactory.clientOf(browser)
+            browser.webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) =
+                    client.onPageStarted(view, url, favicon)
+                override fun onPageCommitVisible(view: WebView, url: String) = client.onPageCommitVisible(view, url)
+                override fun onPageFinished(view: WebView, url: String) = client.onPageFinished(view, url)
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                    if (request.url.path == "/slow-image.svg") {
+                        resourceRequested.countDown()
+                        releaseResource.await(20, TimeUnit.SECONDS)
+                        return WebResourceResponse("image/svg+xml", "UTF-8",
+                            "<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/>".byteInputStream())
+                    }
+                    return client.shouldInterceptRequest(view, request)
+                }
+            }
+            val html = silentAudioFixture().replace("<body>", """<body><script>
+                window.audibleStart = false;
+                document.addEventListener('playing', function(e) {
+                    if (!e.target.muted) window.audibleStart = true;
+                }, true);
+                </script>""").replace("<audio id=", "<audio autoplay id=")
+                .replace("</body>", "<img src='https://pebble.invalid/slow-image.svg'></body>")
+            browser.loadDataWithBaseURL("https://pebble.invalid/next-media", html, "text/html", "UTF-8", null)
+        }
+        try {
+            assertTrue("The fixture must hold a real resource open", resourceRequested.await(5, TimeUnit.SECONDS))
+            await("The new document must exercise media before the load completes") {
+                evaluate(browser, """(function() { var m=document.getElementById('media');
+                    return document.readyState !== 'complete' && !!m && m.readyState >= 2 &&
+                        (m.muted || m.currentTime > 0.1); })()""") == true
+            }
+            assertTrue("Mute must reach the new document before onPageFinished",
+                evaluate(browser, "document.getElementById('media').muted") == true)
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.MUTE_AUDIO)) {
+                instrumentation.runOnMainSync {
+                    assertTrue("The engine must retain mute throughout navigation", WebViewCompat.isAudioMuted(browser))
+                }
+            } else {
+                assertFalse("Fallback autoplay must never start unmuted during navigation",
+                    evaluate(browser, "window.audibleStart") == true)
+            }
+        } finally {
+            releaseResource.countDown()
         }
     }
 

@@ -27,6 +27,7 @@
 - Recover failed provisional loads when WebView still reports the previous page's URL, while rejecting stale failures.
 - Retain a download's initiating Desktop/Mobile user agent when retrying, including after restarting the app.
 - Enforce tab mute when a website changes player volume, including on older WebViews without engine mute support.
+- Preserve mute during navigation before slow page resources finish; legacy providers block muted-tab autoplay until a Play gesture.
 - Normalize horizontal pointer scrolling across older and current Chromium WebView providers.
 - Discard stale pointer-scroll probes after the browser viewport resizes, so earlier hit-test coordinates cannot affect the resized page.
 - Pointer edge scrolling now reaches nested social feeds and chat panels; Up yields to browser controls only after the inner feed reaches its top.

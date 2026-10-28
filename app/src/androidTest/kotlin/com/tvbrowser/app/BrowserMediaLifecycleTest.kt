@@ -87,12 +87,20 @@ class BrowserMediaLifecycleTest {
     }
     private fun play(browser: WebView) {
         evaluate(browser, "document.getElementById('media').play(); true")
-        compose.waitUntil(10_000) { state(browser).let { !it.optBoolean("paused", true) && it.optDouble("time") > 0.1 } }
+        try {
+            compose.waitUntil(10_000) { state(browser).let { !it.optBoolean("paused", true) && it.optDouble("time") > 0.1 } }
+        } catch (failure: Throwable) {
+            var gesture = false
+            compose.runOnUiThread { gesture = browser.settings.mediaPlaybackRequiresUserGesture }
+            throw AssertionError("Playback state=${state(browser)} gestureRequired=$gesture", failure)
+        }
     }
     private fun state(browser: WebView): JSONObject {
         val result = evaluate(browser, """
             (function() { var v=document.getElementById('media'); return JSON.stringify({
             ready: document.readyState === 'complete' && !!v,
+            suspended: document.__pebbleSuspendMedia, mutedPolicy: document.__pebbleMuteMedia,
+            muted: !!v && v.muted,
             paused: !v || v.paused, time: v ? v.currentTime : 0 }); })()
         """.trimIndent())
         return if (result is String) JSONObject(result) else JSONObject()

@@ -74,6 +74,7 @@ class TabWebViewClient(
     private val hideFullscreen: () -> Unit = {},
     private val persistError: (WebPageError) -> Unit = {},
     private val configureNavigation: (WebView, String) -> Unit = { _, _ -> },
+    private val documentAvailable: (WebView) -> Unit = {},
     private val rendererGone: (WebView) -> Unit = { view ->
         (view.parent as? ViewGroup)?.removeView(view)
         view.destroy()
@@ -120,7 +121,14 @@ class TabWebViewClient(
         documents.started(url, view.url)
         hideFullscreen()
         configureNavigation(view, url)
+        documentAvailable(view)
         callbacks.pageStarted(url)
+    }
+
+    override fun onPageCommitVisible(view: WebView, url: String) {
+        // The new DOM is available before slow images/styles finish loading.
+        // Reapply current policy even if this is a late visual callback.
+        documentAvailable(view)
     }
 
     override fun onPageFinished(view: WebView, url: String) {
@@ -184,6 +192,7 @@ object TabWebViewFactory {
         onPageFinished: (url: String, title: String?) -> Unit = { _, _ -> },
         onPageError: (WebPageError) -> Unit = {},
         onNavigation: (WebView, String) -> Unit = { _, _ -> },
+        onDocumentAvailable: (WebView) -> Unit = {},
         onRendererGone: (WebView) -> Unit = { view ->
             (view.parent as? ViewGroup)?.removeView(view)
             view.destroy()
@@ -216,7 +225,8 @@ object TabWebViewFactory {
         CookieManager.getInstance().setAcceptThirdPartyCookies(wv, !config.isIncognito)
 
         val client = TabWebViewClient(adBlock, config.adblockEnabled, onPageFinished,
-            hideFullscreen = { videoController.hide(wv) }, persistError = onPageError, configureNavigation = onNavigation, rendererGone = onRendererGone)
+            hideFullscreen = { videoController.hide(wv) }, persistError = onPageError, configureNavigation = onNavigation,
+            documentAvailable = onDocumentAvailable, rendererGone = onRendererGone)
         wv.setTag(R.id.pebble_tab_webview_client, client)
         wv.webViewClient = client
         wv.webChromeClient = object : android.webkit.WebChromeClient() {

@@ -9,7 +9,11 @@ data class TabMediaState(val muted: Boolean = false, val backgroundPlayback: Boo
 /** Engine mute protects cross-origin audio; DOM pause is best effort and never auto-resumes. */
 internal fun applyTabMediaPolicy(view: WebView, state: TabMediaState, foreground: Boolean) {
     val suspendMedia = !foreground && !state.backgroundPlayback
-    if (WebViewFeature.isFeatureSupported(WebViewFeature.MUTE_AUDIO)) {
+    val engineMute = WebViewFeature.isFeatureSupported(WebViewFeature.MUTE_AUDIO)
+    // The DOM guard belongs to one document. A muted legacy tab must also block
+    // ungestured autoplay across navigation while its new guard is being installed.
+    if (!engineMute) view.settings.mediaPlaybackRequiresUserGesture = state.muted
+    if (engineMute) {
         WebViewCompat.setAudioMuted(view, state.muted || suspendMedia)
     }
     view.evaluateJavascript("""

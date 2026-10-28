@@ -13,6 +13,8 @@ See the [dated social and entertainment compatibility report](qa/platform-compat
 | Background media | Inactive tabs pause HTML audio/video by default and engine-mute when supported. Page options offers per-tab mute and a session-only background-playback opt-in. Returning does not automatically resume paused media. DOM pause across cross-origin players is best effort; provider-supported engine mute protects their audio. Service and OS background policies can still suspend playback. |
 | Downloaded media | Opening a completed download offers Android's app chooser with temporary access to the selected file. |
 
+On older WebViews without engine mute, muted tabs require a Play gesture after navigation to prevent autoplay before the new document's mute guard is ready. Unmute restores the normal gesture setting; a player may still need Play to resume. The DOM guard is reinstalled at page start and commit-visible, before slow resources finish loading.
+
 See the [QoL implementation report](qa/qol-implementation-2026-10-27.md) for media controls, website preferences, download retry, and renderer recovery checks.
 
 The [physical TV validation](qa/tv-qol-2026-10-28.md) records HLS/fullscreen and DASH live playback, remote controls, download alerts, and the remaining verification limits on Android 14.
