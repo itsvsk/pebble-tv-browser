@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -39,8 +38,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -159,49 +158,33 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
     val done = visibleRecords.filter { it.status == DownloadRecord.STATUS_SUCCESS }
     val failed = visibleRecords.filter { it.status == DownloadRecord.STATUS_FAILED }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)
+            .seaGlass(PebbleShape.Md, PebbleColors.GlassMint)
+            .padding(28.dp),
+    ) {
+        Header(active = active.size, done = done.size, downloadLocation = vm.downloadLocation)
+        Spacer(Modifier.height(PebbleDimens.Sp5))
         if (records.isEmpty()) {
-            EmptyDownloads(vm.downloadLocation)
-        } else Row(modifier = Modifier.fillMaxSize().padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)) {
-            Box(
-                modifier = Modifier.weight(1f).fillMaxHeight()
-                    .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon),
-                contentAlignment = Alignment.BottomStart,
-            ) {
-                Column(modifier = Modifier.padding(28.dp)) {
-                    Text("◉  PEBBLE DOWNLOADS", style = PebbleType.Overline, color = PebbleColors.Primary)
-                    Spacer(Modifier.height(10.dp))
-                    Text("Your files, in one place", style = PebbleType.Display, color = PebbleColors.OnSurface)
-                    Spacer(Modifier.height(8.dp))
-                    Text("${records.size} files  ·  ${records.count { it.status == DownloadRecord.STATUS_RUNNING }} active",
-                        style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+            EmptyDownloads(modifier = Modifier.weight(1f))
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2)) {
+                listOf("All", "Videos", "Documents", "Packages").forEach { option ->
+                    FilterChip(option, filter == option) { filter = option }
                 }
             }
-            Spacer(Modifier.width(PebbleDimens.Sp4))
-            Column(
-                modifier = Modifier.width(420.dp).fillMaxHeight()
-                    .seaGlass(PebbleShape.Md, PebbleColors.GlassMint)
-                    .padding(18.dp),
+            Spacer(Modifier.height(PebbleDimens.Sp4))
+            if (visibleRecords.isEmpty()) {
+                Text("No $filter downloads.",
+                    style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+            }
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
+                contentPadding = PaddingValues(horizontal = PebbleDimens.Sp2, vertical = PebbleDimens.Sp2),
+                modifier = Modifier.weight(1f),
             ) {
-                Header(active = active.size, done = done.size)
-                Spacer(Modifier.height(PebbleDimens.Sp4))
-                DefaultLocationCard(path = vm.downloadLocation)
-                Spacer(Modifier.height(PebbleDimens.Sp4))
-                Row(horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp2)) {
-                    listOf("All", "Videos", "Documents", "Packages").forEach { option ->
-                        FilterChip(option, filter == option) { filter = option }
-                    }
-                }
-                Spacer(Modifier.height(PebbleDimens.Sp4))
-                if (visibleRecords.isEmpty()) {
-                    Text("No $filter downloads.",
-                        style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
-                }
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(PebbleDimens.Sp3),
-                    contentPadding = PaddingValues(horizontal = PebbleDimens.Sp2, vertical = PebbleDimens.Sp2),
-                    modifier = Modifier.weight(1f),
-                ) {
                 if (active.isNotEmpty()) {
                     item(key = "h-active") { GroupHeader("In progress") }
                     items(active, key = { it.dmId }) { r ->
@@ -230,7 +213,6 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
                             onLongClick = { vm.showMenu(r) },
                         )
                     }
-                }
                 }
             }
         }
@@ -262,45 +244,47 @@ fun DownloadsScreen(vm: DownloadsViewModel = hiltViewModel()) {
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun EmptyDownloads(downloadLocation: String) {
+private fun EmptyDownloads(modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = PebbleDimens.Gutter, vertical = PebbleDimens.Sp5)
-            .seaGlass(PebbleShape.Md, PebbleColors.GlassMint)
-            .padding(28.dp),
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        Header(active = 0, done = 0)
-        Spacer(Modifier.height(PebbleDimens.Sp5))
-        Box(Modifier.width(480.dp)) {
-            DefaultLocationCard(path = downloadLocation)
-        }
-        Column(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Icon(
-                Icons.Outlined.FolderOpen,
-                contentDescription = null,
-                tint = PebbleColors.OnSurfaceMuted,
-                modifier = Modifier.size(64.dp),
-            )
-            Spacer(Modifier.height(PebbleDimens.Sp4))
-            Text("No downloads yet", style = PebbleType.Title, color = PebbleColors.OnSurface)
-            Spacer(Modifier.height(PebbleDimens.Sp2))
-            Text("Files saved from the browser will appear here.",
-                style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
-        }
+        Icon(
+            Icons.Outlined.FolderOpen,
+            contentDescription = null,
+            tint = PebbleColors.OnSurfaceMuted,
+            modifier = Modifier.size(64.dp),
+        )
+        Spacer(Modifier.height(PebbleDimens.Sp4))
+        Text("No downloads yet", style = PebbleType.Title, color = PebbleColors.OnSurface)
+        Spacer(Modifier.height(PebbleDimens.Sp2))
+        Text("Files saved from the browser will appear here.",
+            style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
     }
 }
 
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun Header(active: Int, done: Int) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun Header(active: Int, done: Int, downloadLocation: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(PebbleDimens.Sp6),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Column {
             Text("Downloads", style = PebbleType.Display, color = PebbleColors.OnSurface)
             Text("$active active · $done completed", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+        }
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Folder, contentDescription = null,
+                tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(PebbleDimens.Sp3))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Download location", style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceMuted)
+                Text(downloadLocation, style = PebbleType.Mono, color = PebbleColors.OnSurface,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
@@ -333,26 +317,6 @@ private fun Pill(label: String, icon: androidx.compose.ui.graphics.vector.ImageV
         Icon(icon, contentDescription = null, tint = PebbleColors.OnSurfaceMuted, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(label, style = PebbleType.Label, color = PebbleColors.OnSurface)
-    }
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun DefaultLocationCard(path: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .seaGlass(PebbleShape.Md, PebbleColors.GlassLagoon, 4.dp)
-            .padding(20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconWell(Icons.Outlined.Folder)
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text("APP DOWNLOAD LOCATION", style = PebbleType.Overline, color = PebbleColors.OnSurfaceFaint)
-            Spacer(Modifier.height(2.dp))
-            Text(path, style = PebbleType.Mono, color = PebbleColors.OnSurface)
-        }
     }
 }
 
@@ -394,7 +358,7 @@ private fun ActiveCard(record: DownloadRecord, progress: DownloadProgress?, onLo
         IconWell(Icons.Outlined.InsertDriveFile)
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(record.filename, style = PebbleType.Body, color = PebbleColors.OnSurface, maxLines = 1)
+            Text(record.filename, style = PebbleType.Body, color = PebbleColors.OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(4.dp))
             Text(meta, style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceMuted)
             Spacer(Modifier.height(6.dp))
@@ -425,7 +389,7 @@ private fun DoneCard(record: DownloadRecord, onOpen: () -> Unit, onLongClick: ()
         IconWell(Icons.Outlined.InsertDriveFile, tint = PebbleColors.Good)
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(record.filename, style = PebbleType.Body, color = PebbleColors.OnSurface, maxLines = 1)
+            Text(record.filename, style = PebbleType.Body, color = PebbleColors.OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(4.dp))
             Text("Done", style = PebbleType.LabelSm, color = PebbleColors.OnSurfaceMuted)
         }
@@ -447,7 +411,7 @@ private fun FailedCard(record: DownloadRecord, onLongClick: () -> Unit) {
         IconWell(Icons.Outlined.ErrorOutline, tint = PebbleColors.Danger)
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(record.filename, style = PebbleType.Body, color = PebbleColors.OnSurface, maxLines = 1)
+            Text(record.filename, style = PebbleType.Body, color = PebbleColors.OnSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(4.dp))
             Text(com.tvbrowser.core.downloads.downloadFailureMessage(record.failureReason), style = PebbleType.LabelSm, color = PebbleColors.Danger)
         }
