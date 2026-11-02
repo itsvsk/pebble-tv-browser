@@ -28,4 +28,3 @@ Use case: ads-marketing. Asset type: premium brand social-card BACKGROUND ONLY, 
 ## Upload
 
 On the repository, choose Settings → General → Social preview → Edit → Upload an image, then select the PNG. This deliverable does not change GitHub's repository settings automatically.
-
