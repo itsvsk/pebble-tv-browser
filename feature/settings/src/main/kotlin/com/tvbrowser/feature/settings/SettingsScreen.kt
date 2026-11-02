@@ -45,6 +45,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
@@ -249,9 +250,16 @@ private fun ThemeOptionRow(
 
 @Composable
 private fun Header() {
+    val context = LocalContext.current
+    val versionName = remember(context) {
+        @Suppress("DEPRECATION")
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        info.versionName?.takeIf { it.isNotBlank() }
+    }
     Column {
         Text("Settings", style = PebbleType.Display, color = PebbleColors.OnSurface)
-        Text("Pebble · version 1.0", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+        Text(versionName?.let { "Pebble · version $it" } ?: "Pebble",
+            style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
     }
 }
 

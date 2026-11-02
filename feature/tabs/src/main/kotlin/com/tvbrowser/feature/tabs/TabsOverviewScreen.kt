@@ -83,6 +83,8 @@ import com.tvbrowser.core.design.pebbleClickable
 import com.tvbrowser.core.design.pebbleFocus
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -119,8 +121,11 @@ fun TabsOverviewScreen(
         }
     }
 
-    LaunchedEffect(recentlyClosed) {
-        if (recentlyClosed != null) { withFrameNanos { }; newTabFocusRequester.requestFocus() }
+    LaunchedEffect(vm) {
+        // Existing reopen history must not pull focus into the page when Tabs opens.
+        vm.recentlyClosed.drop(1).collectLatest { closed ->
+            if (closed != null) { withFrameNanos { }; newTabFocusRequester.requestFocus() }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -295,7 +300,7 @@ private fun Header(
             modifier = Modifier.seaGlass(PebbleShape.Full, PebbleColors.GlassMint, 2.dp, emphasized = true).padding(horizontal = 10.dp, vertical = 3.dp))
         Spacer(Modifier.weight(1f))
         if (canReopen) {
-            Pill(label = "Reopen tab", icon = Icons.Outlined.Refresh, primary = false, onClick = onReopen)
+            Pill(label = "Reopen tab", icon = Icons.Outlined.Refresh, primary = false, onUp = onUp, onClick = onReopen)
             Spacer(Modifier.width(PebbleDimens.Sp3))
         }
         Pill(
@@ -305,7 +310,7 @@ private fun Header(
             onClick = onNewTab,
         )
         Spacer(Modifier.width(PebbleDimens.Sp3))
-        Pill(label = "Close all", icon = Icons.Outlined.Close, primary = false, onClick = onCloseAll)
+        Pill(label = "Close all", icon = Icons.Outlined.Close, primary = false, onUp = onUp, onClick = onCloseAll)
     }
 }
 

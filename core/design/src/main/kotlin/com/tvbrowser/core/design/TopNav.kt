@@ -117,7 +117,7 @@ fun TopNav(
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp)
-            .background(PebbleColors.Surface1.copy(alpha = 0.75f))
+            .background(PebbleColors.ChromeBackground)
             .padding(horizontal = if (compactLargeText) PebbleDimens.Sp6 else PebbleDimens.Gutter),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -92,6 +92,7 @@ fun AddressBar(
     onToggleUa: () -> Unit,
     onPageMenu: () -> Unit = {},
     editRequest: Int = 0,
+    onEditRequestHandled: () -> Unit = {},
     modeEnabled: Boolean = true,
 ) {
     var text by remember(url) { mutableStateOf(TextFieldValue(url, TextRange(url.length))) }
@@ -101,7 +102,13 @@ fun AddressBar(
     val currentNavigateDown by rememberUpdatedState(onNavigateDown)
     val focusManager = LocalFocusManager.current
     val menuFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(editRequest) { if (editRequest > 0) { editing = true; editorFocusRequest++ } }
+    LaunchedEffect(editRequest) {
+        if (editRequest > 0) {
+            editing = true
+            editorFocusRequest++
+            onEditRequestHandled()
+        }
+    }
     LaunchedEffect(downNavigationRequest) {
         // Remove the editor before handing focus to the page or its recovery actions.
         if (downNavigationRequest > 0) currentNavigateDown?.invoke()
@@ -122,7 +129,7 @@ fun AddressBar(
             }
             // The WebView is a later sibling; its initial white frame must stay below the controls.
             .zIndex(1f)
-            .background(PebbleColors.GlassHigh),
+            .background(PebbleColors.ChromeBackground),
     ) {
         Row(
             modifier = Modifier
