@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -181,6 +182,8 @@ fun BrowserScreen(
                     onProgress = { vm.onProgress(it) },
                     onPageError = vm::onPageError,
                     onDownload = { url, ua, cd, mime ->
+                        // A download replaces this page load and may never send onPageFinished.
+                        vm.onProgress(100)
                         startDownload(BrowserDownloadRequest(url, ua, cd, mime))
                     },
                 )
@@ -257,7 +260,7 @@ private fun BrowserProgressIndicator(vm: BrowserViewModel, modifier: Modifier = 
             progress = { progress / 100f },
             color = PebbleColors.Primary,
             trackColor = PebbleColors.Surface3,
-            modifier = modifier.fillMaxWidth().height(3.dp),
+            modifier = modifier.fillMaxWidth().height(3.dp).testTag("browser-loading-progress"),
         )
     }
 }

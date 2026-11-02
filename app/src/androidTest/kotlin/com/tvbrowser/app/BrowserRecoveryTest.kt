@@ -16,6 +16,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
@@ -37,6 +38,28 @@ import java.net.ServerSocket
 @RunWith(AndroidJUnit4::class)
 class BrowserRecoveryTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+
+    @Test
+    fun downloadHandoffEndsPageLoadingEvenWhenTheDownloadCannotStart() {
+        val browser = openFixture()
+        compose.runOnUiThread { TabWebViewFactory.clientOf(browser).onProgress(35) }
+        compose.onNodeWithTag("browser-loading-progress").assertExists()
+        compose.runOnUiThread {
+            // Unsupported URLs fail before enqueue, so this needs no system download or live server.
+            TabWebViewFactory.clientOf(browser).onDownloadStart(
+                "blob:https://pebble.invalid/fixture", null, null, "application/octet-stream", 32,
+            )
+        }
+        compose.onNodeWithTag("browser-loading-progress").assertDoesNotExist()
+        compose.onNodeWithText("Download could not start").assertExists()
+        compose.onNodeWithText("Dismiss").performClick()
+        compose.runOnUiThread {
+            val client = TabWebViewFactory.clientOf(browser)
+            client.onPageStarted(browser, currentAddress(browser), null)
+            client.onProgress(35)
+        }
+        compose.onNodeWithTag("browser-loading-progress").assertExists()
+    }
 
     @Test
     fun failedImageDoesNotReplaceAnOtherwiseUsablePageWithAnErrorPanel() {
