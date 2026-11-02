@@ -83,6 +83,7 @@ object PebbleColors {
     @get:Composable val Bg get() = LocalPebblePalette.current.Bg
     @get:Composable val Surface get() = LocalPebblePalette.current.Surface
     @get:Composable val Surface1 get() = LocalPebblePalette.current.Surface1
+    @get:Composable val ChromeBackground get() = Surface1.copy(alpha = 0.75f)
     @get:Composable val Surface2 get() = LocalPebblePalette.current.Surface2
     @get:Composable val Surface3 get() = LocalPebblePalette.current.Surface3
     @get:Composable val Surface4 get() = LocalPebblePalette.current.Surface4

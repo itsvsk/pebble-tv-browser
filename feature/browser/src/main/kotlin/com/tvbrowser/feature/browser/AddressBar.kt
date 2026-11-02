@@ -129,7 +129,7 @@ fun AddressBar(
             }
             // The WebView is a later sibling; its initial white frame must stay below the controls.
             .zIndex(1f)
-            .background(PebbleColors.GlassHigh),
+            .background(PebbleColors.ChromeBackground),
     ) {
         Row(
             modifier = Modifier
