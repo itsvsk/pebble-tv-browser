@@ -83,7 +83,15 @@ class TabWebViewClient(
     private val callbacks = TabCallbackRelay(onPageFinished)
     private val documents = PageDocumentState()
 
-    @Volatile var adblockEnabled: Boolean = adblockEnabled
+    private val protection = PageProtectionState().apply { enabled = adblockEnabled }
+    var adblockEnabled: Boolean
+        get() = protection.enabled
+        set(value) { protection.enabled = value }
+    fun prepareProtection(url: String) = protection.prepare(url)
+    fun beginProtectionNavigation(url: String) = protection.beginNavigation(url)
+    fun protectionPageUrl(): String = protection.pageUrl()
+    fun protectionStats(): PageProtectionStats = protection.stats()
+    fun setProtectionPaused(paused: Boolean, expectedUrl: String? = null): String? = protection.setPaused(paused, expectedUrl)
 
     fun attach(owner: Any, uiCallbacks: TabUiCallbacks) = callbacks.attach(owner, uiCallbacks)
     fun detach(owner: Any): Boolean = callbacks.detach(owner).also { if (it) hideFullscreen() }
@@ -110,15 +118,16 @@ class TabWebViewClient(
         !isWebDocumentScheme(Uri.parse(url).scheme)
 
     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-        if (!adblockEnabled) return null
-        val url = request.url?.toString() ?: return null
-        return if (adBlock.shouldBlock(url)) {
-            WebResourceResponse("text/plain", "utf-8", java.io.ByteArrayInputStream(ByteArray(0)))
-        } else null
+        // This callback runs off UI. Never read the WebView URL here; context was captured
+        // before navigation and at page start. Main documents remain navigable.
+        val blocked = protection.intercept(request.url.toString(), request.isForMainFrame, adBlock::shouldBlock)
+        return if (blocked) WebResourceResponse("text/plain", "utf-8", 204, "No Content",
+            mapOf("Cache-Control" to "no-store"), java.io.ByteArrayInputStream(ByteArray(0))) else null
     }
 
     override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
         documents.started(url, view.url)
+        protection.started(url)
         hideFullscreen()
         configureNavigation(view, url)
         documentAvailable(view)

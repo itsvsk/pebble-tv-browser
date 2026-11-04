@@ -18,22 +18,11 @@ class AdblockRefreshWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val loader: EasyListLoader,
-    private val interceptor: AdBlockInterceptor,
 ) : CoroutineWorker(appContext, params) {
 
-    override suspend fun doWork(): Result {
-        val res = loader.refresh()
-        return if (res.isSuccess) {
-            interceptor.replace(parseDiskHostsSafe())
-            Result.success()
-        } else Result.retry()
-    }
-
-    private fun parseDiskHostsSafe(): Set<String> = runCatching {
-        val file = java.io.File(applicationContext.filesDir, "adblock/hosts.txt")
-        if (!file.exists()) emptySet()
-        else file.bufferedReader().use { EasyListParser.parse(it) }
-    }.getOrDefault(emptySet())
+    override suspend fun doWork(): Result =
+        if (loader.refresh().isSuccess) Result.success()
+        else if (runAttemptCount < 3) Result.retry() else Result.failure()
 
     companion object {
         const val UNIQUE_NAME = "adblock-refresh"
