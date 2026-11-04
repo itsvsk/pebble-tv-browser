@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
+import com.tvbrowser.core.adblock.EasyListLoader
 
 data class BrowserUi(
     val url: String = "",
@@ -29,6 +30,9 @@ data class BrowserUi(
     val adblockEnabled: Boolean = true,
     val siteHost: String? = null,
     val siteOverridden: Boolean = false,
+    val adblockOverridden: Boolean = false,
+    val protectionPaused: Boolean = false,
+    val blockedRequests: Int = 0,
     val error: WebPageError? = null,
 )
 
@@ -40,6 +44,7 @@ class BrowserViewModel @Inject constructor(
     private val bookmarkRepo: BookmarkRepository,
     private val settings: SettingsRepository,
     val tabManager: TabManager,
+    private val filters: EasyListLoader,
 ) : ViewModel() {
     private val _ui = MutableStateFlow(BrowserUi())
     val ui = _ui.asStateFlow()
@@ -48,6 +53,9 @@ class BrowserViewModel @Inject constructor(
     private var boundTabId: String? = null
     private var binding: Job? = null
     private val siteMutation = Mutex()
+    val filterStatus = filters.status
+    private var filterRefresh: Job? = null
+    private var protectionChange: Job? = null
 
     fun bind(tabId: String) {
         boundTabId = tabId
@@ -58,13 +66,13 @@ class BrowserViewModel @Inject constructor(
             val prefs = settings.pagePreferences(url).first()
             _ui.value = BrowserUi(url = url, title = tab?.title, isIncognito = tab?.isIncognito == true,
                 desktopUa = prefs.desktopUa, adblockEnabled = prefs.adblockEnabled,
-                siteHost = prefs.host, siteOverridden = prefs.overridden,
+                siteHost = prefs.host, siteOverridden = prefs.overridden, adblockOverridden = prefs.adblockOverridden,
                 error = tabManager.pageError(tabId), isBookmarked = bookmarkRepo.isBookmarked(url))
             _progress.value = 100
             _ui.map { it.url }.distinctUntilChanged().flatMapLatest(settings::pagePreferences).collect { page ->
                 if (page.host == normalizedSiteHost(_ui.value.url)) {
                     _ui.value = _ui.value.copy(desktopUa = page.desktopUa, adblockEnabled = page.adblockEnabled,
-                        siteHost = page.host, siteOverridden = page.overridden)
+                        siteHost = page.host, siteOverridden = page.overridden, adblockOverridden = page.adblockOverridden)
                 }
             }
         }
@@ -74,7 +82,7 @@ class BrowserViewModel @Inject constructor(
     fun onPageStarted(url: String) {
         val page = settings.cachedPagePreferences(url)
         _ui.value = _ui.value.copy(url = url, error = null, desktopUa = page.desktopUa,
-            adblockEnabled = page.adblockEnabled, siteHost = page.host, siteOverridden = page.overridden)
+            adblockEnabled = page.adblockEnabled, siteHost = page.host, siteOverridden = page.overridden, adblockOverridden = page.adblockOverridden)
         _progress.value = 0
     }
     fun onPageError(error: WebPageError) {
@@ -123,15 +131,51 @@ class BrowserViewModel @Inject constructor(
         viewModelScope.launch { siteMutation.withLock { settings.setSiteDesktop(u.url, !u.desktopUa) } }
     }
     fun toggleSiteAdblock() {
+        if (protectionChange?.isActive == true) return
         val u = _ui.value
-        viewModelScope.launch {
+        val tabId = boundTabId
+        protectionChange = viewModelScope.launch {
             siteMutation.withLock {
                 settings.setSiteAdblock(u.url, !u.adblockEnabled)
                 settings.pagePreferences(u.url).first { it.adblockEnabled == !u.adblockEnabled }
-                if (_ui.value.url == u.url && _ui.value.error == null) boundTabId?.let(tabManager::reloadLiveTab)
+                if (_ui.value.url == u.url && boundTabId == tabId && _ui.value.error == null) tabId?.let {
+                    tabManager.setProtectionPaused(it, false)
+                    tabManager.reloadLiveTab(it)
+                }
             }
         }
     }
+    fun toggleProtectionPause() {
+        val id = boundTabId ?: return
+        val paused = !tabManager.protectionStats(id).paused
+        if (!tabManager.setProtectionPaused(id, paused, _ui.value.url)) return
+        _ui.value = _ui.value.copy(protectionPaused = paused)
+        tabManager.reloadLiveTab(id)
+    }
+    fun resetSiteProtection() {
+        if (protectionChange?.isActive == true) return
+        val before = _ui.value
+        val tabId = boundTabId
+        protectionChange = viewModelScope.launch {
+            siteMutation.withLock {
+                settings.resetSiteAdblock(before.url)
+                settings.pagePreferences(before.url).first { !it.adblockOverridden }
+                if (_ui.value.url == before.url && boundTabId == tabId) tabId?.let {
+                    tabManager.setProtectionPaused(it, false)
+                    tabManager.reloadLiveTab(it)
+                }
+            }
+        }
+    }
+    fun refreshProtection() {
+        if (filterRefresh?.isActive == true) return
+        filterRefresh = viewModelScope.launch { filters.refresh() }
+    }
+    fun updateProtectionStats() {
+        val state = boundTabId?.let(tabManager::protectionStats) ?: return
+        _ui.value = _ui.value.copy(protectionPaused = state.paused, blockedRequests = state.blockedRequests)
+    }
+
     fun resetSite() {
         val before = _ui.value
         viewModelScope.launch {

@@ -82,7 +82,11 @@ fun WebViewHost(
                 lifecycleOwner.lifecycle.addObserver(observer)
                 lifecycleObserver[0] = lifecycleOwner to observer
                 cursorController.attachTarget(view)
-                if (view.url.isNullOrEmpty() && initialUrl.isNotEmpty()) view.loadUrl(initialUrl)
+                if (view.url.isNullOrEmpty() && initialUrl.isNotEmpty()) {
+                    client.beginProtectionNavigation(initialUrl)
+                    tabManager.prepareNavigation(view, initialUrl)
+                    view.loadUrl(initialUrl)
+                }
                 view
             },
             update = update@ { view ->
@@ -90,7 +94,7 @@ fun WebViewHost(
                 TabWebViewFactory.clientOf(view).adblockEnabled = config.adblockEnabled
                 if (view.settings.userAgentString != desiredUserAgent) {
                     view.settings.userAgentString = desiredUserAgent
-                    view.reload()
+                    tabManager.reloadLiveTab(tabId)
                 }
             },
             onRelease = { view ->

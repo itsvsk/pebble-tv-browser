@@ -33,6 +33,7 @@ class TabManager @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val privateTabs = PrivateTabRegistry()
     private val closedTabs = ClosedTabs()
+    private val protectionPauses = VisitProtectionPauses()
     private val tabMutation = Mutex()
     val recentlyClosed = closedTabs.last
     private val media = MutableStateFlow<Map<String, TabMediaState>>(emptyMap())
@@ -88,13 +89,30 @@ class TabManager @Inject constructor(
 
     fun prepareNavigation(view: WebView, url: String) {
         val preferences = settings.cachedPagePreferences(url)
-        TabWebViewFactory.clientOf(view).adblockEnabled = preferences.adblockEnabled
+        TabWebViewFactory.clientOf(view).apply {
+            prepareProtection(url)
+            adblockEnabled = preferences.adblockEnabled
+            live.entries.firstOrNull { it.value === view }?.key?.let { id ->
+                setProtectionPaused(protectionPauses.forPage(id, url), url)
+            }
+        }
         val desired = UserAgents.forMode(android.webkit.WebSettings.getDefaultUserAgent(context), preferences.desktopUa)
         if (view.settings.userAgentString != desired) view.settings.userAgentString = desired
     }
 
+    fun protectionStats(tabId: String): PageProtectionStats =
+        live[tabId]?.let { TabWebViewFactory.clientOf(it).protectionStats() } ?: PageProtectionStats()
+
+    fun setProtectionPaused(tabId: String, paused: Boolean, expectedUrl: String? = null): Boolean {
+        val view = live[tabId] ?: return false
+        val url = TabWebViewFactory.clientOf(view).setProtectionPaused(paused, expectedUrl) ?: return false
+        protectionPauses.set(tabId, url, paused)
+        return true
+    }
+
     fun reloadLiveTab(tabId: String) {
         live[tabId]?.let { view ->
+            TabWebViewFactory.clientOf(view).beginProtectionNavigation(view.url.orEmpty())
             prepareNavigation(view, view.url.orEmpty())
             view.reload()
         }
@@ -103,6 +121,7 @@ class TabManager @Inject constructor(
     fun navigate(tabId: String, url: String, config: TabConfig) {
         clearPageError(tabId)
         val view = getOrCreate(tabId, config)
+        TabWebViewFactory.clientOf(view).beginProtectionNavigation(url)
         prepareNavigation(view, url)
         view.loadUrl(url)
     }
@@ -146,6 +165,7 @@ class TabManager @Inject constructor(
         live.remove(tabId)?.let { videoController.hide(it); it.destroy() }
         pageErrors.remove(tabId)
         privateTabs.remove(tabId)
+        protectionPauses.clear(tabId)
         foregroundTabs.remove(tabId)
         media.value = media.value - tabId
     }
@@ -156,6 +176,7 @@ class TabManager @Inject constructor(
         live.clear()
         pageErrors.clear()
         privateTabs.clear()
+        protectionPauses.clearAll()
         foregroundTabs.clear()
         media.value = emptyMap()
     }
