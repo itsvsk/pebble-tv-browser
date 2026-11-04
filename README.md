@@ -59,7 +59,8 @@ Move the pointer with the **D-pad** and press **OK / Select** to activate a link
 - **Return to favorite pages:** Speed Dials grow from your browsing history; bookmarks keep sites you choose to save.
 - **Keep pages open:** Switch between tabs, reopen recently closed tabs, and find previously visited pages in History.
 - **Search your way:** Enter a URL or search query, or use voice search when a speech-recognition service is available.
-- **Adjust website behavior:** Save mobile/desktop mode and **Block ads & trackers** choices for each website. Browse's **Page options** also controls tab mute and background playback.
+- **Control ad protection:** Select Browse's shield to pause protection for a visit, save a website exception, and see requests blocked. Settings shows list-update status and saved overrides. [Protection features and limits](docs/ADBLOCK.md).
+- **Adjust website behavior:** Save mobile/desktop mode for each website. Browse's **Page options** also controls tab mute and background playback.
 - **Recover and keep going:** Retry failed pages, edit their address, or return Home using remote-friendly controls.
 - **Follow your downloads:** Get start, completion, and failure alerts, retry failed downloads, check progress in Downloads, and choose an app when opening a saved file.
 - **Choose your surroundings:** Use the warm sand and sea-glass Light theme, the deep green Dark theme, or follow your TV's appearance. Themes change Pebble's interface; websites keep their own appearance.
