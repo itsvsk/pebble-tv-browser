@@ -120,7 +120,24 @@ internal data class HostRule(
 internal fun hostMatches(host: String, ruleHost: String): Boolean =
     host == ruleHost || host.endsWith(".$ruleHost")
 
-internal fun normalizeFilterHost(value: String): String? = runCatching {
-    val host = IDN.toASCII(value.trimEnd('.'), IDN.USE_STD3_ASCII_RULES).lowercase(Locale.ROOT)
-    host.takeIf { it.isNotEmpty() && it.length <= 253 && it.split('.').all { part -> part.isNotEmpty() && part.length <= 63 } }
-}.getOrNull()
+internal fun normalizeFilterHost(value: String): String? {
+    val trimmed = value.trimEnd('.')
+    // Nearly all subscription hosts are already ASCII. Avoid IDN's per-label
+    // conversion buffers, but keep its STD3 checks and Unicode normalization.
+    val host = if (trimmed.all { it.code < 128 }) trimmed else runCatching {
+        IDN.toASCII(trimmed, IDN.USE_STD3_ASCII_RULES)
+    }.getOrNull() ?: return null
+    if (host.isEmpty() || host.length > 253) return null
+    var labelStart = 0
+    for (index in 0..host.length) {
+        if (index == host.length || host[index] == '.') {
+            val length = index - labelStart
+            if (length !in 1..63 || host[labelStart] == '-' || host[index - 1] == '-') return null
+            labelStart = index + 1
+        } else {
+            val char = host[index]
+            if (char !in 'a'..'z' && char !in 'A'..'Z' && char !in '0'..'9' && char != '-') return null
+        }
+    }
+    return host.lowercase(Locale.ROOT)
+}

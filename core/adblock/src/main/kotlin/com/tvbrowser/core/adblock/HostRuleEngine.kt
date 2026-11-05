@@ -10,12 +10,25 @@ class HostRuleEngine(lists: List<ParsedFilterList>) {
     val ruleCount: Int
 
     init {
-        val disabled = lists.flatMap { it.disabledRules }.toSet()
-        val rules = lists.flatMap { it.rules }.filter { it.key !in disabled }.distinctBy { it.key }
-        ruleCount = rules.size
-        blocks = rules.filter { !it.exception }.groupBy { it.host }
-        exceptions = rules.filter { it.exception && !it.document }.groupBy { it.host }
-        documentExceptions = rules.filter { it.document }.groupBy { it.host }
+        val disabled = HashSet<String>()
+        for (list in lists) disabled.addAll(list.disabledRules)
+        val seen = HashSet<String>()
+        val blockIndex = HashMap<String, MutableList<HostRule>>()
+        val exceptionIndex = HashMap<String, MutableList<HostRule>>()
+        val documentIndex = HashMap<String, MutableList<HostRule>>()
+        for (list in lists) for (rule in list.rules) {
+            if (rule.key in disabled || !seen.add(rule.key)) continue
+            val index = when {
+                rule.document -> documentIndex
+                rule.exception -> exceptionIndex
+                else -> blockIndex
+            }
+            index.getOrPut(rule.host) { ArrayList(1) }.add(rule)
+        }
+        ruleCount = seen.size
+        blocks = blockIndex
+        exceptions = exceptionIndex
+        documentExceptions = documentIndex
     }
 
     fun shouldBlock(requestUrl: String, pageUrl: String): Boolean {

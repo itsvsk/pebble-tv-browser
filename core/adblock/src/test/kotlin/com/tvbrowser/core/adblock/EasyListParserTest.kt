@@ -6,8 +6,26 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.BufferedReader
 import java.io.StringReader
+import java.net.IDN
+import java.util.Locale
 
 class EasyListParserTest {
+    @Test fun hostNormalizationPreservesStd3ValidationAndInternationalDomains() {
+        val hosts = listOf("Ads.Example.", "example..", ".example", "a..example", "-a.com",
+            "a-.com", "bad_host.com", "a/b.com", "a:b.com", " a.com", "a.com\u0000",
+            "bücher.de", "例え。テスト", "xn--bcher-kva.de", "a".repeat(64) + ".com",
+            List(4) { "a".repeat(63) }.joinToString("."), "", ".", "127.0.0.1") +
+            (0..127).map { "a${it.toChar()}b.example" }
+        for (host in hosts) {
+            val expected = runCatching {
+                IDN.toASCII(host.trimEnd('.'), IDN.USE_STD3_ASCII_RULES).lowercase(Locale.ROOT)
+                    .takeIf { it.isNotEmpty() && it.length <= 253 &&
+                        it.split('.').all { label -> label.isNotEmpty() && label.length <= 63 } }
+            }.getOrNull()
+            assertEquals("Host: $host", expected, normalizeFilterHost(host))
+        }
+    }
+
     @Test fun parsesUnconditionalHostRulesAndScopedExceptions() {
         val list = parse("""
             ! comment
