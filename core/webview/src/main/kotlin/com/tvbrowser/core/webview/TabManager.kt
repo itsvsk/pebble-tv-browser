@@ -1,6 +1,13 @@
 package com.tvbrowser.core.webview
 
 import android.content.Context
+import android.app.ActivityManager
+import android.content.ComponentCallbacks2
+import android.content.res.Configuration
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.Parcel
 import android.webkit.WebView
 import android.view.ViewGroup
 import com.tvbrowser.core.adblock.AdBlockInterceptor
@@ -28,7 +35,11 @@ class TabManager @Inject constructor(
     private val videoController: WebVideoController,
     private val settings: SettingsRepository,
 ) {
-    companion object { const val MAX_LIVE = 8 }
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val cacheCapacity = (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).let { manager ->
+        val memory = ActivityManager.MemoryInfo().also(manager::getMemoryInfo)
+        TabCachePolicy.capacity(manager.isLowRamDevice, manager.memoryClass, memory.totalMem)
+    }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val privateTabs = PrivateTabRegistry()
@@ -51,6 +62,7 @@ class TabManager @Inject constructor(
         videoController.hide(view)
         (view.parent as? ViewGroup)?.removeView(view)
         view.destroy()
+        unregisterMemoryCallbacksIfEmpty()
     }
 
 
@@ -66,6 +78,9 @@ class TabManager @Inject constructor(
     fun setTabForeground(tabId: String, foreground: Boolean) {
         if (foreground) foregroundTabs.add(tabId) else foregroundTabs.remove(tabId)
         updateMedia(tabId)
+        // AndroidView may still own its parent during onRelease. Trim after it detaches.
+        mainHandler.removeCallbacks(trimCache)
+        mainHandler.post(trimCache)
     }
     private fun updateMedia(tabId: String) {
         live[tabId]?.let { view ->
@@ -76,15 +91,67 @@ class TabManager @Inject constructor(
         }
     }
 
-    private val live = object : LinkedHashMap<String, WebView>(MAX_LIVE, 0.75f, true) {
-        override fun removeEldestEntry(eldest: Map.Entry<String, WebView>?): Boolean {
-            val over = size > MAX_LIVE
-            if (over && eldest != null) {
-                videoController.hide(eldest.value)
-                eldest.value.destroy()
+    private val live = LinkedHashMap<String, WebView>(cacheCapacity, 0.75f, true)
+    private data class SavedPage(val url: String, val history: Bundle?)
+    // Navigation-only state stays in memory, including for private tabs. Never persist DOM data.
+    private val savedPages = object : LinkedHashMap<String, SavedPage>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: Map.Entry<String, SavedPage>?): Boolean = size > 16
+    }
+    private val trimCache = Runnable { trimLiveViews(cacheCapacity) }
+
+    private var callbacksRegistered = false
+    private val memoryCallbacks = object : ComponentCallbacks2 {
+        override fun onConfigurationChanged(newConfig: Configuration) = Unit
+        override fun onLowMemory() { mainHandler.post { trimLiveViews(0) } }
+        override fun onTrimMemory(level: Int) {
+            // UI_HIDDEN is delivered on modern Android too; running-pressure callbacks
+            // are only useful on older versions. Never rely on them for the normal cap.
+            when {
+                level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> mainHandler.post { trimLiveViews(0) }
+                level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> mainHandler.post { trimLiveViews(1) }
             }
-            return over
         }
+    }
+
+    private fun registerMemoryCallbacks() {
+        if (!callbacksRegistered) {
+            context.registerComponentCallbacks(memoryCallbacks)
+            callbacksRegistered = true
+        }
+    }
+
+    private fun unregisterMemoryCallbacksIfEmpty() {
+        if (live.isEmpty() && callbacksRegistered) {
+            context.unregisterComponentCallbacks(memoryCallbacks)
+            callbacksRegistered = false
+        }
+    }
+
+    private fun trimLiveViews(capacity: Int, incoming: String? = null) {
+        val protected = live.filter { (id, view) ->
+            id == incoming || id in foregroundTabs || mediaState(id).backgroundPlayback ||
+                view.parent != null || TabWebViewFactory.clientOf(view).hasUiOwner
+        }.keys
+        for (id in TabCachePolicy.evictions(live.keys.toList(), protected, capacity)) {
+            val view = live.remove(id) ?: continue
+            val history = Bundle()
+            val saved = runCatching { view.saveState(history) != null }.getOrDefault(false)
+            // At most 4 MiB of serialized history; provider state also has heap overhead.
+            val smallEnough = if (saved) {
+                val parcel = Parcel.obtain()
+                try { runCatching { parcel.writeBundle(history); parcel.dataSize() <= 256 * 1024 }.getOrDefault(false) }
+                finally { parcel.recycle() }
+            } else false
+            savedPages[id] = SavedPage(view.url.orEmpty(), history.takeIf { smallEnough })
+            disposeView(view)
+        }
+        unregisterMemoryCallbacksIfEmpty()
+    }
+
+    private fun disposeView(view: WebView) {
+        videoController.hide(view)
+        (view.parent as? ViewGroup)?.removeView(view)
+        view.destroy()
     }
 
     fun prepareNavigation(view: WebView, url: String) {
@@ -120,15 +187,17 @@ class TabManager @Inject constructor(
 
     fun navigate(tabId: String, url: String, config: TabConfig) {
         clearPageError(tabId)
-        val view = getOrCreate(tabId, config)
+        val view = getOrCreate(tabId, config, restoreHistory = false)
         TabWebViewFactory.clientOf(view).beginProtectionNavigation(url)
         prepareNavigation(view, url)
         view.loadUrl(url)
     }
 
     @Synchronized
-    fun getOrCreate(tabId: String, config: TabConfig = TabConfig()): WebView {
+    fun getOrCreate(tabId: String, config: TabConfig = TabConfig(), restoreHistory: Boolean = true): WebView {
         live[tabId]?.let { return it }
+        registerMemoryCallbacks()
+        val saved = savedPages.remove(tabId).takeIf { restoreHistory }
         val privateTab = privateTabs.get(tabId) != null
         val effectiveConfig = if (privateTab && !config.isIncognito) {
             TabConfig(isIncognito = true, desktopUa = config.desktopUa, adblockEnabled = config.adblockEnabled)
@@ -157,28 +226,40 @@ class TabManager @Inject constructor(
             },
         )
         live[tabId] = wv
+        if (saved != null && saved.url.isNotEmpty()) {
+            TabWebViewFactory.clientOf(wv).beginProtectionNavigation(saved.url)
+            prepareNavigation(wv, saved.url)
+            val restored = saved.history?.let { runCatching { wv.restoreState(it) }.getOrNull() }
+            if (restored == null) wv.loadUrl(saved.url)
+        }
+        trimLiveViews(cacheCapacity, incoming = tabId)
         return wv
     }
 
     @Synchronized
     fun release(tabId: String) {
-        live.remove(tabId)?.let { videoController.hide(it); it.destroy() }
+        live.remove(tabId)?.let(::disposeView)
+        savedPages.remove(tabId)
         pageErrors.remove(tabId)
         privateTabs.remove(tabId)
         protectionPauses.clear(tabId)
         foregroundTabs.remove(tabId)
         media.value = media.value - tabId
+        unregisterMemoryCallbacksIfEmpty()
     }
 
     @Synchronized
     fun destroyAll() {
-        live.values.forEach { videoController.hide(it); it.destroy() }
+        live.values.forEach(::disposeView)
         live.clear()
+        savedPages.clear()
         pageErrors.clear()
         privateTabs.clear()
         protectionPauses.clearAll()
         foregroundTabs.clear()
         media.value = emptyMap()
+        mainHandler.removeCallbacksAndMessages(null)
+        unregisterMemoryCallbacksIfEmpty()
     }
 
     suspend fun closeTab(tabId: String) = tabMutation.withLock {
