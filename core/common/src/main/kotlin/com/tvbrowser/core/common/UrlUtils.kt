@@ -4,12 +4,15 @@ import android.net.Uri
 
 object UrlUtils {
     private val urlRegex = Regex("""^([a-zA-Z][a-zA-Z0-9+\-.]*://|//).+""")
-    private val domainRegex = Regex("""^[\w-]+(\.[\w-]+)+(/.*)?$""")
+    private val bareAddressRegex = Regex("""^(?:[\w-]+(?:\.[\w-]+)+|localhost)(?::([0-9]{1,5}))?(?:[/?#].*)?$""")
 
     fun isLikelyUrl(input: String): Boolean {
         val trimmed = input.trim()
         if (trimmed.isEmpty() || trimmed.contains(' ')) return false
-        return urlRegex.matches(trimmed) || domainRegex.matches(trimmed) || trimmed == "localhost"
+        if (urlRegex.matches(trimmed)) return true
+        val address = bareAddressRegex.matchEntire(trimmed) ?: return false
+        val port = address.groups[1]?.value?.toInt()
+        return port == null || port in 1..65535
     }
 
     fun normalize(input: String): String {
