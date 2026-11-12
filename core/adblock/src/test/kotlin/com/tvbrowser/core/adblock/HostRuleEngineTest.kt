@@ -55,6 +55,27 @@ class HostRuleEngineTest {
         assertFalse(engine.shouldBlock("https://tracker.example/pixel", "https://notnews.example"))
     }
 
+    @Test fun nearestDomainScopeAppliesToBlockingRules() {
+        val engine = engine("||tracker.example^${'$'}domain=~news.example|sports.news.example|~video.sports.news.example")
+        val request = "https://tracker.example/pixel"
+        assertTrue(engine.shouldBlock(request, "https://sports.news.example"))
+        assertTrue(engine.shouldBlock(request, "https://live.sports.news.example"))
+        assertFalse(engine.shouldBlock(request, "https://news.example"))
+        assertFalse(engine.shouldBlock(request, "https://video.sports.news.example"))
+        assertFalse(engine.shouldBlock(request, "https://other.example"))
+    }
+
+    @Test fun nearestDomainScopeAppliesToNetworkExceptions() {
+        val engine = engine("""
+            ||cdn.example^
+            @@||cdn.example^${'$'}domain=sports.news.example|~news.example
+        """.trimIndent())
+        val request = "https://cdn.example/item"
+        assertFalse(engine.shouldBlock(request, "https://live.sports.news.example"))
+        assertTrue(engine.shouldBlock(request, "https://other.news.example"))
+        assertTrue(engine.shouldBlock(request, "https://sports.news.example.other.example"))
+    }
+
     @Test fun exclusionOnlyDomainAppliesEverywhereExceptExcludedWebsite() {
         val engine = engine("||tracker.example^${'$'}domain=~news.example")
         assertTrue(engine.shouldBlock("https://tracker.example/pixel", "https://other.example"))

@@ -24,15 +24,17 @@ WebView budgets use the normal memory class, reported total RAM, and low-RAM fla
 | Otherwise heap class ≤192 MiB or reported RAM ≤3 GiB | 4 |
 | Otherwise | 8 |
 
-These are conservative starting budgets, not universal hardware thresholds. A temporary
-excess is allowed for attached/UI-owned/foreground views and explicit background-playback
-tabs. Those views are never evicted just to meet a number. Unprotected views leave in LRU
-order. Older Android running-memory callbacks reduce the budget; `UI_HIDDEN` releases all
-unprotected views. The ordinary budget does not depend on receiving a memory callback.
+These are conservative starting budgets. Eviction protects views that are attached,
+owned by the UI, or foregrounded. Background playback reserves at most one view across
+the session. Allowing it on a different tab transfers the allowance and pauses the previous
+tab when it is inactive. Unprotected views leave in LRU order. Older Android running-memory
+callbacks reduce the budget, and `UI_HIDDEN` releases all unprotected views.
 
-Eviction saves up to 16 navigation records in memory. Each history Bundle must serialize
-within 256 KiB (at most 4 MiB serialized history, excluding provider/heap overhead). A missing,
-oversized, or unserializable history falls back to the last URL. Restoring navigation applies
+Eviction saves up to 16 navigation records in memory. Normal cache eviction retains a
+history Bundle if its serialized size is within 256 KiB (at most 4 MiB serialized history,
+excluding provider/heap overhead). Missing, oversized, or unserializable history falls
+back to the last URL. Memory callbacks save only the last URL for evicted tabs, avoiding
+history serialization during trimming. Restoring navigation applies
 the existing site/protection preferences before loading. Explicit navigation discards old
 saved history. Closing a tab clears its saved state, including private state; none is written
 to disk. Eviction reloads the document on return: live DOM, forms, JavaScript state, and media

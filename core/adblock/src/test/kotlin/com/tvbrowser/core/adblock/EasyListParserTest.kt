@@ -97,6 +97,24 @@ class EasyListParserTest {
         assertEquals(0, list.blockRuleCount)
     }
 
+    @Test fun rejectsRepeatedDomainOptionsOnBlocksAndExceptions() {
+        val list = parse("""
+            ||cdn.example^${'$'}domain=a.example,DOMAIN=b.example
+            @@||cdn.example^${'$'}domain=a.example,domain=b.example
+        """.trimIndent())
+        assertEquals(0, list.ruleCount)
+        assertEquals(2, list.unsupportedRules)
+    }
+
+    @Test fun repeatedDomainOptionCannotDisableAnOtherwiseValidFilter() {
+        val rule = parse("||cdn.example^${'$'}domain=news.example")
+        val malformedBadfilter = parse("||cdn.example^${'$'}domain=news.example,badfilter,domain=news.example")
+        assertEquals(1, malformedBadfilter.unsupportedRules)
+        val engine = HostRuleEngine(listOf(rule, malformedBadfilter))
+        assertTrue(engine.shouldBlock("https://cdn.example/item", "https://news.example"))
+        assertFalse(engine.shouldBlock("https://cdn.example/item", "https://other.example"))
+    }
+
     private fun parse(source: String): ParsedFilterList =
         EasyListParser.parse(BufferedReader(StringReader(source)))
 

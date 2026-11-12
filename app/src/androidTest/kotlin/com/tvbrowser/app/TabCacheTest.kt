@@ -106,6 +106,58 @@ class TabCacheTest {
         }
     }
 
+    @Test fun latestBackgroundOptInReplacesEarlierAllowancesUnderMemoryPressure() = fixture { manager, context ->
+        val olderTabs = listOf("first", "second")
+        lateinit var latestView: WebView
+        val earlierViews = mutableMapOf<String, WebView>()
+        main {
+            for (id in olderTabs) {
+                earlierViews[id] = manager.getOrCreate(id)
+                manager.setTabMuted(id, true)
+                manager.setTabBackgroundPlayback(id, true)
+            }
+            latestView = manager.getOrCreate("latest")
+            manager.setTabBackgroundPlayback("latest", true)
+            context.callbacks!!.onLowMemory()
+        }
+        instrumentation.waitForIdleSync()
+        main {
+            for ((id, view) in earlierViews) {
+                assertFalse(manager.mediaState(id).backgroundPlayback)
+                assertTrue("Transferring playback must preserve mute", manager.mediaState(id).muted)
+                assertFalse(manager.isLiveView(id, view))
+            }
+            assertTrue(manager.mediaState("latest").backgroundPlayback)
+            assertTrue(manager.isLiveView("latest", latestView))
+        }
+    }
+
+    @Test fun pressureEvictionRestoresLastUrlWithoutBackHistory() = fixture { manager, context ->
+        val id = "pressure-history"
+        lateinit var original: WebView
+        lateinit var lastUrl: String
+        main { original = manager.getOrCreate(id) }
+        load(manager, original, id, "First")
+        load(manager, original, id, "Second")
+        main {
+            assertTrue(original.canGoBack())
+            lastUrl = checkNotNull(original.url)
+            context.callbacks!!.onLowMemory()
+        }
+        instrumentation.waitForIdleSync()
+        lateinit var restored: WebView
+        main {
+            assertFalse(manager.isLiveView(id, original))
+            restored = manager.getOrCreate(id)
+            assertNotSame(original, restored)
+        }
+        awaitTitle(restored, "Second")
+        main {
+            assertEquals(lastUrl, restored.url)
+            assertFalse(restored.canGoBack())
+        }
+    }
+
     private fun fillCache(manager: TabManager) {
         main { repeat(12) { manager.getOrCreate("filler-$it") } }
     }

@@ -73,12 +73,13 @@ class BrowserViewModel @Inject constructor(
                 if (page.host == normalizedSiteHost(_ui.value.url)) {
                     _ui.value = _ui.value.copy(desktopUa = page.desktopUa, adblockEnabled = page.adblockEnabled,
                         siteHost = page.host, siteOverridden = page.overridden, adblockOverridden = page.adblockOverridden)
+                    tabManager.refreshProtectionPolicy(tabId)
                 }
             }
         }
     }
 
-    fun makeConfig() = _ui.value.let { TabConfig(it.isIncognito, it.desktopUa, it.adblockEnabled) }
+    fun makeConfig() = _ui.value.let { TabConfig(it.isIncognito, it.desktopUa) }
     fun onPageStarted(url: String) {
         val page = settings.cachedPagePreferences(url)
         _ui.value = _ui.value.copy(url = url, error = null, desktopUa = page.desktopUa,

@@ -15,6 +15,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.tvbrowser.core.adblock.AdBlockInterceptor
 import com.tvbrowser.core.adblock.EasyListLoader
+import com.tvbrowser.core.common.normalizedSiteHost
 import com.tvbrowser.core.webview.PageProtectionStats
 import com.tvbrowser.core.webview.TabConfig
 import com.tvbrowser.core.webview.TabWebViewClient
@@ -33,6 +34,7 @@ import java.util.ArrayDeque
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -100,13 +102,28 @@ class AdblockWebViewTest {
     fun changingTheBlockingDefaultReachesRealSubresourceRequests() = withFixture { fixture ->
         navigate(fixture, "https://pebble.invalid/fixture")
         assertProtected(fixture)
-        instrumentation.runOnMainSync { fixture.client.adblockEnabled = false }
+        fixture.defaultProtection.set(false)
         reload(fixture)
         assertEquals(1, metrics(fixture).getInt("adRuns"))
         assertEquals(0, stats(fixture).blockedRequests)
 
-        instrumentation.runOnMainSync { fixture.client.adblockEnabled = true }
+        fixture.defaultProtection.set(true)
         reload(fixture)
+        assertProtected(fixture)
+    }
+
+    @Test
+    fun unpreparedCrossSiteNavigationAppliesTheDestinationPolicy() = withFixture(
+        siteProtection = { normalizedSiteHost(it) != "allowed.pebble.invalid" },
+    ) { fixture ->
+        navigate(fixture, "https://pebble.invalid/fixture")
+        assertProtected(fixture)
+
+        navigate(fixture, "https://allowed.pebble.invalid/fixture", prepare = false)
+        assertEquals(1, metrics(fixture).getInt("adRuns"))
+        assertEquals(0, stats(fixture).blockedRequests)
+
+        navigate(fixture, "https://pebble.invalid/fixture", prepare = false)
         assertProtected(fixture)
     }
 
@@ -141,9 +158,18 @@ class AdblockWebViewTest {
         @Synchronized fun dump(): String = events.joinToString("\n")
     }
 
-    private data class Fixture(val browser: WebView, val client: TabWebViewClient, val trace: EventTrace)
+    private data class Fixture(
+        val browser: WebView,
+        val client: TabWebViewClient,
+        val trace: EventTrace,
+        val defaultProtection: AtomicBoolean,
+    )
 
-    private fun withFixture(adRules: String? = null, check: (Fixture) -> Unit) {
+    private fun withFixture(
+        adRules: String? = null,
+        siteProtection: (String) -> Boolean = { true },
+        check: (Fixture) -> Unit,
+    ) {
         lateinit var fixture: Fixture
         lateinit var directory: File
         lateinit var loader: EasyListLoader
@@ -160,8 +186,11 @@ class AdblockWebViewTest {
                 override fun getFilesDir(): File = directory
             }
             loader = EasyListLoader(isolatedContext)
-            val browser = TabWebViewFactory.create(host, TabConfig(adblockEnabled = true),
-                AdBlockInterceptor(loader), host.videoController)
+            val defaultProtection = AtomicBoolean(true)
+            val browser = TabWebViewFactory.create(
+                host, TabConfig(), AdBlockInterceptor(loader), host.videoController,
+                protectionEnabledForPage = { defaultProtection.get() && siteProtection(it) },
+            )
             browser.settings.cacheMode = WebSettings.LOAD_NO_CACHE
             val client = TabWebViewFactory.clientOf(browser)
             val generation = AtomicInteger()
@@ -201,7 +230,7 @@ class AdblockWebViewTest {
             val root = FrameLayout(host)
             root.addView(browser, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
             host.setContentView(root)
-            fixture = Fixture(browser, client, trace)
+            fixture = Fixture(browser, client, trace, defaultProtection)
         }
         try {
             if (adRules != null) await("The controlled subscription snapshots must initialize") {
@@ -241,12 +270,11 @@ class AdblockWebViewTest {
     private fun response(type: String, text: String) = WebResourceResponse(type, "UTF-8", 200, "OK",
         mapOf("Cache-Control" to "no-store"), text.byteInputStream())
 
-    private fun navigate(fixture: Fixture, url: String) {
+    private fun navigate(fixture: Fixture, url: String, prepare: Boolean = true) {
         val before = metrics(fixture).optInt("generation")
         instrumentation.runOnMainSync {
-            fixture.trace.record("prepare before $url; stats=${fixture.client.protectionStats()}")
-            fixture.client.prepareProtection(url)
-            fixture.trace.record("prepare after $url; stats=${fixture.client.protectionStats()}")
+            if (prepare) fixture.client.prepareProtection(url)
+            fixture.trace.record("load $url; prepared=$prepare; stats=${fixture.client.protectionStats()}")
             fixture.browser.loadUrl(url)
         }
         awaitLoaded(fixture, before)

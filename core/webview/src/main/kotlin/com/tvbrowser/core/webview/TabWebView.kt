@@ -69,7 +69,7 @@ internal class TabCallbackRelay(
 
 class TabWebViewClient(
     private val adBlock: AdBlockInterceptor,
-    adblockEnabled: Boolean,
+    protectionEnabledForPage: (String) -> Boolean,
     onPageFinished: (String, String?) -> Unit,
     private val hideFullscreen: () -> Unit = {},
     private val persistError: (WebPageError) -> Unit = {},
@@ -83,11 +83,9 @@ class TabWebViewClient(
     private val callbacks = TabCallbackRelay(onPageFinished)
     private val documents = PageDocumentState()
 
-    private val protection = PageProtectionState().apply { enabled = adblockEnabled }
-    var adblockEnabled: Boolean
-        get() = protection.enabled
-        set(value) { protection.enabled = value }
-    fun prepareProtection(url: String) = protection.prepare(url)
+    private val protection = PageProtectionState(protectionEnabledForPage)
+    fun prepareProtection(url: String, paused: Boolean? = null) = protection.prepare(url, paused)
+    fun refreshProtectionPolicy() = protection.refreshPolicy()
     fun beginProtectionNavigation(url: String) = protection.beginNavigation(url)
     fun protectionPageUrl(): String = protection.pageUrl()
     fun protectionStats(): PageProtectionStats = protection.stats()
@@ -118,8 +116,8 @@ class TabWebViewClient(
         !isWebDocumentScheme(Uri.parse(url).scheme)
 
     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-        // This callback runs off UI. Never read the WebView URL here; context was captured
-        // before navigation and at page start. Main documents remain navigable.
+        // This callback runs off UI. The main request resolves its own protection policy
+        // from cached settings. Subresources read that document and policy together.
         val blocked = protection.intercept(request.url.toString(), request.isForMainFrame, adBlock::shouldBlock)
         return if (blocked) WebResourceResponse("text/plain", "utf-8", 204, "No Content",
             mapOf("Cache-Control" to "no-store"), java.io.ByteArrayInputStream(ByteArray(0))) else null
@@ -206,6 +204,8 @@ object TabWebViewFactory {
             (view.parent as? ViewGroup)?.removeView(view)
             view.destroy()
         },
+        // Read from a thread-safe cache. Main-frame interception may call this off the UI thread.
+        protectionEnabledForPage: (String) -> Boolean = { config.adblockEnabled },
     ): WebView {
         val wv = WebView(context).apply {
             // AndroidView otherwise supplies WRAP_CONTENT, giving Blink an unbounded
@@ -233,7 +233,7 @@ object TabWebViewFactory {
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(wv, !config.isIncognito)
 
-        val client = TabWebViewClient(adBlock, config.adblockEnabled, onPageFinished,
+        val client = TabWebViewClient(adBlock, protectionEnabledForPage, onPageFinished,
             hideFullscreen = { videoController.hide(wv) }, persistError = onPageError, configureNavigation = onNavigation,
             documentAvailable = onDocumentAvailable, rendererGone = onRendererGone)
         wv.setTag(R.id.pebble_tab_webview_client, client)

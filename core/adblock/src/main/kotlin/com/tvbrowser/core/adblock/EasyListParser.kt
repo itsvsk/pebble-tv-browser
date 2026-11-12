@@ -25,9 +25,10 @@ object EasyListParser {
                 val host = normalizeFilterHost(pattern.takeWhile { it != '^' && it != '/' })
                 if (host == null) { unsupported++; continue }
                 val suffix = pattern.dropWhile { it != '^' && it != '/' }
-                val options = if ('$' in body) body.substringAfter('$').split(',') else emptyList()
+                val options = if ('$' in body) body.substringAfter('$').splitToSequence(',') else emptySequence()
                 val includes = mutableSetOf<String>()
                 val excludes = mutableSetOf<String>()
+                var domainOptionSeen = false
                 var party: Boolean? = null
                 var document = false
                 var badfilter = false
@@ -54,12 +55,21 @@ object EasyListParser {
                             canonicalOptions += option
                         }
                         option.startsWith("domain=") -> {
-                            val domains = option.substringAfter('=').split('|')
+                            if (domainOptionSeen) {
+                                invalid = true
+                                break
+                            }
+                            domainOptionSeen = true
+                            val domains = option.substringAfter('=').splitToSequence('|')
                             for (domain in domains) {
                                 val normalized = normalizeFilterHost(domain.removePrefix("~"))
-                                if (normalized == null) invalid = true
-                                else if (domain.startsWith("~")) excludes += normalized else includes += normalized
+                                if (normalized == null) {
+                                    invalid = true
+                                    break
+                                }
+                                if (domain.startsWith("~")) excludes += normalized else includes += normalized
                             }
+                            if (invalid) break
                             canonicalOptions += "domain=" +
                                 (includes + excludes.map { "~$it" }).sorted().joinToString("|")
                         }
@@ -111,14 +121,22 @@ internal data class HostRule(
     val document: Boolean,
     val key: String,
 ) {
-    fun appliesTo(pageHost: String, isThirdParty: () -> Boolean): Boolean =
-        (thirdParty == null || thirdParty == isThirdParty()) &&
-            (includes.isEmpty() || includes.any { hostMatches(pageHost, it) }) &&
-            excludes.none { hostMatches(pageHost, it) }
+    fun appliesTo(pageHost: String, isThirdParty: () -> Boolean): Boolean {
+        if (thirdParty != null && thirdParty != isThirdParty()) return false
+        if (includes.isEmpty() && excludes.isEmpty()) return true
+        // The first configured suffix wins, starting with the page host itself.
+        // An exclusion retains precedence if the same suffix has both entries.
+        var candidate = pageHost
+        while (candidate.isNotEmpty()) {
+            if (candidate in excludes) return false
+            if (candidate in includes) return true
+            val separator = candidate.indexOf('.')
+            if (separator < 0) break
+            candidate = candidate.substring(separator + 1)
+        }
+        return includes.isEmpty()
+    }
 }
-
-internal fun hostMatches(host: String, ruleHost: String): Boolean =
-    host == ruleHost || host.endsWith(".$ruleHost")
 
 internal fun normalizeFilterHost(value: String): String? {
     val trimmed = value.trimEnd('.')

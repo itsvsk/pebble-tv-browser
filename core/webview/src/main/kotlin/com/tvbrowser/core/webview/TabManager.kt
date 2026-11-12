@@ -72,12 +72,27 @@ class TabManager @Inject constructor(
         updateMedia(tabId)
     }
     fun setTabBackgroundPlayback(tabId: String, enabled: Boolean) {
-        media.value = media.value + (tabId to mediaState(tabId).copy(backgroundPlayback = enabled))
+        val current = media.value
+        val state = current[tabId] ?: TabMediaState()
+        if (state.backgroundPlayback == enabled) return
+        val previous = if (enabled) {
+            current.entries.firstOrNull { it.key != tabId && it.value.backgroundPlayback }
+        } else null
+        val updated = current.toMutableMap()
+        previous?.let { updated[it.key] = it.value.copy(backgroundPlayback = false) }
+        updated[tabId] = state.copy(backgroundPlayback = enabled)
+        media.value = updated
+        previous?.let { updateMedia(it.key) }
         updateMedia(tabId)
+        scheduleCacheTrim()
     }
     fun setTabForeground(tabId: String, foreground: Boolean) {
         if (foreground) foregroundTabs.add(tabId) else foregroundTabs.remove(tabId)
         updateMedia(tabId)
+        scheduleCacheTrim()
+    }
+
+    private fun scheduleCacheTrim() {
         // AndroidView may still own its parent during onRelease. Trim after it detaches.
         mainHandler.removeCallbacks(trimCache)
         mainHandler.post(trimCache)
@@ -102,15 +117,20 @@ class TabManager @Inject constructor(
     private var callbacksRegistered = false
     private val memoryCallbacks = object : ComponentCallbacks2 {
         override fun onConfigurationChanged(newConfig: Configuration) = Unit
-        override fun onLowMemory() { mainHandler.post { trimLiveViews(0) } }
+        override fun onLowMemory() { scheduleMemoryTrim(0) }
         override fun onTrimMemory(level: Int) {
             // UI_HIDDEN is delivered on modern Android too; running-pressure callbacks
             // are only useful on older versions. Never rely on them for the normal cap.
             when {
-                level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> mainHandler.post { trimLiveViews(0) }
-                level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> mainHandler.post { trimLiveViews(1) }
+                level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> scheduleMemoryTrim(0)
+                level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> scheduleMemoryTrim(1)
             }
         }
+    }
+
+    private fun scheduleMemoryTrim(capacity: Int) {
+        mainHandler.removeCallbacks(trimCache)
+        mainHandler.post { trimLiveViews(capacity, preserveHistory = false) }
     }
 
     private fun registerMemoryCallbacks() {
@@ -127,25 +147,33 @@ class TabManager @Inject constructor(
         }
     }
 
-    private fun trimLiveViews(capacity: Int, incoming: String? = null) {
+    private fun trimLiveViews(capacity: Int, incoming: String? = null, preserveHistory: Boolean = true) {
         val protected = live.filter { (id, view) ->
             id == incoming || id in foregroundTabs || mediaState(id).backgroundPlayback ||
                 view.parent != null || TabWebViewFactory.clientOf(view).hasUiOwner
         }.keys
         for (id in TabCachePolicy.evictions(live.keys.toList(), protected, capacity)) {
             val view = live.remove(id) ?: continue
-            val history = Bundle()
-            val saved = runCatching { view.saveState(history) != null }.getOrDefault(false)
-            // At most 4 MiB of serialized history; provider state also has heap overhead.
-            val smallEnough = if (saved) {
-                val parcel = Parcel.obtain()
-                try { runCatching { parcel.writeBundle(history); parcel.dataSize() <= 256 * 1024 }.getOrDefault(false) }
-                finally { parcel.recycle() }
-            } else false
-            savedPages[id] = SavedPage(view.url.orEmpty(), history.takeIf { smallEnough })
+            val history = if (preserveHistory) captureHistory(view) else null
+            savedPages[id] = SavedPage(view.url.orEmpty(), history)
             disposeView(view)
         }
         unregisterMemoryCallbacksIfEmpty()
+    }
+
+    private fun captureHistory(view: WebView): Bundle? {
+        val history = Bundle()
+        if (runCatching { view.saveState(history) }.getOrNull() == null) return null
+        // At most 4 MiB of serialized history; provider state also has heap overhead.
+        val parcel = Parcel.obtain()
+        return try {
+            runCatching {
+                parcel.writeBundle(history)
+                history.takeIf { parcel.dataSize() <= 256 * 1024 }
+            }.getOrNull()
+        } finally {
+            parcel.recycle()
+        }
     }
 
     private fun disposeView(view: WebView) {
@@ -156,15 +184,14 @@ class TabManager @Inject constructor(
 
     fun prepareNavigation(view: WebView, url: String) {
         val preferences = settings.cachedPagePreferences(url)
-        TabWebViewFactory.clientOf(view).apply {
-            prepareProtection(url)
-            adblockEnabled = preferences.adblockEnabled
-            live.entries.firstOrNull { it.value === view }?.key?.let { id ->
-                setProtectionPaused(protectionPauses.forPage(id, url), url)
-            }
-        }
+        val paused = live.entries.firstOrNull { it.value === view }?.key?.let { protectionPauses.forPage(it, url) }
+        TabWebViewFactory.clientOf(view).prepareProtection(url, paused)
         val desired = UserAgents.forMode(android.webkit.WebSettings.getDefaultUserAgent(context), preferences.desktopUa)
         if (view.settings.userAgentString != desired) view.settings.userAgentString = desired
+    }
+
+    fun refreshProtectionPolicy(tabId: String) {
+        live[tabId]?.let { TabWebViewFactory.clientOf(it).refreshProtectionPolicy() }
     }
 
     fun protectionStats(tabId: String): PageProtectionStats =
@@ -208,6 +235,7 @@ class TabManager @Inject constructor(
             adBlock = adBlock,
             videoController = videoController,
             onNavigation = { view, url -> clearPageError(tabId); prepareNavigation(view, url) },
+            protectionEnabledForPage = { url -> settings.cachedPagePreferences(url).adblockEnabled },
             onDocumentAvailable = { updateMedia(tabId) },
             onPageError = { pageErrors[tabId] = it },
             onRendererGone = ::discardCrashedView,

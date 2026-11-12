@@ -91,7 +91,6 @@ fun WebViewHost(
             },
             update = update@ { view ->
                 if (!tabManager.isLiveView(tabId, view)) return@update
-                TabWebViewFactory.clientOf(view).adblockEnabled = config.adblockEnabled
                 if (view.settings.userAgentString != desiredUserAgent) {
                     view.settings.userAgentString = desiredUserAgent
                     tabManager.reloadLiveTab(tabId)
