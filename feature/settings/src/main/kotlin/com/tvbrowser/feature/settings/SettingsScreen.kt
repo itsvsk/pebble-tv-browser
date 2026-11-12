@@ -46,6 +46,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
@@ -61,6 +62,8 @@ import androidx.tv.material3.Text
 import com.tvbrowser.core.common.PrefKeys
 import com.tvbrowser.core.common.SettingsRepository
 import com.tvbrowser.core.common.ThemePreference
+import com.tvbrowser.core.common.SiteAdblockOverride
+import com.tvbrowser.core.adblock.EasyListLoader
 import com.tvbrowser.core.db.repo.HistoryRepository
 import com.tvbrowser.core.design.PebbleColors
 import com.tvbrowser.core.design.seaGlass
@@ -74,28 +77,44 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val history: HistoryRepository,
+    private val filters: EasyListLoader,
 ) : ViewModel() {
     val desktopUa: StateFlow<Boolean> = settings.desktopUa
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val adblock: StateFlow<Boolean> = settings.adblockEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val protectionStatus = filters.status
+    val protectionOverrides: StateFlow<List<SiteAdblockOverride>> = settings.siteAdblockOverrides
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private var refreshJob: Job? = null
+    private var protectionChangeJob: Job? = null
     val cursorLongPress: StateFlow<Boolean> = settings.cursorToggleLongPress
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val theme: StateFlow<ThemePreference> = settings.theme
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemePreference.System)
 
     fun setDesktopUa(v: Boolean) = viewModelScope.launch { settings.set(PrefKeys.DesktopUa, v) }
-    fun setAdblock(v: Boolean) = viewModelScope.launch { settings.set(PrefKeys.AdblockEnabled, v) }
+    fun setAdblock(v: Boolean) {
+        if (protectionChangeJob?.isActive == true) return
+        protectionChangeJob = viewModelScope.launch { settings.set(PrefKeys.AdblockEnabled, v) }
+    }
     fun setCursorLongPress(v: Boolean) = viewModelScope.launch { settings.set(PrefKeys.CursorToggleLongPress, v) }
     fun setTheme(v: ThemePreference) = viewModelScope.launch { settings.setTheme(v) }
 
     fun clearHistory() = viewModelScope.launch { history.clear() }
+    fun resetSiteProtection(url: String) = viewModelScope.launch { settings.resetSiteAdblock(url) }
+    fun resetAllSiteProtection() = viewModelScope.launch { settings.resetAllSiteAdblock() }
+    fun updateProtection() {
+        if (refreshJob?.isActive == true || protectionStatus.value.refreshing) return
+        refreshJob = viewModelScope.launch { filters.refresh() }
+    }
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class)
@@ -109,7 +128,16 @@ fun SettingsScreen(
     val longPress by vm.cursorLongPress.collectAsState()
     val theme by vm.theme.collectAsState()
     val firstFocus = remember { FocusRequester() }
+    val protectionFocus = remember { FocusRequester() }
     var showClearHistory by remember { mutableStateOf(false) }
+    var showProtection by remember { mutableStateOf(false) }
+    var restoreProtectionFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(showProtection, restoreProtectionFocus) {
+        if (!showProtection && restoreProtectionFocus) {
+            protectionFocus.requestFocus()
+            restoreProtectionFocus = false
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -167,12 +195,12 @@ fun SettingsScreen(
                     )
                 }
                 item {
-                    ToggleRow(
+                    ActionRow(
                         icon = Icons.Outlined.AdsClick,
-                        title = "Block ads & trackers",
-                        subtitle = "Filter known networks via host rules",
-                        value = ad,
-                        onChange = vm::setAdblock,
+                        title = "Ad & tracker protection",
+                        subtitle = "Default ${if (ad) "On" else "Off"} · Filter updates and website overrides",
+                        onClick = { showProtection = true },
+                        modifier = Modifier.focusRequester(protectionFocus).testTag("settings-protection"),
                     )
                 }
                 item { SectionHeader("Input") }
@@ -215,6 +243,23 @@ fun SettingsScreen(
                     showClearHistory = false
                 },
                 onCancel = { showClearHistory = false },
+            )
+        }
+        if (showProtection) {
+            val status by vm.protectionStatus.collectAsState()
+            val overrides by vm.protectionOverrides.collectAsState()
+            ProtectionSettingsDialog(
+                enabled = ad,
+                status = status,
+                overrides = overrides,
+                onSetEnabled = vm::setAdblock,
+                onRefresh = vm::updateProtection,
+                onResetSite = vm::resetSiteProtection,
+                onResetAll = vm::resetAllSiteProtection,
+                onDismiss = {
+                    showProtection = false
+                    restoreProtectionFocus = true
+                },
             )
         }
     }
@@ -290,8 +335,9 @@ private fun ActionRow(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    SetRow(icon = icon, title = title, subtitle = subtitle, onClick = onClick) {
+    SetRow(icon = icon, title = title, subtitle = subtitle, onClick = onClick, modifier = modifier) {
         Icon(
             Icons.Outlined.ChevronRight,
             contentDescription = null,

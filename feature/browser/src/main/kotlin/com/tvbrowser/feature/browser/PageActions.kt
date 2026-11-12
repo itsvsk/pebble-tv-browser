@@ -34,7 +34,8 @@ internal fun PageMenu(ui: BrowserUi, media: TabMediaState, onDesktop: () -> Unit
             Text(ui.siteHost ?: "Current tab", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
             PageAction(if (media.muted) "Unmute tab" else "Mute tab", "page-mute", onMute, Modifier.focusRequester(focus))
             PageAction("Background playback: ${if (media.backgroundPlayback) "Allowed" else "Off"}", "page-background", onBackground)
-            Text("Applies to this tab for this session. Some sites pause when hidden.", style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
+            Text("One tab at a time. Turning this on switches background playback to this tab.",
+                style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)
             if (ui.siteHost != null) {
                 Text(if (ui.siteOverridden) "Settings saved for this website" else "Using global defaults",
                     style = PebbleType.BodySm, color = PebbleColors.OnSurfaceMuted)

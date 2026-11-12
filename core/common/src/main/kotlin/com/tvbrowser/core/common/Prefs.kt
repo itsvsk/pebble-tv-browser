@@ -59,6 +59,13 @@ class SettingsRepository @Inject constructor(
         val host = normalizedSiteHost(url) ?: return
         store.edit { it[siteAdblockKey(host)] = value }
     }
+    val siteAdblockOverrides: Flow<List<SiteAdblockOverride>> = preferences.map { it.siteAdblockOverrides() }
+    suspend fun resetSiteAdblock(url: String) {
+        store.edit { it.resetSiteAdblock(url) }
+    }
+    suspend fun resetAllSiteAdblock() {
+        store.edit { it.resetAllSiteAdblock() }
+    }
     suspend fun resetSite(url: String) {
         val host = normalizedSiteHost(url) ?: return
         store.edit { it.remove(siteDesktopKey(host)); it.remove(siteAdblockKey(host)) }

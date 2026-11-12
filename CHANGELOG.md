@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+
+- Browse shield with per-document blocked-request counts, temporary per-tab/host pauses, and independent website-protection resets.
+- Protection settings with filter-list status, manual updates, and managed exact-host overrides.
+
+### Fixed
+
+- Preserve supported party/domain restrictions, exceptions and disabled rules instead of flattening them into unconditional hostname blocks.
+- Keep working protection after partial update failures, malformed responses or corrupt cache data; apply bundled protection immediately at startup.
+
+
 ## 0.1.1 — 2026-10-28
 
 ### Added

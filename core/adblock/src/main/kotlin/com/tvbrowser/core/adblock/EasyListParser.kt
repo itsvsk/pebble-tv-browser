@@ -1,29 +1,161 @@
 package com.tvbrowser.core.adblock
 
 import java.io.BufferedReader
+import java.net.IDN
+import java.util.Locale
 
-/**
- * Parses EasyList-format lines. v1 supports only host-based rules of the form
- *   ||example.com^
- *   ||sub.example.com^$third-party
- * Ignores: cosmetic filters (## / #@#), exception rules (@@), regex rules, element-hide.
- */
+/** A deliberately bounded EasyList subset; unsupported blocking rules are never widened. */
 object EasyListParser {
-
-    private val hostRule = Regex("""^\|\|([a-z0-9.\-_]+)\^""")
-
-    fun parse(reader: BufferedReader): Set<String> {
-        val out = HashSet<String>()
+    private val resourceOptions = setOf(
+        "script", "image", "stylesheet", "object", "object-subrequest", "subdocument",
+        "xmlhttprequest", "ping", "websocket", "webrtc", "font", "media", "other",
+    )
+    fun parse(reader: BufferedReader): ParsedFilterList {
+        val rules = linkedMapOf<String, HostRule>()
+        val disabled = mutableSetOf<String>()
+        var unsupported = 0
         reader.useLines { lines ->
             for (raw in lines) {
-                val line = raw.trim()
+                val line = raw.trim().removePrefix("\uFEFF")
                 if (line.isEmpty() || line.startsWith("!") || line.startsWith("[")) continue
-                if (line.startsWith("@@")) continue
-                if (line.contains("##") || line.contains("#@#")) continue
-                val m = hostRule.find(line) ?: continue
-                out.add(m.groupValues[1].lowercase())
+                val exception = line.startsWith("@@")
+                val body = line.removePrefix("@@")
+                if (!body.startsWith("||")) { unsupported++; continue }
+                val pattern = body.substringBefore('$').removePrefix("||")
+                val host = normalizeFilterHost(pattern.takeWhile { it != '^' && it != '/' })
+                if (host == null) { unsupported++; continue }
+                val suffix = pattern.dropWhile { it != '^' && it != '/' }
+                val options = if ('$' in body) body.substringAfter('$').splitToSequence(',') else emptySequence()
+                val includes = mutableSetOf<String>()
+                val excludes = mutableSetOf<String>()
+                var domainOptionSeen = false
+                var party: Boolean? = null
+                var document = false
+                var badfilter = false
+                var unsupportedOption = false
+                var invalid = false
+                val canonicalOptions = mutableListOf<String>()
+                for (rawOption in options) {
+                    val option = rawOption.lowercase(Locale.ROOT)
+                    when {
+                        option == "badfilter" -> badfilter = true
+                        option == "third-party" || option == "~third-party" -> {
+                            val desired = option == "third-party"
+                            if (party != null && party != desired) invalid = true
+                            party = desired
+                            canonicalOptions += option
+                        }
+                        option == "document" && exception -> {
+                            document = true
+                            canonicalOptions += option
+                        }
+                        option == "match-case" && exception -> {
+                            // A host-only projection cannot retain path case sensitivity.
+                            unsupportedOption = true
+                            canonicalOptions += option
+                        }
+                        option.startsWith("domain=") -> {
+                            if (domainOptionSeen) {
+                                invalid = true
+                                break
+                            }
+                            domainOptionSeen = true
+                            val domains = option.substringAfter('=').splitToSequence('|')
+                            for (domain in domains) {
+                                val normalized = normalizeFilterHost(domain.removePrefix("~"))
+                                if (normalized == null) {
+                                    invalid = true
+                                    break
+                                }
+                                if (domain.startsWith("~")) excludes += normalized else includes += normalized
+                            }
+                            if (invalid) break
+                            canonicalOptions += "domain=" +
+                                (includes + excludes.map { "~$it" }).sorted().joinToString("|")
+                        }
+                        option.removePrefix("~") in resourceOptions -> {
+                            unsupportedOption = true
+                            canonicalOptions += option
+                        }
+                        // Cosmetic/redirect/rewrite exceptions are not network allows.
+                        // Unknown options cannot safely be projected into network policy.
+                        else -> invalid = true
+                    }
+                }
+                // Only ||host^ is an exact supported pattern. A scoped exception may be
+                // widened to its host to avoid blocking content the list explicitly allows.
+                val widened = suffix != "^" || unsupportedOption
+                if (invalid || (widened && !exception)) { unsupported++; continue }
+                val key = (if (exception) "@@" else "") + "||$host$suffix" +
+                    canonicalOptions.distinct().sorted().joinToString(",").let { if (it.isEmpty()) "" else "$$it" }
+                if (badfilter) {
+                    disabled += key
+                    continue
+                }
+                // Top-level navigation's initiator is unavailable to this matcher. Do
+                // not guess its party relationship and accidentally discard an allow.
+                val unknownDocumentParty = document && party != null
+                if (widened || unknownDocumentParty) unsupported++
+                rules[key] = HostRule(host, if (document) null else party, includes.toSet(), excludes.toSet(), exception, document, key)
             }
         }
-        return out
+        return ParsedFilterList(rules.values.toList(), disabled.toSet(), unsupported)
     }
+}
+
+class ParsedFilterList internal constructor(
+    internal val rules: List<HostRule>,
+    internal val disabledRules: Set<String>,
+    val unsupportedRules: Int,
+) {
+    val ruleCount: Int = rules.count { it.key !in disabledRules }
+    val blockRuleCount: Int = rules.count { !it.exception && it.key !in disabledRules }
+}
+
+internal data class HostRule(
+    val host: String,
+    val thirdParty: Boolean?,
+    val includes: Set<String>,
+    val excludes: Set<String>,
+    val exception: Boolean,
+    val document: Boolean,
+    val key: String,
+) {
+    fun appliesTo(pageHost: String, isThirdParty: () -> Boolean): Boolean {
+        if (thirdParty != null && thirdParty != isThirdParty()) return false
+        if (includes.isEmpty() && excludes.isEmpty()) return true
+        // The first configured suffix wins, starting with the page host itself.
+        // An exclusion retains precedence if the same suffix has both entries.
+        var candidate = pageHost
+        while (candidate.isNotEmpty()) {
+            if (candidate in excludes) return false
+            if (candidate in includes) return true
+            val separator = candidate.indexOf('.')
+            if (separator < 0) break
+            candidate = candidate.substring(separator + 1)
+        }
+        return includes.isEmpty()
+    }
+}
+
+internal fun normalizeFilterHost(value: String): String? {
+    val trimmed = value.trimEnd('.')
+    // Nearly all subscription hosts are already ASCII. Avoid IDN's per-label
+    // conversion buffers, but keep its STD3 checks and Unicode normalization.
+    val host = if (trimmed.all { it.code < 128 }) trimmed else runCatching {
+        IDN.toASCII(trimmed, IDN.USE_STD3_ASCII_RULES)
+    }.getOrNull() ?: return null
+    if (host.isEmpty() || host.length > 253) return null
+    var labelStart = 0
+    for (index in 0..host.length) {
+        if (index == host.length || host[index] == '.') {
+            val length = index - labelStart
+            if (length !in 1..63 || host[labelStart] == '-' || host[index - 1] == '-') return null
+            labelStart = index + 1
+        } else {
+            val char = host[index]
+            if (char !in 'a'..'z' && char !in 'A'..'Z' && char !in '0'..'9' && char != '-') return null
+        }
+    }
+    return host.lowercase(Locale.ROOT)
 }
