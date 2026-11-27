@@ -29,6 +29,8 @@ import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.ShieldMoon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -94,6 +96,9 @@ fun AddressBar(
     editRequest: Int = 0,
     onEditRequestHandled: () -> Unit = {},
     modeEnabled: Boolean = true,
+    protectionEnabled: Boolean = true,
+    onProtection: () -> Unit = {},
+    protectionFocusRequester: FocusRequester? = null,
 ) {
     var text by remember(url) { mutableStateOf(TextFieldValue(url, TextRange(url.length))) }
     var editing by remember { mutableStateOf(false) }
@@ -197,6 +202,15 @@ fun AddressBar(
                 onClick = onBookmark,
                 tint = if (isBookmarked) PebbleColors.Primary else PebbleColors.OnSurfaceMuted,
 
+                onUp = { topNavFocusRequester.requestFocus() },
+            )
+            RoundIcon(
+                imageVector = if (protectionEnabled) Icons.Outlined.Shield else Icons.Outlined.ShieldMoon,
+                contentDescription = if (protectionEnabled) "Ad protection on" else "Ad protection off or paused",
+                onClick = onProtection,
+                enabled = modeEnabled,
+                tint = if (protectionEnabled) PebbleColors.Primary else PebbleColors.OnSurfaceMuted,
+                focusRequester = protectionFocusRequester,
                 onUp = { topNavFocusRequester.requestFocus() },
             )
             RoundIcon(Icons.Outlined.MoreVert, "Page options", onClick = onPageMenu,

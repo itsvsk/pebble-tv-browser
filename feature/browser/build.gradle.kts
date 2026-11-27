@@ -20,6 +20,7 @@ android {
 
 dependencies {
     implementation(project(":core:common"))
+    implementation(project(":core:adblock"))
     implementation(project(":core:design"))
     implementation(project(":core:db"))
     implementation(project(":core:webview"))

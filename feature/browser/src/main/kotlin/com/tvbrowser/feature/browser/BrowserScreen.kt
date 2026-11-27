@@ -45,6 +45,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import java.io.IOException
 
 @EntryPoint
@@ -83,6 +84,10 @@ fun BrowserScreen(
     val mediaStates by vm.tabManager.mediaStates.collectAsState()
     val media = mediaStates[tabId] ?: com.tvbrowser.core.webview.TabMediaState()
     var showPageMenu by remember { mutableStateOf(false) }
+    var showProtection by remember(tabId) { mutableStateOf(false) }
+    var restoreProtectionFocus by remember(tabId) { mutableStateOf(false) }
+    val protectionFocusRequester = remember { FocusRequester() }
+    val filterStatus by vm.filterStatus.collectAsState()
     var addressEditRequest by remember { mutableStateOf(0) }
 
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -118,7 +123,19 @@ fun BrowserScreen(
         }
     }
 
-    LaunchedEffect(tabId) { vm.bind(tabId) }
+    LaunchedEffect(tabId) {
+        vm.bind(tabId)
+        while (kotlinx.coroutines.currentCoroutineContext().isActive) {
+            vm.updateProtectionStats()
+            kotlinx.coroutines.delay(400)
+        }
+    }
+    LaunchedEffect(showProtection, restoreProtectionFocus, chromeVisible) {
+        if (!showProtection && restoreProtectionFocus && chromeVisible) {
+            protectionFocusRequester.requestFocus()
+            restoreProtectionFocus = false
+        }
+    }
     LaunchedEffect(ui.error, cursorMode.active) {
         if (ui.error != null) {
             entry.cursorController().setActive(false)
@@ -160,13 +177,16 @@ fun BrowserScreen(
                     if (wv.canGoForward()) wv.goForward()
                 }
             },
-            onReload = { if (ui.error != null) vm.retryPage() else vm.tabManager.getOrCreate(tabId, vm.makeConfig()).reload() },
+            onReload = { if (ui.error != null) vm.retryPage() else vm.tabManager.reloadLiveTab(tabId) },
             onBookmark = { vm.toggleBookmark() },
             onToggleUa = vm::toggleDesktopUa,
             onPageMenu = { entry.cursorController().setActive(false); showPageMenu = true },
             editRequest = addressEditRequest,
             onEditRequestHandled = { addressEditRequest = 0 },
             modeEnabled = ui.siteHost != null,
+            protectionEnabled = ui.adblockEnabled && !ui.protectionPaused,
+            protectionFocusRequester = protectionFocusRequester,
+            onProtection = { entry.cursorController().setActive(false); showProtection = true },
         )
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -200,6 +220,10 @@ fun BrowserScreen(
         onMute = { vm.tabManager.setTabMuted(tabId, !media.muted) },
         onBackground = { vm.tabManager.setTabBackgroundPlayback(tabId, !media.backgroundPlayback) },
         onDismiss = { showPageMenu = false })
+    if (showProtection) BrowserProtectionDialog(ui, filterStatus,
+        onPause = vm::toggleProtectionPause, onToggleSite = vm::toggleSiteAdblock,
+        onResetSite = vm::resetSiteProtection, onRefresh = vm::refreshProtection,
+        onDismiss = { showProtection = false; restoreProtectionFocus = true })
     failedDownload?.let { failed ->
         DownloadFailureDialog(
             message = failed.message,

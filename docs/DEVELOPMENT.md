@@ -65,7 +65,7 @@ See [RELEASING.md](RELEASING.md) for signing setup, retries, local release build
 | `core/design` | Sea Glass themes, typography, focus, shared controls and shell |
 | `core/db` | Room schema, bookmarks, history, tabs, downloads |
 | `core/webview` | WebView lifecycle, tab manager, page modes and navigation guards |
-| `core/adblock` | EasyList parsing, request filtering and refresh work |
+| `core/adblock` | Scoped host-rule filtering, durable per-source updates and protection status; see [protection details](ADBLOCK.md) |
 | `core/cursor` | Pointer movement, scrolling and overlay |
 | `core/downloads` | DownloadManager integration and status updates |
 | `feature/*` | Home, Browser, Tabs, Bookmarks, History, Downloads and Settings |
